@@ -468,14 +468,26 @@ $("#src-pause").addEventListener("click", () => { const el = au.el; if (!el) ret
 $("#src-mic").addEventListener("click", async () => {
   if (au.mode === "mic") { stopAll(); return; }
   stopAll();
+  // Start the audio engine inside the tap itself. iPhone Safari only lets sound processing
+  // start from a direct tap; starting it after the permission prompt can leave it silent.
+  const ctx = ensureCtx(); ctx.resume().catch(() => {});
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
-    const ctx = ensureCtx(); await ctx.resume(); au.out.gain.value = 0;
+    if (ctx.state !== "running") { try { await ctx.resume(); } catch (_) {} }
+    au.out.gain.value = 0;
     const src = ctx.createMediaStreamSource(stream); src.connect(au.input);
-    au.mic = stream; au.micSrc = src; au.mode = "mic";
-    $("#src-mic").setAttribute("aria-pressed", "true"); setNP("Microphone", "Listening to the room");
-  } catch (_) { toast("The microphone isn't available in this preview. It will work once Glint runs on its own site."); }
+    au.mic = stream; au.micSrc = src; au.mode = "mic"; micCheck.t = 0; micCheck.peak = 0; micCheck.warned = false;
+    $("#src-mic").setAttribute("aria-pressed", "true"); setNP("Microphone", "Listening…");
+  } catch (err) { toast(err && err.name === "NotAllowedError" ? "Microphone access was blocked. Allow it in Settings → Safari → Microphone, then try again." : "The microphone couldn't start (" + (err && err.name || "unknown error") + ")."); }
 });
+// Live readout while the mic is on, so it's clear whether Glint can hear anything.
+const micCheck = { t: 0, peak: 0, warned: false, shown: 0 };
+function updateMicReadout(dt, rawLevel) {
+  if (au.mode !== "mic") return;
+  micCheck.t += dt; micCheck.peak = Math.max(micCheck.peak, rawLevel); micCheck.shown += dt;
+  if (micCheck.shown > .25) { micCheck.shown = 0; $("#np-sub").textContent = `Listening · level ${Math.round(Math.min(1, rawLevel * 4) * 100)}% · engine ${au.ctx ? au.ctx.state : "off"}`; }
+  if (!micCheck.warned && micCheck.t > 4 && micCheck.peak < .002) { micCheck.warned = true; toast(`Glint isn't hearing anything yet (engine: ${au.ctx ? au.ctx.state : "off"}). Turn the mic off and on again, and send me a screenshot of this line if it stays at 0%.`); }
+}
 function band(lo, hi, hz) { const f = au.freq; let s = 0, c = 0; for (let i = Math.max(1, Math.floor(lo / hz)); i <= Math.ceil(hi / hz) && i < f.length; i++) { s += f[i]; c++; } return c ? s / c / 255 : 0; }
 function updateAudio(dt) {
   const hits = { kick: false, mid: false, hat: false };
@@ -489,6 +501,7 @@ function updateAudio(dt) {
   const raw = { bass: band(30, 140, hz), mid: band(250, 2500, hz), treble: band(5000, 12000, hz) };
   let sum = 0; for (let i = 0; i < au.time.length; i++) { const v = (au.time[i] - 128) / 128; sum += v * v; }
   const rms = Math.sqrt(sum / au.time.length), keep = Math.pow(.5, dt / 4);
+  updateMicReadout(dt, rms);
   for (const key of ["bass", "mid", "treble"]) {
     agc[key] = Math.max(raw[key], agc[key] * keep, .04);
     const norm = clamp(raw[key] / agc[key], 0, 1), flux = norm - prevB[key];
@@ -1015,6 +1028,10 @@ function setPerform(on) {
   requestAnimationFrame(layout);
 }
 $("#exit-perform").addEventListener("click", () => setPerform(false));
+// iPhone pauses the audio engine when the app is backgrounded or interrupted; wake it on the next tap.
+const wakeAudio = () => { if (au.ctx && au.ctx.state !== "running" && au.mode !== "none") au.ctx.resume().catch(() => {}); };
+document.addEventListener("pointerdown", wakeAudio, true);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) wakeAudio(); });
 document.addEventListener("fullscreenchange", () => { if (!document.fullscreenElement && document.body.classList.contains("perform")) setPerform(false); });
 const SOON = { library: "Library", sources: "Sources", gallery: "Gallery" };
 $$(".tab").forEach(t => t.addEventListener("click", () => { const k = t.dataset.tab; if (k === "perform") setPerform(true); else if (k === "studio") setPerform(false); else toast(`${SOON[k]} comes in a later phase. The Studio is live now.`); }));

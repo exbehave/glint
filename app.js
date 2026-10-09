@@ -458,7 +458,8 @@ $("#src-file").addEventListener("change", e => {
   const el = new Audio(); el.src = URL.createObjectURL(f);
   const src = ctx.createMediaElementSource(el); src.connect(au.input);
   au.el = el; au.elSrc = src; au.mode = "file";
-  el.play().catch(() => toast("Tap Play to start the file."));
+  el.addEventListener("error", () => { if (au.el === el) { stopAll(); toast(`"${f.name}" isn't an audio file this phone can play.`); } });
+  el.play().catch(err => { if (err && err.name === "NotSupportedError") return; toast("Tap Play to start the file."); });
   el.addEventListener("ended", () => { $("#src-pause").textContent = "Play"; });
   $("#src-pause").hidden = false; $("#src-pause").textContent = "Pause";
   setNP(f.name.replace(/\.[^.]+$/, ""), "Local file"); e.target.value = "";

@@ -1,0 +1,948 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" href="icon-192.png" type="image/png">
+</head>
+<body>
+<title>Glint Forms</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500&family=IBM+Plex+Mono:wght@400&display=swap">
+<style>
+/* Layout: a contact sheet of living forms. Sticky steel header with the music controls,
+   a grid of tiles, a picks bar at the bottom. Grayscale UI; only the forms carry color. */
+:root {
+  color-scheme: dark;
+  --bg: #08080a;
+  --panel: #111114;
+  --panel-hi: #19191d;
+  --well: #040405;
+  --line: rgba(232, 232, 242, .075);
+  --line-hi: rgba(232, 232, 242, .17);
+  --fg: #d8d8de;
+  --muted: #8b8b94;
+  --dim: #5c5c64;
+  --silver: #f2f2f6;
+  --font-ui: "Jost", "Futura", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--font-ui); font-size: 14px; -webkit-font-smoothing: antialiased; }
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 1px solid var(--silver); outline-offset: 2px; }
+
+.bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 10; background: rgba(8,8,10,.92); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); }
+.bar-in { max-width: 1320px; margin: 0 auto; padding-inline: 16px; padding-block: 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
+.mark { font-weight: 300; font-size: 20px; letter-spacing: .42em; color: var(--silver); }
+.crumb { color: var(--muted); letter-spacing: .14em; text-transform: uppercase; font-size: 12px; }
+.ctrls { margin-left: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+.src { display: inline-flex; align-items: center; gap: 8px; background: linear-gradient(180deg, #232328, #151518); border: 1px solid var(--line-hi); border-radius: 22px; padding: 7px 14px; color: var(--fg); font-size: 13px; box-shadow: inset 0 1px 0 rgba(255,255,255,.06); }
+.src:hover { border-color: rgba(255,255,255,.3); }
+.src[aria-pressed="true"] { background: linear-gradient(180deg, #f4f4f7, #b9b9c0); color: #0b0b0d; border-color: transparent; }
+.src input { display: none; }
+.react { display: inline-flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); }
+.react output { font-family: var(--font-data); font-size: 12px; color: var(--fg); width: 3.2em; text-align: right; font-variant-numeric: tabular-nums; }
+input[type=range] { -webkit-appearance: none; appearance: none; width: 120px; height: 18px; background: transparent; }
+input[type=range]::-webkit-slider-runnable-track { height: 2px; background: linear-gradient(90deg, var(--silver) var(--p, 70%), rgba(255,255,255,.14) var(--p, 70%)); }
+input[type=range]::-moz-range-track { height: 2px; background: rgba(255,255,255,.14); }
+input[type=range]::-moz-range-progress { height: 2px; background: var(--silver); }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; margin-top: -6px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff, #a9a9b0 55%, #5d5d64); border: 1px solid #1a1a1e; }
+input[type=range]::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff, #a9a9b0 55%, #5d5d64); border: 1px solid #1a1a1e; }
+.beat { width: 9px; height: 9px; border-radius: 50%; background: #2a2a2f; box-shadow: 0 0 0 1px #000; }
+
+main { max-width: 1320px; margin: 0 auto; padding-inline: 16px; padding-block: 20px 110px; }
+.intro { max-width: 64ch; color: var(--muted); line-height: 1.6; margin: 0 0 20px; }
+.intro strong { color: var(--fg); font-weight: 400; }
+.round { display: flex; flex-direction: column; gap: 14px; margin-bottom: 36px; }
+.round-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; border-bottom: 1px solid var(--line); padding-bottom: 10px; }
+.round-head h2 { margin: 0; font-weight: 400; font-size: 13px; letter-spacing: .16em; text-transform: uppercase; color: var(--silver); }
+.round-head span { color: var(--muted); font-size: 13px; }
+.badge { font-family: var(--font-data); font-size: 10.5px; color: var(--muted); border: 1px solid var(--line-hi); border-radius: 4px; padding: 1px 5px; margin-left: 8px; vertical-align: 2px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+.tile { background: repeating-linear-gradient(90deg, rgba(255,255,255,.011) 0 1px, transparent 1px 3px), linear-gradient(180deg, var(--panel-hi), var(--panel)); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; transition: border-color .2s; }
+.tile.picked { border-color: rgba(255,255,255,.45); box-shadow: 0 0 0 1px rgba(255,255,255,.18); }
+.view { position: relative; aspect-ratio: 16 / 10; max-width: 100%; background: var(--well); cursor: zoom-in; border: 0; padding: 0; display: block; width: 100%; }
+.view canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.cap { display: grid; grid-template-columns: 1fr auto; align-items: start; gap: 4px 12px; padding: 12px 14px 14px; }
+.name { color: var(--silver); font-size: 16px; font-weight: 400; margin: 0; }
+.desc { grid-column: 1; color: var(--muted); font-size: 13px; line-height: 1.5; margin: 0; }
+.pick { grid-row: 1 / span 2; grid-column: 2; align-self: center; display: inline-flex; align-items: center; gap: 7px; background: none; border: 1px solid var(--line-hi); border-radius: 20px; padding: 6px 13px; font-size: 12.5px; color: var(--muted); }
+.pick:hover { color: var(--silver); border-color: rgba(255,255,255,.32); }
+.pick[aria-pressed="true"] { background: linear-gradient(180deg, #f4f4f7, #b9b9c0); color: #0b0b0d; border-color: transparent; }
+.pick svg { width: 12px; height: 12px; }
+
+.picks { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; background: rgba(13,13,16,.94); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom, 0px); }
+.picks-in { max-width: 1320px; margin: 0 auto; padding-inline: 16px; padding-block: 12px; display: flex; align-items: center; gap: 14px; }
+.picks-text { flex: 1; min-width: 0; color: var(--muted); font-size: 13.5px; }
+.picks-text b { color: var(--silver); font-weight: 400; }
+.btn { background: none; border: 1px solid var(--line-hi); border-radius: 8px; padding: 7px 13px; color: var(--fg); font-size: 13px; white-space: nowrap; }
+.btn:hover { border-color: rgba(255,255,255,.35); }
+
+.focus { position: fixed; inset: 0; z-index: 20; background: #030304; display: flex; flex-direction: column; }
+.focus-top { display: flex; align-items: center; gap: 12px; padding-inline: 16px; padding-block: calc(12px + env(safe-area-inset-top, 0px)) 12px; border-bottom: 1px solid var(--line); }
+.focus-top .name { flex: 1; }
+.focus-stage { position: relative; flex: 1; min-height: 0; }
+.focus-stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.toast { position: fixed; left: 50%; bottom: 84px; transform: translate(-50%, 10px); background: #1b1b1f; border: 1px solid var(--line-hi); padding: 9px 15px; border-radius: 9px; font-size: 13px; opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s; z-index: 30; }
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+@media (max-width: 640px) {
+  .ctrls { margin-left: 0; width: 100%; }
+  .grid { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<header class="bar">
+  <div class="bar-in">
+    <span class="mark">Glint</span>
+    <span class="crumb">Forms</span>
+    <div class="ctrls">
+      <button class="src" id="demo" aria-pressed="false"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 1.5v9l7-4.5z" fill="currentColor"/></svg>Demo beat</button>
+      <label class="src" id="file-label" role="button" tabindex="0"><input type="file" id="file" accept="audio/*"><svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1v7M3 5l3 3 3-3M1.5 10.5h9" stroke="currentColor" stroke-width="1.3" fill="none"/></svg><span id="file-text">Open audio file</span></label>
+      <label class="react" for="reaction">Reaction <input type="range" id="reaction" min="0" max="100" value="70"><output id="reaction-out">70%</output></label>
+      <span class="beat" id="beat" title="Beat"></span>
+    </div>
+  </div>
+</header>
+
+<main>
+  <p class="intro">Each tile is one <strong>form</strong>: what a node draws. The nodes travel on their own, and everything reacts to the music. Start the demo beat, tap any tile to see it large, and mark the forms that feel right.</p>
+  <section class="round">
+    <div class="round-head"><h2>Round 2</h2><span>From In the Loop, two retuned, and nine new wiggly ones</span></div>
+    <div class="grid" id="grid2"></div>
+  </section>
+  <section class="round">
+    <div class="round-head"><h2>Round 1</h2><span>Your eight picks are marked</span></div>
+    <div class="grid" id="grid1"></div>
+  </section>
+</main>
+
+<div class="picks">
+  <div class="picks-in">
+    <div class="picks-text" id="picks-text">No forms picked yet.</div>
+    <button class="btn" id="copy">Copy picks</button>
+  </div>
+</div>
+
+<div class="focus" id="focus" hidden>
+  <div class="focus-top">
+    <h2 class="name" id="focus-name"></h2>
+    <button class="pick" id="focus-pick" aria-pressed="false">Pick</button>
+    <button class="btn" id="focus-close">Close</button>
+  </div>
+  <div class="focus-stage" id="focus-stage"><canvas id="focus-canvas"></canvas></div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+"use strict";
+const $ = s => document.querySelector(s);
+const TAU = Math.PI * 2;
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const frac = x => x - Math.floor(x);
+function seeded(i) { return frac(Math.sin(i * 127.1 + 311.7) * 43758.5453); }
+function vnoise(x) { const i = Math.floor(x), f = x - i, u = f * f * (3 - 2 * f); return lerp(seeded(i) * 2 - 1, seeded(i + 1) * 2 - 1, u); }
+const hsl = (h, s, l, a) => `hsla(${h},${s}%,${l}%,${a})`;
+
+/* ---------------- Audio ---------------- */
+const A = { bass: 0, mid: 0, treble: 0, rms: 0, kick: 0, hat: 0, hit: false, active: false };
+const au = { ctx: null, an: null, input: null, mode: "none", el: null, elSrc: null, demo: null, freq: null, time: null };
+const agc = { bass: .2, mid: .2, treble: .2, rms: .1 }, prev = { bass: 0, mid: 0, treble: 0 }, since = { bass: 1, mid: 1, treble: 1 };
+function ensureCtx() {
+  if (au.ctx) return au.ctx;
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const an = ctx.createAnalyser(); an.fftSize = 2048; an.smoothingTimeConstant = .5;
+  const input = ctx.createGain(); input.connect(an); an.connect(ctx.destination);
+  Object.assign(au, { ctx, an, input, freq: new Uint8Array(an.frequencyBinCount), time: new Uint8Array(an.fftSize) });
+  return ctx;
+}
+function stopAll() {
+  if (au.demo) { clearInterval(au.demo.timer); try { au.demo.bus.disconnect(); } catch (_) {} au.demo = null; }
+  if (au.el) { au.el.pause(); try { au.elSrc.disconnect(); } catch (_) {} URL.revokeObjectURL(au.el.src); au.el = null; }
+  au.mode = "none";
+  $("#demo").setAttribute("aria-pressed", "false");
+  $("#file-label").setAttribute("aria-pressed", "false");
+  $("#file-text").textContent = "Open audio file";
+}
+function startDemo() {
+  stopAll();
+  const ctx = ensureCtx(); ctx.resume();
+  const bus = ctx.createGain(); bus.gain.value = .75; bus.connect(au.input);
+  const nb = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate), nd = nb.getChannelData(0);
+  for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+  const noise = (t, d) => { const s = ctx.createBufferSource(); s.buffer = nb; s.start(t, Math.random() * .5); s.stop(t + d); return s; };
+  const env = (g, t, v, d) => { g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(.0008, t + d); };
+  const kick = (t, v) => { const o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.setValueAtTime(165, t); o.frequency.exponentialRampToValueAtTime(42, t + .12); env(g, t, v, .42); o.connect(g).connect(bus); o.start(t); o.stop(t + .45); };
+  const snare = (t, v) => { const f = ctx.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = 1900; f.Q.value = .8; const g = ctx.createGain(); env(g, t, v * .5, .2); noise(t, .22).connect(f).connect(g).connect(bus); };
+  const hat = (t, v) => { const f = ctx.createBiquadFilter(); f.type = "highpass"; f.frequency.value = 7500; const g = ctx.createGain(); env(g, t, v * .16, .05); noise(t, .06).connect(f).connect(g).connect(bus); };
+  const bass = (t, fq, d) => { const o = ctx.createOscillator(), f = ctx.createBiquadFilter(), g = ctx.createGain(); o.type = "sawtooth"; o.frequency.value = fq; f.type = "lowpass"; f.frequency.setValueAtTime(900, t); f.frequency.exponentialRampToValueAtTime(220, t + d); g.gain.setValueAtTime(.0008, t); g.gain.exponentialRampToValueAtTime(.2, t + .008); g.gain.exponentialRampToValueAtTime(.0008, t + d); o.connect(f).connect(g).connect(bus); o.start(t); o.stop(t + d + .02); };
+  const pad = (t, fs, d, br) => fs.forEach(fq => [-6, 6].forEach(c => { const o = ctx.createOscillator(), f = ctx.createBiquadFilter(), g = ctx.createGain(); o.type = "triangle"; o.frequency.value = fq; o.detune.value = c; f.type = "lowpass"; f.frequency.value = 900 + br * 3500; g.gain.setValueAtTime(.0008, t); g.gain.exponentialRampToValueAtTime(.03, t + .5); g.gain.setValueAtTime(.03, t + d - .4); g.gain.exponentialRampToValueAtTime(.0008, t + d); o.connect(f).connect(g).connect(bus); o.start(t); o.stop(t + d + .05); }));
+  const ROOTS = [55, 43.65, 65.41, 49], CH = [[220, 261.63, 329.63], [174.61, 220, 261.63], [196, 261.63, 329.63], [196, 246.94, 293.66]];
+  const step = 60 / 122 / 4; let next = ctx.currentTime + .08, n = 0;
+  function sched(i, t) {
+    const s = i % 16, bar = Math.floor(i / 16), sec = bar % 8, ci = bar % 4, build = sec >= 6;
+    if (s === 0) pad(t, CH[ci], step * 16, build ? (sec - 5) / 2 : .15);
+    if (sec === 7 && s >= 12) { snare(t, .4 + (s - 12) * .15); return; }
+    if (s % 4 === 0 && !(sec === 7 && s >= 8)) kick(t, 1);
+    if (s === 4 || s === 12) snare(t, .9);
+    if (build && sec === 7 && s % 2 === 0) snare(t, .35 + s / 30);
+    if (s % 4 === 2) hat(t, 1); else if (build || s % 2 === 1) hat(t, .45);
+    if ([0, 3, 6, 10, 14].includes(s)) bass(t, ROOTS[ci] * (s === 10 ? 2 : 1), step * 2.2);
+  }
+  const timer = setInterval(() => { while (next < ctx.currentTime + .12) { sched(n, next); next += step; n++; } }, 25);
+  au.demo = { timer, bus }; au.mode = "demo";
+  $("#demo").setAttribute("aria-pressed", "true");
+}
+$("#demo").addEventListener("click", () => au.mode === "demo" ? stopAll() : startDemo());
+$("#file").addEventListener("change", e => {
+  const f = e.target.files && e.target.files[0]; if (!f) return;
+  stopAll();
+  const ctx = ensureCtx(); ctx.resume();
+  const el = new Audio(); el.src = URL.createObjectURL(f);
+  const src = ctx.createMediaElementSource(el); src.connect(au.input);
+  au.el = el; au.elSrc = src; au.mode = "file";
+  el.loop = true; el.play().catch(() => {});
+  $("#file-label").setAttribute("aria-pressed", "true");
+  $("#file-text").textContent = f.name.replace(/\.[^.]+$/, "").slice(0, 28);
+  e.target.value = "";
+});
+$("#file-label").addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("#file").click(); } });
+$("#file-label").addEventListener("click", e => { if (au.mode === "file") { e.preventDefault(); stopAll(); } });
+
+function band(lo, hi, hz) { const f = au.freq; let s = 0, c = 0; for (let i = Math.max(1, Math.floor(lo / hz)); i <= Math.ceil(hi / hz) && i < f.length; i++) { s += f[i]; c++; } return c ? s / c / 255 : 0; }
+function updateAudio(dt) {
+  A.hit = false;
+  const k = Math.exp(-7 * dt); A.kick *= k; A.hat *= Math.exp(-12 * dt);
+  A.active = au.mode !== "none";
+  if (!A.active) { A.bass *= .9; A.mid *= .9; A.treble *= .9; A.rms *= .9; return; }
+  au.an.getByteFrequencyData(au.freq); au.an.getByteTimeDomainData(au.time);
+  const hz = au.ctx.sampleRate / au.an.fftSize;
+  const raw = { bass: band(30, 140, hz), mid: band(250, 2500, hz), treble: band(5000, 12000, hz) };
+  let sum = 0; for (let i = 0; i < au.time.length; i++) { const v = (au.time[i] - 128) / 128; sum += v * v; }
+  const rms = Math.sqrt(sum / au.time.length), keep = Math.pow(.5, dt / 4);
+  for (const key of ["bass", "mid", "treble"]) {
+    agc[key] = Math.max(raw[key], agc[key] * keep, .04);
+    const norm = clamp(raw[key] / agc[key], 0, 1), flux = norm - prev[key];
+    since[key] += dt;
+    if (flux > .11 && norm > .6 && since[key] > .11) { since[key] = 0; if (key === "bass") { A.kick = 1; A.hit = true; } else if (key === "treble") A.hat = 1; }
+    prev[key] = norm; A[key] = lerp(A[key], Math.pow(norm, 1.4), .5);
+  }
+  agc.rms = Math.max(rms, agc.rms * keep, .02);
+  A.rms = lerp(A.rms, clamp(rms / agc.rms, 0, 1), .4);
+}
+let reaction = .7;
+$("#reaction").addEventListener("input", e => { reaction = e.target.value / 100; $("#reaction-out").textContent = e.target.value + "%"; e.target.style.setProperty("--p", e.target.value + "%"); });
+
+/* ---------------- Shared drawing helpers ---------------- */
+const spriteCache = new Map();
+function glow(h) {
+  const hue = ((Math.round(h / 5) * 5) % 360 + 360) % 360;
+  let c = spriteCache.get(hue); if (c) return c;
+  c = document.createElement("canvas"); c.width = c.height = 64;
+  const g = c.getContext("2d"), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  gr.addColorStop(0, hsl(hue, 100, 95, 1)); gr.addColorStop(.16, hsl(hue, 100, 70, .75)); gr.addColorStop(.42, hsl(hue, 95, 55, .22)); gr.addColorStop(1, hsl(hue, 90, 45, 0));
+  g.fillStyle = gr; g.fillRect(0, 0, 64, 64); spriteCache.set(hue, c); return c;
+}
+const colCache = new Map();
+function column(h) {
+  const hue = ((Math.round(h / 5) * 5) % 360 + 360) % 360;
+  let c = colCache.get(hue); if (c) return c;
+  c = document.createElement("canvas"); c.width = 2; c.height = 128;
+  const g = c.getContext("2d"), gr = g.createLinearGradient(0, 128, 0, 0);
+  gr.addColorStop(0, hsl(hue, 95, 55, 0)); gr.addColorStop(.12, hsl(hue, 100, 62, .9)); gr.addColorStop(.5, hsl(hue + 25, 95, 58, .45)); gr.addColorStop(1, hsl(hue + 50, 90, 55, 0));
+  g.fillStyle = gr; g.fillRect(0, 0, 2, 128); colCache.set(hue, c); return c;
+}
+function sprite(ctx, h, x, y, r, a) { ctx.globalAlpha = a; ctx.drawImage(glow(h), x - r, y - r, r * 2, r * 2); ctx.globalAlpha = 1; }
+function fillRibbon(ctx, pts, halfAt) {
+  const n = pts.length; if (n < 2) return;
+  const L = [], R = [];
+  for (let i = 0; i < n; i++) {
+    const a = pts[Math.max(0, i - 1)], b = pts[Math.min(n - 1, i + 1)];
+    const tx = b[0] - a[0], ty = b[1] - a[1], tl = Math.hypot(tx, ty) || 1, h = halfAt(i / (n - 1));
+    const nx = -ty / tl * h, ny = tx / tl * h;
+    L.push([pts[i][0] + nx, pts[i][1] + ny]); R.push([pts[i][0] - nx, pts[i][1] - ny]);
+  }
+  ctx.beginPath(); ctx.moveTo(L[0][0], L[0][1]);
+  for (let i = 1; i < n; i++) ctx.lineTo(L[i][0], L[i][1]);
+  for (let i = n - 1; i >= 0; i--) ctx.lineTo(R[i][0], R[i][1]);
+  ctx.closePath(); ctx.fill();
+}
+function strokePath(ctx, pts) { ctx.beginPath(); pts.forEach((p, i) => i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])); ctx.stroke(); }
+function fade(ctx, W, H, a) { ctx.globalCompositeOperation = "source-over"; ctx.fillStyle = `rgba(4,4,6,${a})`; ctx.fillRect(0, 0, W, H); }
+const NEON = [[1, .07, 0], [.45, .22, 0], [.2, .7, .1], [.07, .95, .6]];
+let whiteGlow = null;
+function spriteWhite(ctx, x, y, r, a) {
+  if (!whiteGlow) { whiteGlow = document.createElement("canvas"); whiteGlow.width = whiteGlow.height = 64; const g = whiteGlow.getContext("2d"), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, "rgba(255,255,255,1)"); gr.addColorStop(.2, "rgba(255,235,250,.7)"); gr.addColorStop(.5, "rgba(255,190,240,.18)"); gr.addColorStop(1, "rgba(255,160,230,0)"); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); }
+  ctx.globalAlpha = a; ctx.drawImage(whiteGlow, x - r, y - r, r * 2, r * 2); ctx.globalAlpha = 1;
+}
+function hueRGB(h) { h = ((h % 360) + 360) % 360 / 60; const c = 1, x = 1 - Math.abs(h % 2 - 1); const m = [[c, x, 0], [x, c, 0], [0, c, x], [0, x, c], [x, 0, c], [c, 0, x]][Math.floor(h) % 6]; return m.map(v => Math.round(40 + v * 215)); }
+function ribbonNeon(ctx, pts, hue, halfAt, alpha = 1) { NEON.forEach(([k, a, wh]) => { ctx.fillStyle = hsl(hue, 100, 60 + wh * 40, a * alpha); fillRibbon(ctx, pts, f => halfAt(f) * k); }); }
+
+/* Nodes that travel on their own: smooth wandering paths, each with its own personality */
+function makeNodes(n, base, hues) {
+  return Array.from({ length: n }, (_, i) => {
+    const s = k => seeded(base * 31 + i * 7 + k);
+    return { a: .5 + s(1) * .5, b: .23 + s(2) * .3, c: .4 + s(3) * .5, d: .17 + s(4) * .3, p: s(5) * TAU, q: s(6) * TAU, r: s(7) * TAU, hue: hues[i % hues.length], x: 0, y: 0, vx: 0, vy: 0, ang: s(8) * TAU, init: false };
+  });
+}
+function moveNodes(nodes, t, W, H, reach = 1) {
+  for (const n of nodes) {
+    const x = W * (.5 + .36 * reach * Math.sin(t * n.a + n.p) * (.72 + .28 * Math.cos(t * n.b + n.q)));
+    const y = H * (.5 + .32 * reach * Math.sin(t * n.c + n.r) * (.72 + .28 * Math.sin(t * n.d + n.p)));
+    if (n.init) { n.vx = x - n.x; n.vy = y - n.y; if (Math.hypot(n.vx, n.vy) > .01) { const ta = Math.atan2(n.vy, n.vx); let d = ta - n.ang; d = Math.atan2(Math.sin(d), Math.cos(d)); n.ang += d * .15; } }
+    n.x = x; n.y = y; n.init = true;
+  }
+}
+
+/* ---------------- The forms ---------------- */
+const FORMS = [
+  { key: "ribbon", name: "Neon ribbon", desc: "A glowing tube trails each node's path, thickening on every kick.",
+    make() {
+      const nodes = makeNodes(3, 11, [312, 190, 38]); const hist = nodes.map(() => []);
+      return { nodes, step(ctx, W, H, dt, R, S) {
+        fade(ctx, W, H, 1);
+        moveNodes(nodes, this.t, W, H);
+        ctx.globalCompositeOperation = "lighter";
+        nodes.forEach((n, i) => {
+          const h = hist[i]; h.push([n.x, n.y]); if (h.length > 170) h.shift();
+          const w = S * (.016 + .03 * R.kick + .008 * R.bass) * (1 + .15 * R.idle * R.breath);
+          NEON.forEach(([k, a, wh]) => { ctx.fillStyle = hsl(n.hue, 100, 60 + wh * 40, a); fillRibbon(ctx, h, f => w * k * Math.pow(f, .9)); });
+          sprite(ctx, n.hue, n.x, n.y, w * 2.4, .9);
+        });
+      } };
+    } },
+  { key: "whip", round: 2, retuned: true, name: "Whip strand", desc: "Retuned: a floating strand slithers behind each node and cracks like a whip on the beat.",
+    make() {
+      const nodes = makeNodes(3, 23, [268, 22, 175]), N = 28;
+      const chains = nodes.map(() => Array.from({ length: N }, () => ({ x: 0, y: 0, px: 0, py: 0, init: false })));
+      return { nodes, step(ctx, W, H, dt, R, S) {
+        fade(ctx, W, H, .42);
+        moveNodes(nodes, this.t, W, H, .9);
+        const seg = S * (.015 + .006 * R.bass), hit = this.beat;
+        ctx.globalCompositeOperation = "lighter";
+        nodes.forEach((n, ci) => {
+          const ch = chains[ci];
+          ch.forEach((p, i) => { if (!p.init) { p.x = p.px = n.x; p.y = p.py = n.y + i * seg; p.init = true; } });
+          for (let i = 1; i < N; i++) { const p = ch[i], vx = (p.x - p.px) * .93, vy = (p.y - p.py) * .93; p.px = p.x; p.py = p.y; p.x += vx; p.y += vy; }
+          if (hit) { const a = n.ang + Math.PI / 2; for (let i = 1; i < N; i++) { const f = S * (.012 + .03 * R.kick) * (i / N) * (Math.random() < .5 ? 1 : -1); ch[i].x += Math.cos(a) * f; ch[i].y += Math.sin(a) * f; } }
+          ch[0].x = n.x; ch[0].y = n.y;
+          for (let it = 0; it < 4; it++) for (let i = 1; i < N; i++) { const a = ch[i - 1], b = ch[i], dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 1, k = (d - seg) / d; if (i === 1) { b.x -= dx * k; b.y -= dy * k; } else { a.x += dx * k * .5; a.y += dy * k * .5; b.x -= dx * k * .5; b.y -= dy * k * .5; } ch[0].x = n.x; ch[0].y = n.y; }
+          const pts = ch.map((p, i) => {
+            const a = ch[Math.max(0, i - 1)], b = ch[Math.min(N - 1, i + 1)], tx = b.x - a.x, ty = b.y - a.y, l = Math.hypot(tx, ty) || 1;
+            const o = Math.sin(i * .55 - this.t * 9 + ci * 2) * S * (.014 + .03 * R.kick + .012 * R.energy) * (i / N);
+            return [p.x - ty / l * o, p.y + tx / l * o];
+          });
+          const w = S * (.013 + .02 * R.kick);
+          NEON.forEach(([k, a, wh]) => { ctx.fillStyle = hsl(n.hue, 100, 60 + wh * 40, a); fillRibbon(ctx, pts, f => w * k * (1 - f * .85)); });
+          sprite(ctx, n.hue, n.x, n.y, w * 2.6, .95);
+        });
+      } };
+    } },
+  { key: "halo", name: "Halo rings", desc: "Tilted rings ripple out from each node like shockwaves; a dashed orbit spins around it.",
+    make() {
+      const nodes = makeNodes(3, 37, [190, 300, 45]), rings = [];
+      return { nodes, step(ctx, W, H, dt, R, S) {
+        fade(ctx, W, H, .32);
+        moveNodes(nodes, this.t, W, H, .85);
+        if (this.beat) nodes.forEach(n => rings.push({ n, r: S * .02, a: 1, rot: n.ang, sq: .3 + Math.random() * .5, hue: n.hue }));
+        ctx.globalCompositeOperation = "lighter";
+        for (let i = rings.length - 1; i >= 0; i--) {
+          const g = rings[i]; g.r += dt * S * (.22 + .35 * R.energy); g.a -= dt * .9;
+          if (g.a <= 0) { rings.splice(i, 1); continue; }
+          ctx.lineWidth = S * .006 * g.a + 1;
+          [[4, .12], [1, .8]].forEach(([wm, al]) => { ctx.lineWidth = (S * .004 * wm) * g.a + .8; ctx.strokeStyle = hsl(g.hue, 100, 70, g.a * al); ctx.beginPath(); ctx.ellipse(g.n.x, g.n.y, g.r, g.r * g.sq, g.rot, 0, TAU); ctx.stroke(); });
+        }
+        nodes.forEach((n, i) => {
+          const r = S * (.055 + .035 * R.bass + .01 * R.idle * R.breath);
+          ctx.setLineDash([S * .012, S * .022]); ctx.lineDashOffset = -this.t * S * .3 * (i % 2 ? 1 : -1);
+          ctx.lineWidth = 1.6; ctx.strokeStyle = hsl(n.hue, 90, 75, .7);
+          ctx.beginPath(); ctx.ellipse(n.x, n.y, r, r * .45, this.t * .4 + i, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
+          sprite(ctx, n.hue, n.x, n.y, S * (.035 + .03 * R.kick), .95);
+        });
+      } };
+    } },
+  { key: "wave", name: "Wave line", desc: "Each node pulls a waveform across the screen; the swell follows the node as it travels.",
+    make() {
+      const nodes = makeNodes(3, 41, [175, 320, 50]);
+      return { nodes, step(ctx, W, H, dt, R, S) {
+        fade(ctx, W, H, .38);
+        moveNodes(nodes, this.t, W, H, .8);
+        ctx.globalCompositeOperation = "lighter"; ctx.lineJoin = ctx.lineCap = "round";
+        nodes.forEach((n, i) => {
+          const pts = [], freq = 2.2 + i * 1.3, amp = S * (.08 + .16 * R.energy);
+          for (let x = 0; x <= W; x += W / 180) {
+            const f = x / W, d = (x - n.x) / (W * .3), env = .12 + Math.exp(-d * d) * (.7 + .5 * R.kick);
+            const v = Math.sin(f * freq * TAU - this.t * 3.2 + i) * .7 + Math.sin(f * freq * 2.7 * TAU + this.t * 2.1) * .3 * (.4 + R.treble);
+            pts.push([x, n.y + v * env * amp]);
+          }
+          [[7, .1], [2.6, .38], [1.1, 1]].forEach(([w, a]) => { ctx.lineWidth = w * (1 + R.kick * .6); ctx.strokeStyle = hsl(n.hue, 100, 64 + (w < 2 ? 25 : 0), a); strokePath(ctx, pts); });
+          sprite(ctx, n.hue, n.x, n.y, S * .03, .7);
+        });
+      } };
+    } },
+  { key: "aurora", name: "Aurora curtain", desc: "Folding curtains of light hang from each node and rise with the music's energy.",
+    make() {
+      const nodes = makeNodes(3, 53, [150, 195, 275]);
+      return { nodes, step(ctx, W, H, dt, R, S) {
+        ctx.globalCompositeOperation = "source-over";
+        const sky = ctx.createLinearGradient(0, 0, 0, H); sky.addColorStop(0, "#030307"); sky.addColorStop(1, "#07080e");
+        ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
+        moveNodes(nodes, this.t * .7, W, H, .7);
+        ctx.globalCompositeOperation = "lighter";
+        nodes.forEach((n, i) => {
+          const cols = 60, span = W * .62, cw = span / cols;
+          for (let c = 0; c < cols; c++) {
+            const f = c / (cols - 1), x = n.x - span / 2 + f * span + Math.sin(f * 3 + this.t + i) * S * .03;
+            const fold = .5 + .5 * Math.sin(f * 13 + this.t * 2.2 + i * 2) * Math.sin(f * 4.5 - this.t * .8 + i);
+            const edge = Math.sin(f * Math.PI);
+            const h = S * (.16 + .42 * R.energy) * (.55 + .45 * fold) * edge;
+            const base = n.y + S * .2 + Math.sin(f * 5 + this.t * .6) * S * .02;
+            ctx.globalAlpha = (.25 + .55 * fold) * edge * (.6 + .4 * R.kick + .2);
+            ctx.drawImage(column(n.hue + f * 30), x, base - h, cw * 1.7, h);
+          }
+          ctx.globalAlpha = 1;
+        });
+      } };
+    } },
+  { key: "branches", round: 2, retuned: true, name: "Branching limbs", desc: "Retuned: long, curving limbs that split wide and sway, rather than a tight fan.",
+    make() {
+      const nodes = makeNodes(3, 67, [40, 330, 160]);
+      return { nodes, step(ctx, W, H, dt, R, S) {
+        fade(ctx, W, H, .3);
+        moveNodes(nodes, this.t * .7, W, H, .65);
+        ctx.globalCompositeOperation = "lighter"; ctx.lineCap = "round";
+        nodes.forEach((n, i) => {
+          const depth = clamp(3 + Math.round(R.energy * 1.6), 3, 5);
+          const trunk = S * (.1 + .04 * R.energy) * (1 + .25 * R.kick);
+          const spread = .62 + .16 * Math.sin(this.t * .7 + i * 2) + R.mid * .25;
+          const t = this.t, segs = [], tips = [];
+          (function br(x, y, a, len, d) {
+            const ex = x + Math.cos(a) * len, ey = y + Math.sin(a) * len;
+            const bend = Math.sin(t * 1.3 + d * 1.7 + i) * len * .28;
+            segs.push([x, y, (x + ex) / 2 - Math.sin(a) * bend, (y + ey) / 2 + Math.cos(a) * bend, ex, ey, d]);
+            if (d >= depth) { tips.push([ex, ey]); return; }
+            const s = spread * (1 - d * .06) + Math.sin(t * 1.1 + d + i) * .14, nl = len * .76;
+            br(ex, ey, a - s, nl, d + 1); br(ex, ey, a + s, nl, d + 1);
+          })(n.x, n.y, n.ang + Math.PI, trunk, 0);
+          [[3.4, .12], [1, .85]].forEach(([wm, al]) => {
+            for (let d = 0; d <= depth; d++) {
+              ctx.lineWidth = (1.2 + (depth - d) * 1.1) * wm; ctx.strokeStyle = hsl(n.hue + d * 8, 100, 62 + (wm < 2 ? 18 : 0), al);
+              ctx.beginPath(); segs.forEach(s => { if (s[6] === d) { ctx.moveTo(s[0], s[1]); ctx.quadraticCurveTo(s[2], s[3], s[4], s[5]); } }); ctx.stroke();
+            }
+          });
+          tips.forEach((p, k) => { const tw = .5 + .5 * Math.sin(this.t * 4 + k * .7 + i); sprite(ctx, n.hue + 20, p[0], p[1], S * (.008 + .012 * R.hat) * (.6 + .6 * tw), .7 * tw + .2); });
+          sprite(ctx, n.hue, n.x, n.y, S * .035, .9);
+        });
+      } };
+    } },
+  { key: "lightning", name: "Lightning", desc: "Plasma hums between the nodes; kicks fire forked bolts from one to the next.",
+    make() {
+      const nodes = makeNodes(3, 79, [255, 200, 300]), bolts = []; let flash = 0;
+      function bolt(x0, y0, x1, y1, disp) {
+        let pts = [[x0, y0], [x1, y1]];
+        for (let k = 0; k < 6; k++) { const nx = []; for (let i = 0; i < pts.length - 1; i++) { const a = pts[i], b = pts[i + 1], dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy) || 1, o = (Math.random() - .5) * disp; nx.push(a, [(a[0] + b[0]) / 2 - dy / l * o, (a[1] + b[1]) / 2 + dx / l * o]); } nx.push(pts[pts.length - 1]); pts = nx; disp *= .55; }
+        return pts;
+      }
+      return { nodes, step(ctx, W, H, dt, R, S) {
+        fade(ctx, W, H, .5);
+        moveNodes(nodes, this.t * .6, W, H, .8);
+        ctx.globalCompositeOperation = "lighter"; ctx.lineJoin = ctx.lineCap = "round";
+        for (let i = 0; i < nodes.length; i++) {
+          const a = nodes[i], b = nodes[(i + 1) % nodes.length];
+          const p = bolt(a.x, a.y, b.x, b.y, S * (.03 + .04 * R.treble));
+          ctx.lineWidth = 1; ctx.strokeStyle = hsl(a.hue, 90, 70, .1 + .15 * R.energy); strokePath(ctx, p);
+        }
+        if (this.beat) {
+          const i = Math.floor(Math.random() * nodes.length), a = nodes[i];
+          const b = Math.random() < .7 ? nodes[(i + 1 + Math.floor(Math.random() * (nodes.length - 1))) % nodes.length] : { x: Math.random() * W, y: Math.random() < .5 ? 0 : H };
+          const main = bolt(a.x, a.y, b.x, b.y, S * .25);
+          bolts.push({ pts: main, hue: a.hue, age: 0, w: 1 });
+          for (let f = 0; f < 2; f++) { const s = main[Math.floor(main.length * (.3 + Math.random() * .4))], ang = Math.random() * TAU, L = S * (.08 + Math.random() * .12); bolts.push({ pts: bolt(s[0], s[1], s[0] + Math.cos(ang) * L, s[1] + Math.sin(ang) * L, L * .5), hue: a.hue, age: 0, w: .55 }); }
+          flash = .12 + .15 * R.kick;
+        }
+        for (let i = bolts.length - 1; i >= 0; i--) {
+          const bl = bolts[i]; bl.age += dt; if (bl.age > .5) { bolts.splice(i, 1); continue; }
+          const env = 1 - bl.age / .5, fl = bl.age < .25 ? .55 + .45 * Math.abs(Math.sin(bl.age * 30)) : 1, a = env * env * fl;
+          [[8, .12, 70], [3, .45, 72], [1.2, 1, 97]].forEach(([w, al, l]) => { ctx.lineWidth = w * bl.w; ctx.strokeStyle = hsl(bl.hue, 100, l, a * al); strokePath(ctx, bl.pts); });
+        }
+        nodes.forEach(n => sprite(ctx, n.hue, n.x, n.y, S * (.03 + .025 * R.kick), .9));
+        if (flash > 0) { ctx.globalCompositeOperation = "lighter"; ctx.fillStyle = `rgba(200,200,255,${flash * .25})`; ctx.fillRect(0, 0, W, H); flash = Math.max(0, flash - dt * 2.5); }
+      } };
+    } },
+  { key: "kaleido", name: "Kaleidoscope", desc: "Every node's petal is mirrored twelve ways around the center, building a slow mandala.",
+    make() {
+      const nodes = makeNodes(3, 97, [300, 45, 185]);
+      return { nodes, step(ctx, W, H, dt, R, S) {
+        fade(ctx, W, H, .1);
+        moveNodes(nodes, this.t * .7, W, H, .8);
+        const cx = W / 2, cy = H / 2, spin = this.t * .12;
+        ctx.globalCompositeOperation = "lighter";
+        nodes.forEach(n => {
+          const rx = (n.x - cx) * .85, ry = (n.y - cy) * .85, L = S * (.035 + .05 * R.energy + .03 * R.kick), wd = L * .32;
+          for (let k = 0; k < 12; k++) {
+            ctx.save(); ctx.translate(cx, cy); ctx.rotate(spin + Math.floor(k / 2) * TAU / 6); if (k % 2) ctx.scale(1, -1);
+            ctx.translate(rx, ry); ctx.rotate(n.ang);
+            ctx.beginPath(); ctx.moveTo(-L / 2, 0); ctx.quadraticCurveTo(0, -wd, L / 2, 0); ctx.quadraticCurveTo(0, wd, -L / 2, 0);
+            ctx.fillStyle = hsl(n.hue, 95, 58, .22 + .2 * R.kick); ctx.fill();
+            ctx.lineWidth = 1; ctx.strokeStyle = hsl(n.hue, 100, 85, .35); ctx.stroke();
+            ctx.restore();
+          }
+        });
+        sprite(ctx, 0, cx, cy, S * (.05 + .04 * R.kick), .5);
+      } };
+    } },
+  { key: "orbiters", name: "Orbiters", desc: "Each node is a star with moons on tilted orbits; kicks fling the orbits wider.",
+    make() {
+      const nodes = makeNodes(2, 113, [38, 205]);
+      const moons = nodes.map((n, i) => Array.from({ length: 5 }, (_, j) => ({ th: seeded(i * 9 + j) * TAU, hue: n.hue + (j - 2) * 22 })));
+      return { nodes, step(ctx, W, H, dt, R, S) {
+        fade(ctx, W, H, .2);
+        moveNodes(nodes, this.t * .5, W, H, .55);
+        ctx.globalCompositeOperation = "lighter";
+        nodes.forEach((n, i) => {
+          const tilt = this.t * .15 + i * 1.3, sq = .38 + .15 * Math.sin(this.t * .3 + i);
+          const back = [], front = [];
+          moons[i].forEach((m, j) => {
+            const r = S * (.06 + .04 * j) * (1 + .45 * R.kick + .1 * R.bass);
+            m.th += dt * (1.8 / Math.pow(j + 1, .7)) * (1 + R.rms * 1.5) * (i % 2 ? -1 : 1);
+            const ox = Math.cos(m.th) * r, oy = Math.sin(m.th) * r * sq, z = Math.sin(m.th);
+            const x = n.x + ox * Math.cos(tilt) - oy * Math.sin(tilt), y = n.y + ox * Math.sin(tilt) + oy * Math.cos(tilt);
+            (z < 0 ? back : front).push([x, y, z, m.hue]);
+          });
+          const draw = list => list.forEach(([x, y, z, h]) => sprite(ctx, h, x, y, S * .026 * (1 + .35 * z), .55 + .4 * (z + 1) / 2));
+          draw(back);
+          sprite(ctx, n.hue, n.x, n.y, S * (.06 + .03 * R.kick + .01 * R.breath), .95);
+          draw(front);
+        });
+      } };
+    } },
+  { key: "dust", name: "Dust spray", desc: "Each node sprays glowing particles as it travels, the look from the first build.",
+    make() {
+      const nodes = makeNodes(3, 131, [312, 190, 38]), ps = [];
+      return { nodes, step(ctx, W, H, dt, R, S) {
+        fade(ctx, W, H, .22);
+        moveNodes(nodes, this.t, W, H);
+        ctx.globalCompositeOperation = "lighter";
+        nodes.forEach(n => {
+          n.acc = (n.acc || 0) + dt * (30 + 160 * R.energy);
+          while (n.acc >= 1 && ps.length < 1400) { n.acc -= 1; const a = Math.random() * TAU, sp = S * (.04 + .2 * R.kick + .05 * Math.random()); const life = .8 + Math.random(); ps.push({ x: n.x, y: n.y, vx: Math.cos(a) * sp + n.vx * 10, vy: Math.sin(a) * sp + n.vy * 10, life, max: life, h: n.hue + (Math.random() - .5) * 30 }); }
+          n.acc = Math.min(n.acc, 1);
+        });
+        for (let i = ps.length - 1; i >= 0; i--) { const p = ps[i]; p.life -= dt; if (p.life <= 0) { ps[i] = ps[ps.length - 1]; ps.pop(); continue; } p.vx *= .985; p.vy *= .985; p.x += p.vx * dt; p.y += p.vy * dt; const t = p.life / p.max; sprite(ctx, p.h, p.x, p.y, S * .012 * (.4 + .6 * t), Math.min(1, (1 - t) * 6) * t * .8); }
+        nodes.forEach(n => sprite(ctx, n.hue, n.x, n.y, S * (.03 + .03 * R.kick), .95));
+      } };
+    } },
+
+  /* ---------- Round 2 ---------- */
+  { key: "tornado", round: 2, name: "Tornado", desc: "From In the Loop: neon tubes spiral up from one white-hot point and flare open at the top.",
+    make() {
+      const nodes = makeNodes(1, 151, [300]);
+      const strands = [312, 190, 38, 265, 150, 0].map((hue, i) => ({ hue, az: i / 6 * TAU + seeded(i) * .4, twist: .9 + seeded(i + 9) * .5, pitch: 1.1 + seeded(i + 19) * .5, dir: i % 2 ? -1 : 1, ph: seeded(i + 29) }));
+      return { nodes, step(ctx, W, H, dt, R, S) {
+        fade(ctx, W, H, 1);
+        moveNodes(nodes, this.t * .5, W, H, .4);
+        const n = nodes[0], bx = n.x, by = clamp(n.y + H * .32, H * .62, H * .95), height = by - H * .1;
+        const coneW = S * (.2 + .12 * R.energy + .1 * R.kick), spin = 1.2 + 1.6 * R.rms, lean = Math.sin(this.t * .5) * coneW * .35;
+        ctx.globalCompositeOperation = "lighter";
+        strands.forEach(st => {
+          const pts = [];
+          for (let i = 0; i <= 70; i++) {
+            const h = i / 70, ang = st.az + st.twist * h * TAU * st.dir + this.t * spin * st.dir + Math.sin(this.t * 1.3 + h * 6 + st.ph * 9) * .35;
+            const r = coneW * (.02 + Math.pow(h, st.pitch)) * (1 + .07 * Math.sin(h * 8 - this.t * 2));
+            pts.push([bx + lean * h + Math.cos(ang) * r, by - h * height + Math.sin(ang) * r * .28]);
+          }
+          const w = S * (.02 + .018 * R.kick);
+          ribbonNeon(ctx, pts, st.hue, f => w * (.25 + .75 * Math.min(1, f * 2.5)), .85);
+        });
+        spriteWhite(ctx, bx, by, S * (.07 + .05 * R.kick), .95);
+      } };
+    } },
+  { key: "vine", round: 2, name: "Filigree vine", desc: "From the Siren: each node lays a vine of curling sprigs and paisley petals, with light running along its beads.",
+    make() {
+      const nodes = makeNodes(2, 163, [320, 170]), hist = nodes.map(() => []);
+      return { nodes, step(ctx, W, H, dt, R, S) {
+        fade(ctx, W, H, 1);
+        moveNodes(nodes, this.t * .8, W, H, .85);
+        ctx.globalCompositeOperation = "lighter"; ctx.lineCap = ctx.lineJoin = "round";
+        nodes.forEach((n, ni) => {
+          const h = hist[ni], last = h[h.length - 1];
+          if (!last || Math.hypot(n.x - last[0], n.y - last[1]) > S * .004) { h.push([n.x, n.y]); if (h.length > 170) h.shift(); }
+          if (h.length < 6) return;
+          [[3, .12], [1.2, .9]].forEach(([w, a]) => { ctx.lineWidth = w; ctx.strokeStyle = hsl(n.hue, 90, 70, a); strokePath(ctx, h); });
+          const L = S * (.045 + .02 * R.energy + .02 * R.kick);
+          for (let i = h.length - 1, k = 0; i > 4; i -= 12, k++) {
+            const p = h[i], q = h[i - 3], tang = Math.atan2(p[1] - q[1], p[0] - q[0]), side = k % 2 ? 1 : -1;
+            const grow = Math.min(1, (h.length - 1 - i) / 24), len = L * grow * (1 - (h.length - 1 - i) / h.length * .45);
+            if (len < 1) continue;
+            const pts = []; let x = p[0], y = p[1], a = tang + side * 1.1;
+            for (let u = 0; u <= 24; u++) { pts.push([x, y]); const f = u / 24; a += side * (.05 + f * f * .5) * (1 + .25 * Math.sin(this.t * 2 + k)); const sl = len / 24 * (1 - f * .6); x += Math.cos(a) * sl; y += Math.sin(a) * sl; }
+            ctx.lineWidth = 1.4; ctx.strokeStyle = hsl(n.hue + 30, 95, 72, .75); strokePath(ctx, pts);
+            ctx.save(); ctx.translate(pts[6][0], pts[6][1]); ctx.rotate(tang + side * 1.9);
+            const pl = len * .5 * (1 + .4 * R.kick);
+            ctx.beginPath(); ctx.moveTo(0, 0); ctx.bezierCurveTo(pl * .5, -pl * .45, pl, -pl * .1, pl * .8, pl * .25); ctx.bezierCurveTo(pl * .6, pl * .4, pl * .2, pl * .2, 0, 0);
+            ctx.fillStyle = hsl(n.hue - 25, 100, 60, .3); ctx.fill(); ctx.lineWidth = 1; ctx.strokeStyle = hsl(n.hue - 25, 100, 82, .6); ctx.stroke();
+            ctx.restore();
+          }
+          for (let i = 0; i < h.length; i += 5) { const tw = Math.pow(.5 + .5 * Math.sin(this.t * 7 - i * .25), 6); sprite(ctx, n.hue + 40, h[i][0], h[i][1], S * (.006 + .012 * tw), .25 + .75 * tw); }
+          sprite(ctx, n.hue, n.x, n.y, S * .035, .9);
+        });
+      } };
+    } },
+  { key: "tubeman", round: 2, name: "Tube dancer", desc: "A floppy inflatable tube that flails its arms and folds in half on the kicks.",
+    make() {
+      const nodes = makeNodes(3, 177, [310, 45, 185]), st = nodes.map((_, i) => ({ fold: 0, side: i % 2 ? 1 : -1 }));
+      return { nodes, step(ctx, W, H, dt, R, S) {
+        fade(ctx, W, H, 1);
+        moveNodes(nodes, this.t * .35, W, H, .85);
+        ctx.globalCompositeOperation = "lighter";
+        const T = this.t * 2.6;
+        nodes.forEach((n, i) => {
+          const s = st[i];
+          if (this.beat && Math.random() < .75) { s.fold = 1; s.side = Math.random() < .5 ? -1 : 1; }
+          s.fold = Math.max(0, s.fold - dt * 1.5);
+          const N = 30, seg = H * .7 / N; let x = n.x, y = H * .99, a; const pts = [[x, y]];
+          for (let k = 1; k <= N; k++) {
+            const f = k / N;
+            a = -Math.PI / 2 + f * (.8 + .7 * R.energy) * (Math.sin(T * 1.7 - k * .35 + i * 2) * .55 + Math.sin(T * 2.9 - k * .6 + i) * .3)
+              + (f > .45 ? s.side * Math.sin(s.fold * Math.PI) * 2.4 * (f - .45) / .55 : 0);
+            x += Math.cos(a) * seg; y += Math.sin(a) * seg; pts.push([x, y]);
+          }
+          const w = S * .042 * (1 + .15 * R.kick);
+          ribbonNeon(ctx, pts, n.hue, f => w * .5 * (1.5 - f * .3), .9);
+          const ai = Math.round(N * .74), sh = pts[ai], sp = pts[ai - 1], bodyA = Math.atan2(sh[1] - sp[1], sh[0] - sp[0]);
+          [-1, 1].forEach(sd => {
+            const arm = [[sh[0], sh[1]]]; let ax = sh[0], ay = sh[1], aa = bodyA + sd * (1.3 + .8 * Math.sin(T * 2.4 + sd + i * 3));
+            for (let k = 0; k < 10; k++) { aa += sd * .14 * Math.sin(T * 3.1 + k * .5 + i); ax += Math.cos(aa) * S * .017; ay += Math.sin(aa) * S * .017; arm.push([ax, ay]); }
+            ribbonNeon(ctx, arm, n.hue + 15, f => w * .3 * (1 - f * .4), .9);
+          });
+          const hd = pts[N]; sprite(ctx, n.hue, hd[0], hd[1], w * 1.5, .9);
+        });
+      } };
+    } },
+  { key: "inchworm", round: 2, name: "Inchworm", desc: "A segmented body that scrunches into a hump and stretches out again, inching along with the beat.",
+    make() {
+      const nodes = makeNodes(2, 191, [95, 320]), hist = nodes.map(() => []), ph = [0, .5];
+      return { nodes, step(ctx, W, H, dt, R, S) {
+        fade(ctx, W, H, 1);
+        moveNodes(nodes, this.t * .5, W, H, .75);
+        ctx.globalCompositeOperation = "lighter";
+        nodes.forEach((n, i) => {
+          const h = hist[i]; h.push([n.x, n.y]); if (h.length > 600) h.shift();
+          ph[i] += dt * (.9 + 1.6 * R.rms) + (this.beat ? .25 : 0);
+          const sc = Math.pow(.5 - .5 * Math.cos(ph[i] * TAU), 1.5);
+          const segs = 15, r0 = S * .036, spacing = r0 * (1.15 - .55 * sc);
+          const body = [h[h.length - 1]]; let acc = 0;
+          for (let j = h.length - 1; j > 0 && body.length < segs; j--) { acc += Math.hypot(h[j][0] - h[j - 1][0], h[j][1] - h[j - 1][1]); if (acc >= spacing) { body.push(h[j - 1]); acc = 0; } }
+          if (body.length < 3) return;
+          const hd = body[0], tl = body[body.length - 1], dx = hd[0] - tl[0], dy = hd[1] - tl[1], l = Math.hypot(dx, dy) || 1;
+          let nx = -dy / l, ny = dx / l; if (ny > 0) { nx = -nx; ny = -ny; }
+          const pts = body.map((p, k) => { const u = k / (body.length - 1), o = Math.sin(Math.PI * u) * S * .12 * sc; return [p[0] + nx * o, p[1] + ny * o]; });
+          for (let k = pts.length - 1; k >= 0; k--) {
+            const u = k / (pts.length - 1), r = r0 * (.6 + .4 * Math.sin(Math.PI * Math.min(1, u + .25)));
+            sprite(ctx, n.hue + u * 30, pts[k][0], pts[k][1], r * 2.2, .5);
+            ctx.lineWidth = 1.2; ctx.strokeStyle = hsl(n.hue + u * 30, 100, 78, .7); ctx.beginPath(); ctx.arc(pts[k][0], pts[k][1], r * .7, 0, TAU); ctx.stroke();
+          }
+          const p0 = pts[0], p1 = pts[1], fa = Math.atan2(p0[1] - p1[1], p0[0] - p1[0]);
+          [-.5, .5].forEach(sd => {
+            const wig = Math.sin(this.t * 9 + sd * 4) * .25;
+            const ex = p0[0] + Math.cos(fa + sd + wig) * r0 * 2.2, ey = p0[1] + Math.sin(fa + sd + wig) * r0 * 2.2;
+            ctx.lineWidth = 1.3; ctx.strokeStyle = hsl(n.hue, 100, 80, .8); ctx.beginPath(); ctx.moveTo(p0[0], p0[1]); ctx.quadraticCurveTo(p0[0] + Math.cos(fa) * r0 * 1.6, p0[1] + Math.sin(fa) * r0 * 1.6, ex, ey); ctx.stroke();
+            sprite(ctx, n.hue, ex, ey, r0 * .6, .9);
+          });
+        });
+      } };
+    } },
+  { key: "jelly", round: 2, name: "Jellyfish", desc: "A pulsing bell swims ahead of wiggling tentacles, contracting on every kick.",
+    make() {
+      const nodes = makeNodes(3, 211, [285, 190, 330]), st = nodes.map(() => ({ p: 0 }));
+      return { nodes, step(ctx, W, H, dt, R, S) {
+        fade(ctx, W, H, .38);
+        moveNodes(nodes, this.t * .35, W, H, .75);
+        ctx.globalCompositeOperation = "lighter"; ctx.lineCap = "round";
+        nodes.forEach((n, i) => {
+          const s = st[i]; if (this.beat) s.p = 1; s.p = Math.max(0, s.p - dt * 2.2);
+          const r = S * (.06 + .02 * R.energy) * (1 - .22 * s.p + .05 * Math.sin(this.t * 2 + i));
+          ctx.save(); ctx.translate(n.x, n.y); ctx.rotate(n.ang + Math.PI / 2);
+          for (let j = 0; j < 7; j++) {
+            const x0 = -r * .8 + j / 6 * r * 1.6, pts = [];
+            for (let k = 0; k <= 18; k++) pts.push([x0 + Math.sin(this.t * 4.5 - k * .45 + j) * S * .012 * (k / 18) * (1 + R.energy), k * S * .012 * (1 + .25 * s.p)]);
+            [[3, .12], [1.1, .7]].forEach(([w, a]) => { ctx.lineWidth = w; ctx.strokeStyle = hsl(n.hue + j * 6, 100, 72, a); strokePath(ctx, pts); });
+          }
+          ctx.beginPath(); ctx.moveTo(-r, 0); ctx.bezierCurveTo(-r, -r * 1.35, r, -r * 1.35, r, 0);
+          for (let k = 4; k >= 1; k--) ctx.quadraticCurveTo(-r + k * r / 2 + r / 4 - r / 2, r * .22, -r + (k - 1) * r / 2, 0);
+          const g = ctx.createRadialGradient(0, -r * .4, 0, 0, -r * .4, r * 1.2); g.addColorStop(0, hsl(n.hue, 100, 85, .55)); g.addColorStop(1, hsl(n.hue, 100, 55, .12));
+          ctx.fillStyle = g; ctx.fill(); ctx.lineWidth = 1.4; ctx.strokeStyle = hsl(n.hue, 100, 82, .8); ctx.stroke();
+          ctx.restore();
+          sprite(ctx, n.hue, n.x, n.y, r * 1.8, .25 + .3 * s.p);
+        });
+      } };
+    } },
+  { key: "fiddle", round: 2, name: "Fiddlehead", desc: "Fern fronds curl up tight in the quiet and unfurl when the music lifts.",
+    make() {
+      const nodes = makeNodes(3, 229, [120, 300, 45]), st = nodes.map(() => ({ c: 1 }));
+      return { nodes, step(ctx, W, H, dt, R, S) {
+        fade(ctx, W, H, .3);
+        moveNodes(nodes, this.t * .45, W, H, .75);
+        ctx.globalCompositeOperation = "lighter"; ctx.lineCap = "round";
+        nodes.forEach((n, i) => {
+          const s = st[i], target = 1 - Math.min(.85, R.energy * .7);
+          if (this.beat) s.c = Math.max(0, s.c - .4);
+          s.c += (target - s.c) * dt * 1.1;
+          for (let f = 0; f < 3; f++) {
+            const dirn = f % 2 ? 1 : -1, L = S * (.13 + .04 * R.energy), N = 40, pts = [];
+            let x = n.x, y = n.y, a = n.ang + f * TAU / 3 + Math.sin(this.t * .5 + i) * .3;
+            for (let u = 0; u <= N; u++) { pts.push([x, y]); const t = u / N; a += dirn * s.c * t * t * .55 + .012 * Math.sin(this.t * 3 + u * .3); x += Math.cos(a) * L / N; y += Math.sin(a) * L / N; }
+            const w = S * .012;
+            ribbonNeon(ctx, pts, n.hue + f * 12, ff => w * (1 - ff * .75), .85);
+            ctx.lineWidth = 1; ctx.strokeStyle = hsl(n.hue + 20, 100, 75, .6); ctx.beginPath();
+            for (let u = 4; u < N - 4; u += 4) { const p = pts[u], q = pts[u + 1], ta = Math.atan2(q[1] - p[1], q[0] - p[0]), ll = S * .02 * (1 - u / N); [-1, 1].forEach(sd => { ctx.moveTo(p[0], p[1]); ctx.lineTo(p[0] + Math.cos(ta + sd * 1.1) * ll, p[1] + Math.sin(ta + sd * 1.1) * ll); }); }
+            ctx.stroke();
+          }
+          sprite(ctx, n.hue, n.x, n.y, S * .03, .9);
+        });
+      } };
+    } },
+  { key: "doodle", round: 2, name: "Boiling doodle", desc: "Hand-drawn shapes that wobble like an old cartoon line, joined by a jittery squiggle.",
+    make() {
+      const nodes = makeNodes(3, 241, [350, 200, 55]); let boil = 0, seed = 0;
+      return { nodes, step(ctx, W, H, dt, R, S) {
+        fade(ctx, W, H, 1);
+        moveNodes(nodes, this.t * .55, W, H, .75);
+        boil += dt; if (boil > 1 / 9) { boil = 0; seed++; }
+        ctx.globalCompositeOperation = "lighter"; ctx.lineCap = ctx.lineJoin = "round";
+        const jit = S * .006 * (1 + R.hat * 2.5);
+        const J = (k) => (seeded(seed * 97 + k) - .5) * jit * 2;
+        nodes.forEach((n, i) => {
+          const sz = S * (.08 + .05 * R.energy) * (1 + .35 * R.kick), N = 44, pts = [];
+          for (let k = 0; k <= N; k++) {
+            const u = k / N; let r, a;
+            if (i % 3 === 0) { a = u * TAU + this.t * .3; r = sz * (.62 + .38 * Math.cos(a * 5 - this.t * .4)); }
+            else if (i % 3 === 1) { a = u * TAU - this.t * .3; r = sz * (.82 + .18 * Math.sin(a * 3 + this.t) + .08 * Math.sin(a * 7)); }
+            else { a = u * TAU * 2.4 + this.t; r = sz * (.12 + .88 * u); }
+            pts.push([n.x + Math.cos(a) * r + J(k * 3 + i * 131), n.y + Math.sin(a) * r + J(k * 5 + i * 71)]);
+          }
+          ctx.lineWidth = 2.4; ctx.strokeStyle = hsl(n.hue, 100, 68, .9); strokePath(ctx, pts);
+          ctx.lineWidth = 1; ctx.strokeStyle = hsl(n.hue, 50, 92, .5); strokePath(ctx, pts.map((p, k) => [p[0] + 1.5 + J(k + 900), p[1] - 1 + J(k + 700)]));
+        });
+        for (let i = 0; i < nodes.length - 1; i++) {
+          const a = nodes[i], b = nodes[i + 1], pts = [], dx = b.x - a.x, dy = b.y - a.y, l = Math.hypot(dx, dy) || 1;
+          for (let k = 0; k <= 40; k++) { const u = k / 40, o = Math.sin(u * 22 + this.t * 6) * S * .012 * Math.sin(Math.PI * u); pts.push([a.x + dx * u - dy / l * o + J(k + i * 400), a.y + dy * u + dx / l * o + J(k + i * 300)]); }
+          ctx.lineWidth = 1.4; ctx.strokeStyle = "rgba(235,235,245,.45)"; strokePath(ctx, pts);
+        }
+      } };
+    } },
+  { key: "lava", round: 2, name: "Lava blobs", desc: "Gooey blobs that stretch, pinch off and melt back together; kicks fling a droplet loose.",
+    make() {
+      const nodes = makeNodes(3, 257, [15, 300, 190]), sats = nodes.map(() => ({ x: 0, y: 0, vx: 0, vy: 0, init: false }));
+      const off = document.createElement("canvas"), oc = off.getContext("2d"); let img = null;
+      return { nodes, step(ctx, W, H, dt, R, S) {
+        moveNodes(nodes, this.t * .45, W, H, .7);
+        const sc = 4, w = Math.max(8, Math.round(W / sc)), h = Math.max(8, Math.round(H / sc));
+        if (off.width !== w || off.height !== h) { off.width = w; off.height = h; img = oc.createImageData(w, h); }
+        const blobs = [];
+        nodes.forEach((n, i) => {
+          const s = sats[i]; if (!s.init) { s.x = n.x; s.y = n.y; s.init = true; }
+          if (this.beat) { const a = Math.random() * TAU, f = S * (1.4 + 2.6 * R.kick); s.vx += Math.cos(a) * f; s.vy += Math.sin(a) * f; }
+          s.vx += (n.x - s.x) * dt * 7; s.vy += (n.y - s.y) * dt * 7; s.vx *= Math.pow(.3, dt); s.vy *= Math.pow(.3, dt); s.x += s.vx * dt; s.y += s.vy * dt;
+          const r = S * (.09 + .035 * R.energy) * (1 + .1 * Math.sin(this.t * 2.2 + i));
+          blobs.push([n.x / sc, n.y / sc, (r / sc) ** 2, hueRGB(n.hue)], [s.x / sc, s.y / sc, (r * .6 / sc) ** 2, hueRGB(n.hue + 30)]);
+        });
+        const d = img.data;
+        for (let y = 0, p = 0; y < h; y++) for (let x = 0; x < w; x++, p += 4) {
+          let f = 0, cr = 0, cg = 0, cb = 0;
+          for (const b of blobs) { const dx = x - b[0], dy = y - b[1], v = b[2] / (dx * dx + dy * dy + .5); f += v; cr += b[3][0] * v; cg += b[3][1] * v; cb += b[3][2] * v; }
+          const inv = 1 / f, core = clamp((f - 2.2) / 4, 0, 1) * .55;
+          const edge = f > 1 ? Math.min(1, (f - 1) / .25) : 0, halo = f > .45 && f <= 1 ? (f - .45) / .55 * .28 : 0, a = Math.max(edge, halo);
+          d[p] = cr * inv + (255 - cr * inv) * core; d[p + 1] = cg * inv + (255 - cg * inv) * core; d[p + 2] = cb * inv + (255 - cb * inv) * core; d[p + 3] = a * 255;
+        }
+        oc.putImageData(img, 0, 0);
+        fade(ctx, W, H, 1);
+        ctx.imageSmoothingEnabled = true; ctx.drawImage(off, 0, 0, W, H);
+      } };
+    } },
+  { key: "spiro", round: 2, name: "Spirograph", desc: "Each node draws looping flower curves that change gears on the beat and pile up into lace.",
+    make() {
+      const nodes = makeNodes(2, 271, [330, 175]), st = nodes.map((_, i) => ({ th: 0, k: [3, 5][i], prev: null }));
+      return { nodes, step(ctx, W, H, dt, R, S) {
+        fade(ctx, W, H, .035);
+        moveNodes(nodes, this.t * .2, W, H, .45);
+        ctx.globalCompositeOperation = "lighter"; ctx.lineCap = "round";
+        nodes.forEach((n, i) => {
+          const s = st[i]; if (this.beat && Math.random() < .3) s.k = [3, 4, 5, 6, 7][Math.floor(Math.random() * 5)];
+          const Rr = S * (.19 + .06 * R.energy), r = Rr / s.k, d = r * (1.1 + .7 * R.kick + .3 * Math.sin(this.t * .3 + i));
+          ctx.lineWidth = 1.3; ctx.strokeStyle = hsl(n.hue + Math.sin(this.t * .2 + i) * 35, 100, 66, .75);
+          ctx.beginPath();
+          for (let q = 0; q <= 8; q++) {
+            s.th += dt * (2.6 + 3 * R.rms) / 8 * (i % 2 ? -1 : 1);
+            const x = n.x + (Rr - r) * Math.cos(s.th) + d * Math.cos((Rr - r) / r * s.th), y = n.y + (Rr - r) * Math.sin(s.th) - d * Math.sin((Rr - r) / r * s.th);
+            if (q === 0) ctx.moveTo(s.prev ? s.prev[0] : x, s.prev ? s.prev[1] : y); else ctx.lineTo(x, y);
+            s.prev = [x, y];
+          }
+          ctx.stroke();
+          sprite(ctx, n.hue, s.prev[0], s.prev[1], S * .02, .9);
+        });
+      } };
+    } },
+  { key: "cradle", round: 2, name: "Cat's cradle", desc: "Strings stretched between the nodes and the corners twang and vibrate when the music plucks them.",
+    make() {
+      const nodes = makeNodes(4, 283, [200, 320, 45, 150]), pegs = [[.07, .12], [.93, .12], [.07, .88], [.93, .88]]; let strings = null;
+      return { nodes, step(ctx, W, H, dt, R, S) {
+        fade(ctx, W, H, .5);
+        moveNodes(nodes, this.t * .4, W, H, .75);
+        const P = nodes.map(n => ({ x: n.x, y: n.y, h: n.hue })).concat(pegs.map(p => ({ x: p[0] * W, y: p[1] * H, h: null })));
+        if (!strings) { strings = []; for (let a = 0; a < P.length; a++) for (let b = a + 1; b < P.length; b++) { if (P[a].h === null && P[b].h === null) continue; if (seeded(a * 13 + b) < .7) strings.push({ a, b, amp: 0, mode: 1 + Math.floor(seeded(a + b * 7) * 3), f: 18 + seeded(a * 3 + b) * 30, ph: 0 }); } }
+        if (this.beat) for (let k = 0; k < 3; k++) strings[Math.floor(Math.random() * strings.length)].amp = 1;
+        ctx.globalCompositeOperation = "lighter"; ctx.lineCap = "round";
+        strings.forEach(s => {
+          s.amp *= Math.exp(-dt * 1.6); s.ph += dt * s.f;
+          const A2 = P[s.a], B = P[s.b], dx = B.x - A2.x, dy = B.y - A2.y, l = Math.hypot(dx, dy) || 1, nx = -dy / l, ny = dx / l;
+          const amp = S * .05 * s.amp * (1 + R.bass) + S * .003 * R.breath * R.idle, pts = [];
+          for (let k = 0; k <= 30; k++) { const u = k / 30, o = Math.sin(Math.PI * u * s.mode) * amp * Math.sin(s.ph); pts.push([A2.x + dx * u + nx * o, A2.y + dy * u + ny * o]); }
+          const hue = A2.h ?? B.h;
+          [[3, .1 + .2 * s.amp], [1, .3 + .6 * s.amp]].forEach(([w, a]) => { ctx.lineWidth = w; ctx.strokeStyle = hsl(hue, 100, 72, a); strokePath(ctx, pts); });
+        });
+        P.forEach(p => { if (p.h === null) { ctx.lineWidth = 1; ctx.strokeStyle = "rgba(235,235,245,.5)"; ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, TAU); ctx.stroke(); } else sprite(ctx, p.h, p.x, p.y, S * (.025 + .02 * R.kick), .95); });
+      } };
+    } },
+  { key: "seaweed", round: 2, name: "Seaweed", desc: "Fronds rooted to each node sway like they're underwater; bubbles rise on the beat.",
+    make() {
+      const nodes = makeNodes(3, 307, [150, 175, 95]), bubbles = [];
+      return { nodes, step(ctx, W, H, dt, R, S) {
+        fade(ctx, W, H, 1);
+        moveNodes(nodes, this.t * .25, W, H, .7);
+        ctx.globalCompositeOperation = "lighter";
+        nodes.forEach((n, i) => {
+          for (let f = 0; f < 5; f++) {
+            const N = 26, seg = S * (.0085 + .003 * (f % 3)), pts = [[n.x, n.y]];
+            let x = n.x, y = n.y, a = -Math.PI / 2 + (f - 2) * .3;
+            for (let k = 1; k <= N; k++) { const u = k / N; a += u * .1 * Math.sin(this.t * 1.5 - k * .3 + f * 1.3 + i) * (1 + R.energy) - n.vx * .004; x += Math.cos(a) * seg; y += Math.sin(a) * seg; pts.push([x, y]); }
+            const w = S * .016;
+            ribbonNeon(ctx, pts, n.hue + f * 8, ff => w * (.35 + Math.sin(Math.PI * ff) * .7) * (1 - ff * .45), .55 + .3 * R.kick);
+          }
+          if (this.beat) for (let b = 0; b < 4; b++) bubbles.push({ x: n.x + (Math.random() - .5) * S * .08, y: n.y - S * .1, r: S * (.006 + Math.random() * .01), life: 2.5, h: n.hue });
+          sprite(ctx, n.hue, n.x, n.y, S * .025, .7);
+        });
+        for (let k = bubbles.length - 1; k >= 0; k--) {
+          const b = bubbles[k]; b.life -= dt; if (b.life <= 0 || b.y < -10) { bubbles.splice(k, 1); continue; }
+          b.y -= dt * S * .18; b.x += Math.sin(b.y * .05 + k) * .4;
+          ctx.lineWidth = 1; ctx.strokeStyle = hsl(b.h, 80, 85, Math.min(1, b.life) * .7); ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, TAU); ctx.stroke();
+        }
+      } };
+    } }
+];
+
+/* ---------------- Views ---------------- */
+function makeView(canvas, form, dprCap) {
+  const ctx = canvas.getContext("2d");
+  const v = { canvas, ctx, form, inst: Object.assign(form.make(), { t: Math.random() * 20, idleGap: 1 }), W: 0, H: 0, dpr: 1, visible: true, dirty: true };
+  new ResizeObserver(() => { v.dirty = true; }).observe(canvas);
+  v.resize = () => {
+    const r = canvas.getBoundingClientRect(); v.W = Math.max(1, r.width); v.H = Math.max(1, r.height);
+    v.dpr = Math.min(dprCap, window.devicePixelRatio || 1);
+    canvas.width = Math.round(v.W * v.dpr); canvas.height = Math.round(v.H * v.dpr);
+    ctx.setTransform(v.dpr, 0, 0, v.dpr, 0, 0); ctx.fillStyle = "#040406"; ctx.fillRect(0, 0, v.W, v.H);
+    v.dirty = false;
+  };
+  return v;
+}
+const views = [];
+const picks = new Set();
+let stored = null;
+try { stored = JSON.parse(localStorage.getItem("glint.forms.picks") || "null"); } catch (_) {}
+(Array.isArray(stored) ? stored : ["ribbon", "halo", "wave", "aurora", "lightning", "kaleido", "orbiters", "dust"]).forEach(k => picks.add(k));
+FORMS.slice().sort((a, b) => (a.retuned ? 1 : 0) - (b.retuned ? 1 : 0)).forEach(form => {
+  const tile = document.createElement("article"); tile.className = "tile"; tile.dataset.key = form.key;
+  tile.innerHTML = `<button class="view" aria-label="See ${form.name} large"><canvas></canvas></button>
+    <div class="cap"><h3 class="name"></h3><p class="desc"></p>
+    <button class="pick" aria-pressed="false"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6.5l2.6 2.5L10 3" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>Pick</button></div>`;
+  tile.querySelector(".name").textContent = form.name;
+  if (form.retuned) { const b = document.createElement("span"); b.className = "badge"; b.textContent = "Retuned"; tile.querySelector(".name").append(b); }
+  tile.querySelector(".desc").textContent = form.desc;
+  $((form.round || 1) === 2 ? "#grid2" : "#grid1").append(tile);
+  const v = makeView(tile.querySelector("canvas"), form, 1.5);
+  v.tile = tile; views.push(v);
+  tile.querySelector(".view").addEventListener("click", () => openFocus(form));
+  tile.querySelector(".pick").addEventListener("click", () => togglePick(form.key));
+});
+const io = new IntersectionObserver(es => es.forEach(e => { const v = views.find(x => x.canvas === e.target); if (v) v.visible = e.isIntersecting; }), { rootMargin: "60px" });
+views.forEach(v => io.observe(v.canvas));
+
+function togglePick(key) {
+  picks.has(key) ? picks.delete(key) : picks.add(key);
+  try { localStorage.setItem("glint.forms.picks", JSON.stringify([...picks])); } catch (_) {}
+  renderPicks();
+}
+function pickedNames() { return FORMS.filter(f => picks.has(f.key)).map(f => f.name); }
+function renderPicks() {
+  views.forEach(v => { const on = picks.has(v.form.key); v.tile.classList.toggle("picked", on); v.tile.querySelector(".pick").setAttribute("aria-pressed", on); });
+  const names = pickedNames();
+  const el = $("#picks-text");
+  if (!names.length) el.textContent = "No forms picked yet.";
+  else { el.innerHTML = ""; el.append(`Picked ${names.length}: `); const b = document.createElement("b"); b.textContent = names.join(", "); el.append(b); }
+  if (focusView) $("#focus-pick").setAttribute("aria-pressed", picks.has(focusView.form.key));
+}
+$("#copy").addEventListener("click", () => {
+  const names = pickedNames();
+  if (!names.length) { toast("Pick at least one form first."); return; }
+  const text = "Glint forms I picked: " + names.join(", ");
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(() => toast("Copied. Paste it into the chat."), () => selectPicks());
+  else selectPicks();
+});
+function selectPicks() { const r = document.createRange(); r.selectNodeContents($("#picks-text")); const s = getSelection(); s.removeAllRanges(); s.addRange(r); toast("Selected. Copy it from here."); }
+
+let focusView = null;
+function openFocus(form) {
+  $("#focus").hidden = false;
+  $("#focus-name").textContent = form.name;
+  focusView = makeView($("#focus-canvas"), form, 2);
+  focusView.dirty = true;
+  renderPicks();
+  $("#focus-close").focus();
+}
+function closeFocus() { $("#focus").hidden = true; focusView = null; }
+$("#focus-close").addEventListener("click", closeFocus);
+$("#focus-pick").addEventListener("click", () => { if (focusView) togglePick(focusView.form.key); });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && focusView) closeFocus(); });
+
+let toastT = null;
+function toast(m) { const t = $("#toast"); t.textContent = m; t.classList.add("show"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("show"), 2600); }
+
+/* ---------------- Loop ---------------- */
+let last = performance.now(), time = 0;
+function frame(now) {
+  const dt = Math.min(.05, (now - last) / 1000); last = now; time += dt;
+  updateAudio(dt);
+  const r = reaction, breath = .5 + .5 * Math.sin(time * .9), idle = 1 - r * .7;
+  const R = { kick: A.kick * r, bass: A.bass * r, mid: A.mid * r, treble: A.treble * r, rms: A.rms * r, hat: A.hat * r, idle, breath };
+  R.energy = idle * (.3 + .25 * breath) + R.rms * 1.1 + R.kick * .45;
+  const flow = .3 + idle * .25 * breath + R.rms * 1.2 + R.kick * .5;
+  const audioHit = A.hit && r > .05;
+  $("#beat").style.background = A.kick > .05 ? `rgba(246,246,250,${.25 + A.kick * .75})` : "#2a2a2f";
+  const run = v => {
+    if (v.dirty) v.resize();
+    const S = Math.min(v.W, v.H), inst = v.inst;
+    inst.t += dt * flow;
+    let beat = audioHit;
+    if (!A.active) { inst.idleGap -= dt; if (inst.idleGap <= 0) { beat = true; inst.idleGap = 1.4 + Math.random() * 1.4; } }
+    inst.beat = beat;
+    v.ctx.setTransform(v.dpr, 0, 0, v.dpr, 0, 0);
+    inst.step(v.ctx, v.W, v.H, dt, R, S);
+    v.ctx.globalCompositeOperation = "source-over"; v.ctx.globalAlpha = 1;
+  };
+  if (focusView) run(focusView);
+  else views.forEach(v => { if (v.visible) run(v); });
+  requestAnimationFrame(frame);
+}
+renderPicks();
+requestAnimationFrame(frame);
+})();
+</script>
+
+</body>
+</html>

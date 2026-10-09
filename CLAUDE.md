@@ -4,6 +4,12 @@ Glint is a music-visualizer design studio. You place **nodes** on a canvas, give
 
 Full living spec: https://claude.ai/code/artifact/a483d844-f6de-483d-a87d-b19ce74aca4e
 
+## Where things live
+- **Repo:** `exbehave/glint` (private). Plain static files: `index.html`, `styles.css`, `app.js`, `forms.html`, icons, `manifest.webmanifest`. No build step.
+- **Live site:** https://kennedy-glint.netlify.app (Netlify builds from `main` on every push; the project is public).
+- No Supabase yet: designs save per device in localStorage `glint.studio.v2`. Add cloud sync with the `deploy-web-app` skill when designs need to follow Kennedy across devices.
+- Netlify's free plan charges credits per production deploy; if edits get frequent, adopt In the Loop's `preview` branch workflow.
+
 ## Ground rules for anyone building this
 - Aesthetics come first. Sleek noir, grayscale UI; the visualization is the ONLY color on screen.
 - Mobile gets as many features as feasible, but the interface must never feel crowded.

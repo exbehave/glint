@@ -58,7 +58,9 @@ Kennedy's feedback on the first Studio build: visuals were monotonous dot sprays
 - Personalities (Hypnotic, Aggressive, Dreamy, Glitch, Electric, Fluid) apply to the whole design: each nudges every node's knobs and paints a treatment layer (feedback swirl, punch echo, soft bloom, RGB slice, overexposed flicker, liquid warp) mixed with its own opacity and blend mode.
 - Buses A–C: level, mute, and push knobs. Master: Punch, Reaction, Decay in the transport.
 - Scenes (presets): Night Drive, Neon Storm, Kelp Garden, Cartoon Party, Mandala, Lava Lounge, Neon Grove, Blank canvas.
-- Mobile segments: Nodes, Shape, Tune, Mood.
+- Each form has 3–5 **Shape knobs** (e.g. Tornado: Top width, Bottom width, Height, Twist, Strands), stored per node in `node.shape` and reset when the form changes. Forms read them through `E.k/E.L/E.I` in `draw`.
+- Scenes are composed on purpose (symmetry, a focal point, one palette each); keep new presets to that standard.
+- Mobile segments: Nodes, Shape, Tune, Mood. Personality label sits in the tools row under the canvas; nothing overlays the canvas.
 - Saved per browser (localStorage `glint.studio.v2`). Up to 10 nodes. Adaptive quality lowers resolution if frames run slow.
 
 ## Personalities

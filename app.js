@@ -76,45 +76,51 @@ const E2 = v => Math.min(1.25, v);
    E.R is the music as this node hears it; E.S is the node's scale; E.t is the node's clock. */
 const FORMS = [
   { key: "ribbon", name: "Neon ribbon", fade: 1, char: "skater", init: () => ({ h: [] }),
-    draw(E) { const { g, n, R, S, st } = E; st.h.push([n.x, n.y]); if (st.h.length > 170) st.h.shift();
-      const w = S * (.016 + .03 * R.kick + .008 * R.bass) * (1 + .15 * R.idle * R.breath);
-      ribbonNeon(g, st.h, n.hue, f => w * Math.pow(f, .9)); sprite(g, n.hue, n.x, n.y, w * 2.4, .9); } },
+    shape: [{ key: "length", label: "Length" }, { key: "thick", label: "Thickness" }, { key: "taper", label: "Taper" }],
+    draw(E) { const { g, n, R, S, st, L } = E, max = Math.round(L("length", 50, 320)); st.h.push([n.x, n.y]); while (st.h.length > max) st.h.shift();
+      const w = S * (.016 + .03 * R.kick + .008 * R.bass) * (1 + .15 * R.idle * R.breath) * L("thick", .35, 1.65), tp = L("taper", .2, 1.8);
+      ribbonNeon(g, st.h, n.hue, f => w * Math.pow(f, tp)); sprite(g, n.hue, n.x, n.y, w * 2.4, .9); } },
   { key: "whip", name: "Whip strand", fade: .42, char: "wander", init: () => ({ ch: null }),
-    draw(E) { const { g, n, R, S, st, t } = E, N = 28, seg = S * (.015 + .006 * R.bass);
-      if (!st.ch) st.ch = Array.from({ length: N }, (_, i) => ({ x: n.x, y: n.y + i * seg, px: n.x, py: n.y + i * seg }));
+    shape: [{ key: "length", label: "Length" }, { key: "thick", label: "Thickness" }, { key: "wiggle", label: "Wiggle" }],
+    draw(E) { const { g, n, R, S, st, t, L } = E, N = Math.round(L("length", 12, 44)), seg = S * (.015 + .006 * R.bass);
+      if (!st.ch || st.ch.length !== N) st.ch = Array.from({ length: N }, (_, i) => ({ x: n.x, y: n.y + i * seg, px: n.x, py: n.y + i * seg }));
       const ch = st.ch;
       for (let i = 1; i < N; i++) { const p = ch[i], vx = (p.x - p.px) * .93, vy = (p.y - p.py) * .93; p.px = p.x; p.py = p.y; p.x += vx; p.y += vy; }
       if (E.beat) { const a = n.ang + Math.PI / 2; for (let i = 1; i < N; i++) { const f = S * (.012 + .03 * R.kick) * (i / N) * (Math.random() < .5 ? 1 : -1); ch[i].x += Math.cos(a) * f; ch[i].y += Math.sin(a) * f; } }
       ch[0].x = n.x; ch[0].y = n.y;
       for (let it = 0; it < 4; it++) for (let i = 1; i < N; i++) { const a = ch[i - 1], b = ch[i], dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 1, k = (d - seg) / d; if (i === 1) { b.x -= dx * k; b.y -= dy * k; } else { a.x += dx * k * .5; a.y += dy * k * .5; b.x -= dx * k * .5; b.y -= dy * k * .5; } ch[0].x = n.x; ch[0].y = n.y; }
-      const ph = E.node.seed * 20;
-      const pts = ch.map((p, i) => { const a = ch[Math.max(0, i - 1)], b = ch[Math.min(N - 1, i + 1)], tx = b.x - a.x, ty = b.y - a.y, l = Math.hypot(tx, ty) || 1, o = Math.sin(i * .55 - t * 9 + ph) * S * (.014 + .03 * R.kick + .012 * E2(R.energy)) * (i / N); return [p.x - ty / l * o, p.y + tx / l * o]; });
-      const w = S * (.013 + .02 * R.kick); ribbonNeon(g, pts, n.hue, f => w * (1 - f * .85)); sprite(g, n.hue, n.x, n.y, w * 2.6, .95); } },
+      const ph = E.node.seed * 20, wg = L("wiggle", 0, 2);
+      const pts = ch.map((p, i) => { const a = ch[Math.max(0, i - 1)], b = ch[Math.min(N - 1, i + 1)], tx = b.x - a.x, ty = b.y - a.y, l = Math.hypot(tx, ty) || 1, o = Math.sin(i * .55 - t * 9 + ph) * S * (.014 + .03 * R.kick + .012 * E2(R.energy)) * (i / N) * wg; return [p.x - ty / l * o, p.y + tx / l * o]; });
+      const w = S * (.013 + .02 * R.kick) * L("thick", .35, 1.65); ribbonNeon(g, pts, n.hue, f => w * (1 - f * .85)); sprite(g, n.hue, n.x, n.y, w * 2.6, .95); } },
   { key: "halo", name: "Halo rings", fade: .32, char: "wander", init: () => ({ rings: [] }),
-    draw(E) { const { g, n, R, S, st, t, dt } = E, sd = E.node.seed;
-      if (E.beat) st.rings.push({ r: S * .02, a: 1, rot: n.ang, sq: .3 + Math.random() * .5 });
-      for (let i = st.rings.length - 1; i >= 0; i--) { const q = st.rings[i]; q.r += dt * S * (.22 + .35 * E2(R.energy)); q.a -= dt * .9; if (q.a <= 0) { st.rings.splice(i, 1); continue; }
+    shape: [{ key: "tilt", label: "Tilt" }, { key: "speed", label: "Ring speed" }, { key: "count", label: "Rings", min: 1, max: 4, def: 0 }],
+    draw(E) { const { g, n, R, S, st, t, dt, L, I } = E, sd = E.node.seed, tilt = L("tilt", .95, .12);
+      if (E.beat) for (let k = 0, c = I("count"); k < c; k++) st.rings.push({ r: S * (.02 + k * .03), a: 1, rot: n.ang + k * .4, sq: clamp(tilt + (Math.random() - .5) * .2, .08, 1) });
+      for (let i = st.rings.length - 1; i >= 0; i--) { const q = st.rings[i]; q.r += dt * S * (.22 + .35 * E2(R.energy)) * L("speed", .35, 1.8); q.a -= dt * .9; if (q.a <= 0) { st.rings.splice(i, 1); continue; }
         [[4, .12], [1, .8]].forEach(([wm, al]) => { g.lineWidth = S * .004 * wm * q.a + .8; g.strokeStyle = hsl(n.hue, 100, 70, q.a * al); g.beginPath(); g.ellipse(n.x, n.y, q.r, q.r * q.sq, q.rot, 0, TAU); g.stroke(); }); }
       const r = S * (.055 + .035 * R.bass + .01 * R.idle * R.breath);
       g.setLineDash([S * .012, S * .022]); g.lineDashOffset = -t * S * .3 * (sd > .5 ? 1 : -1); g.lineWidth = 1.6; g.strokeStyle = hsl(n.hue, 90, 75, .7);
-      g.beginPath(); g.ellipse(n.x, n.y, r, r * .45, t * .4 + sd * 6, 0, TAU); g.stroke(); g.setLineDash([]);
+      g.beginPath(); g.ellipse(n.x, n.y, r, r * tilt, t * .4 + sd * 6, 0, TAU); g.stroke(); g.setLineDash([]);
       sprite(g, n.hue, n.x, n.y, S * (.035 + .03 * R.kick), .95); } },
   { key: "wave", name: "Wave line", fade: .38, char: "wander",
-    draw(E) { const { g, n, R, S, t, W } = E, sd = E.node.seed, freq = 2.2 + sd * 3, amp = S * (.08 + .16 * E2(R.energy)), pts = [];
+    shape: [{ key: "freq", label: "Waves" }, { key: "height", label: "Height" }, { key: "rough", label: "Roughness" }],
+    draw(E) { const { g, n, R, S, t, W, L } = E, sd = E.node.seed, freq = L("freq", .8, 6.5) + sd, amp = S * (.08 + .16 * E2(R.energy)) * L("height", .3, 1.7), rough = L("rough", 0, 2.2), pts = [];
       g.lineJoin = g.lineCap = "round";
-      for (let x = 0; x <= W; x += W / 180) { const f = x / W, d = (x - n.x) / (W * .3), env = .12 + Math.exp(-d * d) * (.7 + .5 * R.kick); const v = Math.sin(f * freq * TAU - t * 3.2 + sd * 9) * .7 + Math.sin(f * freq * 2.7 * TAU + t * 2.1) * .3 * (.4 + R.treble); pts.push([x, n.y + v * env * amp]); }
+      for (let x = 0; x <= W; x += W / 180) { const f = x / W, d = (x - n.x) / (W * .3), env = .12 + Math.exp(-d * d) * (.7 + .5 * R.kick); const v = Math.sin(f * freq * TAU - t * 3.2 + sd * 9) * .7 + Math.sin(f * freq * 2.7 * TAU + t * 2.1) * .3 * (.4 + R.treble) * rough; pts.push([x, n.y + v * env * amp]); }
       [[7, .1], [2.6, .38], [1.1, 1]].forEach(([w, a]) => { g.lineWidth = w * (1 + R.kick * .6); g.strokeStyle = hsl(n.hue, 100, 64 + (w < 2 ? 25 : 0), a); strokePath(g, pts); });
       sprite(g, n.hue, n.x, n.y, S * .03, .7); } },
   { key: "aurora", name: "Aurora curtain", fade: 1, char: "wander", def: { roam: .3, tempo: .35 },
-    draw(E) { const { g, n, R, S, t, W } = E, sd = E.node.seed * 9, cols = 60, span = Math.min(W * .62, S * 1.4), cw = span / cols;
+    shape: [{ key: "width", label: "Width" }, { key: "height", label: "Height" }, { key: "folds", label: "Folds" }],
+    draw(E) { const { g, n, R, S, t, W, L } = E, sd = E.node.seed * 9, cols = 60, span = Math.min(W * L("width", .3, .98), S * L("width", .7, 2.2)), cw = span / cols, fo = L("folds", 5, 22);
       for (let k = 0; k < cols; k++) { const f = k / (cols - 1), x = n.x - span / 2 + f * span + Math.sin(f * 3 + t + sd) * S * .03;
-        const fold = .5 + .5 * Math.sin(f * 13 + t * 2.2 + sd * 2) * Math.sin(f * 4.5 - t * .8 + sd), edge = Math.sin(f * Math.PI);
-        const h = S * (.16 + .42 * E2(R.energy)) * (.55 + .45 * fold) * edge, base = n.y + S * .15 + Math.sin(f * 5 + t * .6) * S * .02;
+        const fold = .5 + .5 * Math.sin(f * fo + t * 2.2 + sd * 2) * Math.sin(f * 4.5 - t * .8 + sd), edge = Math.sin(f * Math.PI);
+        const h = S * (.16 + .42 * E2(R.energy)) * (.55 + .45 * fold) * edge * L("height", .4, 1.7), base = n.y + S * .15 + Math.sin(f * 5 + t * .6) * S * .02;
         g.globalAlpha = Math.min(1, (.25 + .55 * fold) * edge * (.8 + .4 * R.kick)); g.drawImage(column(n.hue + f * 30), x, base - h, cw * 1.7, h); }
       g.globalAlpha = 1; } },
   { key: "branches", name: "Branching limbs", fade: .3, char: "wander",
-    draw(E) { const { g, n, R, S, t } = E, i = E.node.seed * 10; g.lineCap = "round";
-      const depth = clamp(3 + Math.round(E2(R.energy) * 1.6), 3, 5), trunk = S * (.1 + .04 * E2(R.energy)) * (1 + .25 * R.kick), spread = .62 + .16 * Math.sin(t * .7 + i) + R.mid * .25, segs = [], tips = [];
+    shape: [{ key: "spread", label: "Spread" }, { key: "depth", label: "Depth", min: 2, max: 6, def: .25 }, { key: "limb", label: "Limb length" }],
+    draw(E) { const { g, n, R, S, t, L, I } = E, i = E.node.seed * 10; g.lineCap = "round";
+      const depth = clamp(I("depth") + Math.round(E2(R.energy) * 1.2), 2, 7), trunk = S * (.1 + .04 * E2(R.energy)) * (1 + .25 * R.kick) * L("limb", .5, 1.6), spread = L("spread", .25, 1.05) + .16 * Math.sin(t * .7 + i) + R.mid * .25, segs = [], tips = [];
       (function br(x, y, a, len, d) {
         const ex = x + Math.cos(a) * len, ey = y + Math.sin(a) * len, bend = Math.sin(t * 1.3 + d * 1.7 + i) * len * .28;
         segs.push([x, y, (x + ex) / 2 - Math.sin(a) * bend, (y + ey) / 2 + Math.cos(a) * bend, ex, ey, d]);
@@ -126,16 +132,17 @@ const FORMS = [
       tips.forEach((p, k) => { const tw = .5 + .5 * Math.sin(t * 4 + k * .7 + i); sprite(g, n.hue + 20, p[0], p[1], S * (.008 + .012 * R.hat) * (.6 + .6 * tw), .7 * tw + .2); });
       sprite(g, n.hue, n.x, n.y, S * .035, .9); } },
   { key: "lightning", name: "Lightning", fade: .5, char: "wander", init: () => ({ bolts: [], flash: 0 }),
-    draw(E) { const { g, n, R, S, st, dt } = E; g.lineJoin = g.lineCap = "round";
+    shape: [{ key: "forks", label: "Forks", min: 0, max: 5, def: .4 }, { key: "jagged", label: "Jagged" }, { key: "reach", label: "Reach" }],
+    draw(E) { const { g, n, R, S, st, dt, L, I } = E, jag = L("jagged", .3, 1.9); g.lineJoin = g.lineCap = "round";
       const others = E.all.filter(o => o.rt !== n);
       let near = null, bd = 1e12; others.forEach(o => { const d = (o.rt.x - n.x) ** 2 + (o.rt.y - n.y) ** 2; if (d < bd) { bd = d; near = o; } });
       g.lineWidth = 1; g.strokeStyle = hsl(n.hue, 90, 70, .1 + .15 * Math.min(1, R.energy));
-      if (near) strokePath(g, bolt(n.x, n.y, near.rt.x, near.rt.y, S * (.03 + .04 * R.treble)));
-      else for (let k = 0; k < 3; k++) { const a = Math.random() * TAU, L = S * (.06 + .06 * R.energy); strokePath(g, bolt(n.x, n.y, n.x + Math.cos(a) * L, n.y + Math.sin(a) * L, L * .5)); }
+      if (near) strokePath(g, bolt(n.x, n.y, near.rt.x, near.rt.y, S * (.03 + .04 * R.treble) * jag));
+      else for (let k = 0; k < 3; k++) { const a = Math.random() * TAU, Ln = S * (.06 + .06 * R.energy); strokePath(g, bolt(n.x, n.y, n.x + Math.cos(a) * Ln, n.y + Math.sin(a) * Ln, Ln * .5 * jag)); }
       if (E.beat) {
-        let tx, ty; if (others.length && Math.random() < .7) { const o = others[Math.floor(Math.random() * others.length)]; tx = o.rt.x; ty = o.rt.y; } else { const a = Math.random() * TAU, L = S * (.25 + Math.random() * .25); tx = n.x + Math.cos(a) * L; ty = n.y + Math.sin(a) * L; }
-        const main = bolt(n.x, n.y, tx, ty, Math.min(S * .25, Math.hypot(tx - n.x, ty - n.y) * .4)); st.bolts.push({ pts: main, age: 0, w: 1 });
-        for (let f = 0; f < 2; f++) { const s = main[Math.floor(main.length * (.3 + Math.random() * .4))], ang = Math.random() * TAU, L = S * (.08 + Math.random() * .12); st.bolts.push({ pts: bolt(s[0], s[1], s[0] + Math.cos(ang) * L, s[1] + Math.sin(ang) * L, L * .5), age: 0, w: .55 }); }
+        let tx, ty; if (others.length && Math.random() < .7) { const o = others[Math.floor(Math.random() * others.length)]; tx = o.rt.x; ty = o.rt.y; } else { const a = Math.random() * TAU, Ln = S * (L("reach", .12, .6) + Math.random() * .2); tx = n.x + Math.cos(a) * Ln; ty = n.y + Math.sin(a) * Ln; }
+        const main = bolt(n.x, n.y, tx, ty, Math.min(S * .25, Math.hypot(tx - n.x, ty - n.y) * .4) * jag); st.bolts.push({ pts: main, age: 0, w: 1 });
+        for (let f = 0, fc = I("forks"); f < fc; f++) { const s = main[Math.floor(main.length * (.2 + Math.random() * .6))], ang = Math.random() * TAU, Ln = S * (.08 + Math.random() * .12); st.bolts.push({ pts: bolt(s[0], s[1], s[0] + Math.cos(ang) * Ln, s[1] + Math.sin(ang) * Ln, Ln * .5 * jag), age: 0, w: .55 }); }
         st.flash = .5 + .4 * R.kick;
       }
       for (let i = st.bolts.length - 1; i >= 0; i--) { const bl = st.bolts[i]; bl.age += dt; if (bl.age > .5) { st.bolts.splice(i, 1); continue; }
@@ -144,55 +151,64 @@ const FORMS = [
       if (st.flash > 0) { sprite(g, n.hue, n.x, n.y, S * .35, st.flash * .35); st.flash = Math.max(0, st.flash - dt * 2.5); }
       sprite(g, n.hue, n.x, n.y, S * (.03 + .025 * R.kick), .9); } },
   { key: "kaleido", name: "Kaleidoscope", fade: .1, char: "wander",
-    draw(E) { const { g, n, R, S, t, W, H } = E, cx = W / 2, cy = H / 2, spin = t * .12 * (E.node.seed > .5 ? 1 : -1);
-      const rx = (n.x - cx) * .85, ry = (n.y - cy) * .85, L = S * (.035 + .05 * E2(R.energy) + .03 * R.kick), wd = L * .32;
-      for (let k = 0; k < 12; k++) {
-        g.save(); g.translate(cx, cy); g.rotate(spin + Math.floor(k / 2) * TAU / 6); if (k % 2) g.scale(1, -1);
+    shape: [{ key: "folds", label: "Folds", min: 3, max: 9, def: .5, fmt: v => (v * 2) + "-way" }, { key: "petal", label: "Petal length" }, { key: "width", label: "Petal width" }],
+    draw(E) { const { g, n, R, S, t, W, H, L, I } = E, cx = W / 2, cy = H / 2, spin = t * .12 * (E.node.seed > .5 ? 1 : -1), pairs = I("folds");
+      const rx = (n.x - cx) * .85, ry = (n.y - cy) * .85, Ln = S * (.035 + .05 * E2(R.energy) + .03 * R.kick) * L("petal", .5, 1.9), wd = Ln * L("width", .12, .65);
+      for (let k = 0; k < pairs * 2; k++) {
+        g.save(); g.translate(cx, cy); g.rotate(spin + Math.floor(k / 2) * TAU / pairs); if (k % 2) g.scale(1, -1);
         g.translate(rx, ry); g.rotate(n.ang);
-        g.beginPath(); g.moveTo(-L / 2, 0); g.quadraticCurveTo(0, -wd, L / 2, 0); g.quadraticCurveTo(0, wd, -L / 2, 0);
+        g.beginPath(); g.moveTo(-Ln / 2, 0); g.quadraticCurveTo(0, -wd, Ln / 2, 0); g.quadraticCurveTo(0, wd, -Ln / 2, 0);
         g.fillStyle = hsl(n.hue, 95, 58, .22 + .2 * R.kick); g.fill(); g.lineWidth = 1; g.strokeStyle = hsl(n.hue, 100, 85, .35); g.stroke();
         g.restore();
       }
       sprite(g, n.hue, cx, cy, S * (.03 + .03 * R.kick), .3); } },
-  { key: "orbiters", name: "Orbiters", fade: .2, char: "waltz",
-    init: node => ({ moons: Array.from({ length: 5 }, (_, j) => ({ th: seeded(node.seed * 99 + j) * TAU, dh: (j - 2) * 22 })) }),
-    draw(E) { const { g, n, R, S, st, t, dt } = E, sd = E.node.seed, dirn = sd > .5 ? 1 : -1, tilt = t * .15 + sd * 6, sq = .38 + .15 * Math.sin(t * .3 + sd * 4), back = [], front = [];
-      st.moons.forEach((m, j) => { const r = S * (.06 + .04 * j) * (1 + .45 * R.kick + .1 * R.bass); m.th += dt * (1.8 / Math.pow(j + 1, .7)) * (1 + R.rms * 1.5) * dirn;
+  { key: "orbiters", name: "Orbiters", fade: .2, char: "waltz", init: () => ({ moons: [] }),
+    shape: [{ key: "moons", label: "Moons", min: 2, max: 8, def: .5 }, { key: "orbit", label: "Orbit width" }, { key: "tilt", label: "Tilt" }],
+    draw(E) { const { g, n, R, S, st, t, dt, L, I } = E, sd = E.node.seed, dirn = sd > .5 ? 1 : -1, tilt = t * .15 + sd * 6, sq = L("tilt", .95, .12) + .1 * Math.sin(t * .3 + sd * 4), back = [], front = [], cnt = I("moons");
+      while (st.moons.length < cnt) { const j = st.moons.length; st.moons.push({ th: seeded(sd * 99 + j) * TAU, dh: (j - 2) * 22 }); }
+      st.moons.length = cnt;
+      st.moons.forEach((m, j) => { const r = S * (.06 + .04 * j * 5 / cnt) * (1 + .45 * R.kick + .1 * R.bass) * L("orbit", .5, 1.7); m.th += dt * (1.8 / Math.pow(j + 1, .7)) * (1 + R.rms * 1.5) * dirn;
         const ox = Math.cos(m.th) * r, oy = Math.sin(m.th) * r * sq, z = Math.sin(m.th);
         (z < 0 ? back : front).push([n.x + ox * Math.cos(tilt) - oy * Math.sin(tilt), n.y + ox * Math.sin(tilt) + oy * Math.cos(tilt), z, n.hue + m.dh]); });
       const draw = list => list.forEach(([x, y, z, h]) => sprite(g, h, x, y, S * .026 * (1 + .35 * z), .55 + .4 * (z + 1) / 2));
       draw(back); sprite(g, n.hue, n.x, n.y, S * (.06 + .03 * R.kick + .01 * R.breath), .95); draw(front); } },
   { key: "dust", name: "Dust spray", fade: .22, char: "moth", init: () => ({ ps: [], acc: 0 }),
-    draw(E) { const { g, n, R, S, st, dt } = E;
-      st.acc += dt * (30 + 160 * E2(R.energy));
-      while (st.acc >= 1 && st.ps.length < 900) { st.acc -= 1; const a = Math.random() * TAU, sp = S * (.04 + .2 * R.kick + .05 * Math.random()), life = .8 + Math.random(); st.ps.push({ x: n.x, y: n.y, vx: Math.cos(a) * sp + n.vx * .35, vy: Math.sin(a) * sp + n.vy * .35, life, max: life, h: n.hue + (Math.random() - .5) * 30 }); }
+    shape: [{ key: "amount", label: "Amount" }, { key: "spread", label: "Spread", def: 1 }, { key: "life", label: "Linger" }],
+    draw(E) { const { g, n, R, S, st, dt, L } = E, cone = L("spread", .08, 1) * TAU;
+      st.acc += dt * (30 + 160 * E2(R.energy)) * L("amount", .25, 2.2);
+      while (st.acc >= 1 && st.ps.length < 900) { st.acc -= 1; const a = n.ang + Math.PI + (Math.random() - .5) * cone, sp = S * (.04 + .2 * R.kick + .05 * Math.random()), life = (.8 + Math.random()) * L("life", .35, 2); st.ps.push({ x: n.x, y: n.y, vx: Math.cos(a) * sp + n.vx * .35, vy: Math.sin(a) * sp + n.vy * .35, life, max: life, h: n.hue + (Math.random() - .5) * 30 }); }
       st.acc = Math.min(st.acc, 1);
       const ps = st.ps, damp = Math.pow(.4, dt);
       for (let i = ps.length - 1; i >= 0; i--) { const p = ps[i]; p.life -= dt; if (p.life <= 0) { ps[i] = ps[ps.length - 1]; ps.pop(); continue; } p.vx *= damp; p.vy *= damp; p.x += p.vx * dt; p.y += p.vy * dt; const k = p.life / p.max; sprite(g, p.h, p.x, p.y, S * .012 * (.4 + .6 * k), Math.min(1, (1 - k) * 6) * k * .8); }
       sprite(g, n.hue, n.x, n.y, S * (.03 + .03 * R.kick), .95); } },
-  { key: "tornado", name: "Tornado", fade: 1, char: "anchored", def: { roam: .18 },
-    init: node => ({ strands: Array.from({ length: 6 }, (_, i) => { const b = node.seed * 50 + i; return { dh: i * 60, az: i / 6 * TAU + seeded(b) * .4, twist: .9 + seeded(b + 9) * .5, pitch: 1.1 + seeded(b + 19) * .5, dir: i % 2 ? -1 : 1, ph: seeded(b + 29) }; }) }),
-    draw(E) { const { g, n, R, S, st, t } = E, bx = n.x, by = n.y, height = S * 1.05, coneW = S * (.2 + .12 * E2(R.energy) + .1 * R.kick), spin = 1.2 + 1.6 * R.rms, lean = Math.sin(t * .5) * coneW * .35;
+  { key: "tornado", name: "Tornado", fade: 1, char: "anchored", def: { roam: .18 }, init: () => ({ strands: [] }),
+    shape: [{ key: "flare", label: "Top width", def: .4 }, { key: "base", label: "Bottom width", def: .05 }, { key: "height", label: "Height" }, { key: "twist", label: "Twist" }, { key: "strands", label: "Strands", min: 2, max: 9, def: .57 }],
+    draw(E) { const { g, n, R, S, st, t, L, I } = E, cnt = I("strands");
+      if (st.strands.length !== cnt) st.strands = Array.from({ length: cnt }, (_, i) => { const b = E.node.seed * 50 + i; return { dh: i * 360 / cnt, az: i / cnt * TAU + seeded(b) * .4, twist: .9 + seeded(b + 9) * .5, pitch: 1.1 + seeded(b + 19) * .5, dir: i % 2 ? -1 : 1, ph: seeded(b + 29) }; });
+      const bx = n.x, by = n.y, height = S * L("height", .45, 1.7), coneW = S * (.2 + .12 * E2(R.energy) + .1 * R.kick), flare = L("flare", .3, 2.1), base = L("base", .005, .35), tw = L("twist", .15, 1.9);
+      const spin = 1.2 + 1.6 * R.rms, lean = Math.sin(t * .5) * coneW * .35;
       st.strands.forEach(s => { const pts = [];
-        for (let i = 0; i <= 70; i++) { const h = i / 70, ang = s.az + s.twist * h * TAU * s.dir + t * spin * s.dir + Math.sin(t * 1.3 + h * 6 + s.ph * 9) * .35, r = coneW * (.02 + Math.pow(h, s.pitch)) * (1 + .07 * Math.sin(h * 8 - t * 2)); pts.push([bx + lean * h + Math.cos(ang) * r, by - h * height + Math.sin(ang) * r * .28]); }
+        for (let i = 0; i <= 70; i++) { const h = i / 70, ang = s.az + s.twist * tw * h * TAU * s.dir + t * spin * s.dir + Math.sin(t * 1.3 + h * 6 + s.ph * 9) * .35, r = coneW * (base + Math.pow(h, s.pitch) * flare) * (1 + .07 * Math.sin(h * 8 - t * 2)); pts.push([bx + lean * h + Math.cos(ang) * r, by - h * height + Math.sin(ang) * r * .28]); }
         const w = S * (.02 + .018 * R.kick); ribbonNeon(g, pts, n.hue + s.dh, f => w * (.25 + .75 * Math.min(1, f * 2.5)), .85); });
-      spriteWhite(g, bx, by, S * (.07 + .05 * R.kick), .95); } },
+      spriteWhite(g, bx, by, S * (.07 + .05 * R.kick) * (1 + base * 2), .95); } },
   { key: "vine", name: "Filigree vine", fade: 1, char: "skater", init: () => ({ h: [] }),
-    draw(E) { const { g, n, R, S, st, t } = E, h = st.h, last = h[h.length - 1];
-      if (!last || Math.hypot(n.x - last[0], n.y - last[1]) > S * .004) { h.push([n.x, n.y]); if (h.length > 170) h.shift(); }
+    shape: [{ key: "length", label: "Length" }, { key: "petal", label: "Petal size" }, { key: "curl", label: "Curl" }],
+    draw(E) { const { g, n, R, S, st, t, L } = E, h = st.h, last = h[h.length - 1], max = Math.round(L("length", 50, 320));
+      if (!last || Math.hypot(n.x - last[0], n.y - last[1]) > S * .004) { h.push([n.x, n.y]); }
+      while (h.length > max) h.shift();
       g.lineCap = g.lineJoin = "round";
       if (h.length >= 6) {
         [[3, .12], [1.2, .9]].forEach(([w, a]) => { g.lineWidth = w; g.strokeStyle = hsl(n.hue, 90, 70, a); strokePath(g, h); });
-        const L = S * (.045 + .02 * E2(R.energy) + .02 * R.kick);
+        const Ln = S * (.045 + .02 * E2(R.energy) + .02 * R.kick), curl = L("curl", .3, 1.9), ps = L("petal", .25, 2.1);
         for (let i = h.length - 1, k = 0; i > 4; i -= 12, k++) {
           const p = h[i], q = h[i - 3], tang = Math.atan2(p[1] - q[1], p[0] - q[0]), side = k % 2 ? 1 : -1;
-          const grow = Math.min(1, (h.length - 1 - i) / 24), len = L * grow * (1 - (h.length - 1 - i) / h.length * .45);
+          const grow = Math.min(1, (h.length - 1 - i) / 24), len = Ln * grow * (1 - (h.length - 1 - i) / h.length * .45);
           if (len < 1) continue;
           const pts = []; let x = p[0], y = p[1], a = tang + side * 1.1;
-          for (let u = 0; u <= 24; u++) { pts.push([x, y]); const f = u / 24; a += side * (.05 + f * f * .5) * (1 + .25 * Math.sin(t * 2 + k)); const sl = len / 24 * (1 - f * .6); x += Math.cos(a) * sl; y += Math.sin(a) * sl; }
+          for (let u = 0; u <= 24; u++) { pts.push([x, y]); const f = u / 24; a += side * (.05 + f * f * .5) * curl * (1 + .25 * Math.sin(t * 2 + k)); const sl = len / 24 * (1 - f * .6); x += Math.cos(a) * sl; y += Math.sin(a) * sl; }
           g.lineWidth = 1.4; g.strokeStyle = hsl(n.hue + 30, 95, 72, .75); strokePath(g, pts);
           g.save(); g.translate(pts[6][0], pts[6][1]); g.rotate(tang + side * 1.9);
-          const pl = len * .5 * (1 + .4 * R.kick);
+          const pl = len * .5 * (1 + .4 * R.kick) * ps;
           g.beginPath(); g.moveTo(0, 0); g.bezierCurveTo(pl * .5, -pl * .45, pl, -pl * .1, pl * .8, pl * .25); g.bezierCurveTo(pl * .6, pl * .4, pl * .2, pl * .2, 0, 0);
           g.fillStyle = hsl(n.hue - 25, 100, 60, .3); g.fill(); g.lineWidth = 1; g.strokeStyle = hsl(n.hue - 25, 100, 82, .6); g.stroke();
           g.restore();
@@ -202,29 +218,31 @@ const FORMS = [
       sprite(g, n.hue, n.x, n.y, S * .035, .9); } },
   { key: "tubeman", name: "Tube dancer", fade: 1, char: "anchored", def: { roam: .14 },
     init: node => ({ fold: 0, side: node.seed > .5 ? 1 : -1 }),
-    draw(E) { const { g, n, R, S, st, t, dt } = E, T = t * 2.6, i = E.node.seed * 7;
+    shape: [{ key: "height", label: "Height" }, { key: "flop", label: "Floppiness" }, { key: "arms", label: "Arm length" }],
+    draw(E) { const { g, n, R, S, st, t, dt, L } = E, T = t * 2.6, i = E.node.seed * 7, flop = L("flop", .25, 1.9);
       if (E.beat && Math.random() < .75) { st.fold = 1; st.side = Math.random() < .5 ? -1 : 1; }
       st.fold = Math.max(0, st.fold - dt * 1.5);
-      const N = 30, seg = S * .85 / N; let x = n.x, y = n.y, a; const pts = [[x, y]];
+      const N = 30, seg = S * L("height", .4, 1.3) / N; let x = n.x, y = n.y, a; const pts = [[x, y]];
       for (let k = 1; k <= N; k++) { const f = k / N;
-        a = -Math.PI / 2 + f * (.8 + .7 * E2(R.energy)) * (Math.sin(T * 1.7 - k * .35 + i) * .55 + Math.sin(T * 2.9 - k * .6 + i * .5) * .3) + (f > .45 ? st.side * Math.sin(st.fold * Math.PI) * 2.4 * (f - .45) / .55 : 0);
+        a = -Math.PI / 2 + f * (.8 + .7 * E2(R.energy)) * flop * (Math.sin(T * 1.7 - k * .35 + i) * .55 + Math.sin(T * 2.9 - k * .6 + i * .5) * .3) + (f > .45 ? st.side * Math.sin(st.fold * Math.PI) * 2.4 * (f - .45) / .55 : 0);
         x += Math.cos(a) * seg; y += Math.sin(a) * seg; pts.push([x, y]); }
-      const w = S * .042 * (1 + .15 * R.kick);
+      const w = S * .042 * (1 + .15 * R.kick), arm = S * .017 * L("arms", .3, 1.9);
       ribbonNeon(g, pts, n.hue, f => w * .5 * (1.5 - f * .3), .9);
       const ai = Math.round(N * .74), sh = pts[ai], sp = pts[ai - 1], bodyA = Math.atan2(sh[1] - sp[1], sh[0] - sp[0]);
-      [-1, 1].forEach(sd => { const arm = [[sh[0], sh[1]]]; let ax = sh[0], ay = sh[1], aa = bodyA + sd * (1.3 + .8 * Math.sin(T * 2.4 + sd + i));
-        for (let k = 0; k < 10; k++) { aa += sd * .14 * Math.sin(T * 3.1 + k * .5 + i); ax += Math.cos(aa) * S * .017; ay += Math.sin(aa) * S * .017; arm.push([ax, ay]); }
-        ribbonNeon(g, arm, n.hue + 15, f => w * .3 * (1 - f * .4), .9); });
+      [-1, 1].forEach(sd => { const armPts = [[sh[0], sh[1]]]; let ax = sh[0], ay = sh[1], aa = bodyA + sd * (1.3 + .8 * Math.sin(T * 2.4 + sd + i));
+        for (let k = 0; k < 10; k++) { aa += sd * .14 * flop * Math.sin(T * 3.1 + k * .5 + i); ax += Math.cos(aa) * arm; ay += Math.sin(aa) * arm; armPts.push([ax, ay]); }
+        ribbonNeon(g, armPts, n.hue + 15, f => w * .3 * (1 - f * .4), .9); });
       sprite(g, n.hue, pts[N][0], pts[N][1], w * 1.5, .9); } },
   { key: "fiddle", name: "Fiddlehead", fade: .3, char: "anchored", def: { roam: .12 }, init: () => ({ curl: 1 }),
-    draw(E) { const { g, n, R, S, st, t, dt } = E, i = E.node.seed * 7, target = 1 - Math.min(.85, R.energy * .7);
+    shape: [{ key: "fronds", label: "Fronds", min: 2, max: 6, def: .25 }, { key: "length", label: "Length" }, { key: "curl", label: "Curl" }],
+    draw(E) { const { g, n, R, S, st, t, dt, L, I } = E, i = E.node.seed * 7, target = 1 - Math.min(.85, R.energy * .7), cnt = I("fronds"), curlK = L("curl", .3, 1.9);
       if (E.beat) st.curl = Math.max(0, st.curl - .4);
       st.curl += (target - st.curl) * dt * 1.1;
       g.lineCap = "round";
-      for (let f = 0; f < 3; f++) {
-        const dirn = f % 2 ? 1 : -1, L = S * (.13 + .04 * E2(R.energy)), N = 40, pts = [];
-        let x = n.x, y = n.y, a = n.ang + f * TAU / 3 + Math.sin(t * .5 + i) * .3;
-        for (let u = 0; u <= N; u++) { pts.push([x, y]); const k = u / N; a += dirn * st.curl * k * k * .55 + .012 * Math.sin(t * 3 + u * .3); x += Math.cos(a) * L / N; y += Math.sin(a) * L / N; }
+      for (let f = 0; f < cnt; f++) {
+        const dirn = f % 2 ? 1 : -1, Ln = S * (.13 + .04 * E2(R.energy)) * L("length", .5, 1.8), N = 40, pts = [];
+        let x = n.x, y = n.y, a = n.ang + (f - (cnt - 1) / 2) * (TAU / 3) / Math.max(1, cnt - 1) * 1.6 + Math.sin(t * .5 + i) * .3;
+        for (let u = 0; u <= N; u++) { pts.push([x, y]); const k = u / N; a += dirn * st.curl * curlK * k * k * .55 + .012 * Math.sin(t * 3 + u * .3); x += Math.cos(a) * Ln / N; y += Math.sin(a) * Ln / N; }
         const w = S * .012; ribbonNeon(g, pts, n.hue + f * 12, ff => w * (1 - ff * .75), .85);
         g.lineWidth = 1; g.strokeStyle = hsl(n.hue + 20, 100, 75, .6); g.beginPath();
         for (let u = 4; u < N - 4; u += 4) { const p = pts[u], q = pts[u + 1], ta = Math.atan2(q[1] - p[1], q[0] - p[0]), ll = S * .02 * (1 - u / N); [-1, 1].forEach(sd => { g.moveTo(p[0], p[1]); g.lineTo(p[0] + Math.cos(ta + sd * 1.1) * ll, p[1] + Math.sin(ta + sd * 1.1) * ll); }); }
@@ -232,15 +250,17 @@ const FORMS = [
       }
       sprite(g, n.hue, n.x, n.y, S * .03, .9); } },
   { key: "doodle", name: "Boiling doodle", fade: 1, char: "wander",
-    init: node => ({ boil: 0, seed: 0, kind: Math.floor(node.seed * 3) % 3 }),
-    draw(E) { const { g, n, R, S, st, t, dt } = E;
+    init: () => ({ boil: 0, seed: 0 }),
+    shape: [{ key: "kind", label: "Shape", min: 0, max: 2, fmt: v => ["Flower", "Blob", "Spiral"][v] }, { key: "wobble", label: "Wobble" }, { key: "size", label: "Size" }],
+    draw(E) { const { g, n, R, S, st, t, dt, L } = E;
+      const kind = E.node.shape && E.node.shape.kind != null ? Math.round(E.node.shape.kind * 2) : Math.floor(E.node.seed * 3) % 3;
       st.boil += dt; if (st.boil > 1 / 9) { st.boil = 0; st.seed++; }
       g.lineCap = g.lineJoin = "round";
-      const jit = S * .006 * (1 + R.hat * 2.5), base = E.node.seed * 1e4, J = k => (seeded(st.seed * 97 + k + base) - .5) * jit * 2;
-      const sz = S * (.08 + .05 * E2(R.energy)) * (1 + .35 * R.kick), N = 44, pts = [];
+      const jit = S * .006 * (1 + R.hat * 2.5) * L("wobble", 0, 3), base = E.node.seed * 1e4, J = k => (seeded(st.seed * 97 + k + base) - .5) * jit * 2;
+      const sz = S * (.08 + .05 * E2(R.energy)) * (1 + .35 * R.kick) * L("size", .45, 1.8), N = 44, pts = [];
       for (let k = 0; k <= N; k++) { const u = k / N; let r, a;
-        if (st.kind === 0) { a = u * TAU + t * .3; r = sz * (.62 + .38 * Math.cos(a * 5 - t * .4)); }
-        else if (st.kind === 1) { a = u * TAU - t * .3; r = sz * (.82 + .18 * Math.sin(a * 3 + t) + .08 * Math.sin(a * 7)); }
+        if (kind === 0) { a = u * TAU + t * .3; r = sz * (.62 + .38 * Math.cos(a * 5 - t * .4)); }
+        else if (kind === 1) { a = u * TAU - t * .3; r = sz * (.82 + .18 * Math.sin(a * 3 + t) + .08 * Math.sin(a * 7)); }
         else { a = u * TAU * 2.4 + t; r = sz * (.12 + .88 * u); }
         pts.push([n.x + Math.cos(a) * r + J(k * 3), n.y + Math.sin(a) * r + J(k * 5 + 71)]); }
       g.lineWidth = 2.4; g.strokeStyle = hsl(n.hue, 100, 68, .9); strokePath(g, pts);
@@ -250,17 +270,20 @@ const FORMS = [
         for (let k = 0; k <= 40; k++) { const u = k / 40, o = Math.sin(u * 22 + t * 6) * S * .012 * Math.sin(Math.PI * u); sq.push([n.x + dx * u - dy / l * o + J(k + 400), n.y + dy * u + dx / l * o + J(k + 300)]); }
         g.lineWidth = 1.4; g.strokeStyle = "rgba(235,235,245,.45)"; strokePath(g, sq); } } },
   { key: "lava", name: "Lava blobs", fade: 1, char: "wander", init: () => ({ x: 0, y: 0, vx: 0, vy: 0, ready: false }),
-    draw(E) { const { n, R, S, st, dt, t } = E;
+    shape: [{ key: "blob", label: "Blob size" }, { key: "drip", label: "Droplet size" }, { key: "fling", label: "Fling" }],
+    draw(E) { const { n, R, S, st, dt, t, L } = E;
       if (!st.ready) { st.x = n.x; st.y = n.y; st.ready = true; }
-      if (E.beat) { const a = Math.random() * TAU, f = S * (1.4 + 2.6 * R.kick); st.vx += Math.cos(a) * f; st.vy += Math.sin(a) * f; }
+      if (E.beat) { const a = Math.random() * TAU, f = S * (1.4 + 2.6 * R.kick) * L("fling", 0, 2.2); st.vx += Math.cos(a) * f; st.vy += Math.sin(a) * f; }
       st.vx += (n.x - st.x) * dt * 7; st.vy += (n.y - st.y) * dt * 7; st.vx *= Math.pow(.3, dt); st.vy *= Math.pow(.3, dt); st.x += st.vx * dt; st.y += st.vy * dt;
-      const r = S * (.09 + .035 * E2(R.energy)) * (1 + .1 * Math.sin(t * 2.2 + E.node.seed * 9));
-      E.frame.lava.push([n.x, n.y, r, n.hue, E.level], [st.x, st.y, r * .6, n.hue + 30, E.level]); } },
+      const r = S * (.09 + .035 * E2(R.energy)) * (1 + .1 * Math.sin(t * 2.2 + E.node.seed * 9)) * L("blob", .45, 1.7);
+      E.frame.lava.push([n.x, n.y, r, n.hue, E.level], [st.x, st.y, r * L("drip", .2, 1), n.hue + 30, E.level]); } },
   { key: "spiro", name: "Spirograph", fade: .035, char: "anchored", def: { roam: .12 },
-    init: node => ({ th: 0, k: 3 + Math.floor(node.seed * 3), prev: null }),
-    draw(E) { const { g, n, R, S, st, t, dt } = E, sd = E.node.seed, dirn = sd > .5 ? -1 : 1;
-      if (E.beat && Math.random() < .3) st.k = [3, 4, 5, 6, 7][Math.floor(Math.random() * 5)];
-      const Rr = S * (.19 + .06 * E2(R.energy)), r = Rr / st.k, d = r * (1.1 + .7 * R.kick + .3 * Math.sin(t * .3 + sd * 9));
+    init: () => ({ th: 0, k: 0, prev: null }),
+    shape: [{ key: "gears", label: "Petals", min: 3, max: 9, def: .17 }, { key: "size", label: "Loop size" }, { key: "pen", label: "Pen reach" }],
+    draw(E) { const { g, n, R, S, st, t, dt, L, I } = E, sd = E.node.seed, dirn = sd > .5 ? -1 : 1, baseK = I("gears");
+      if (!st.k || Math.abs(st.k - baseK) > 1) st.k = baseK;
+      if (E.beat && Math.random() < .3) st.k = clamp(baseK + (Math.random() < .5 ? -1 : 1), 3, 9);
+      const Rr = S * (.19 + .06 * E2(R.energy)) * L("size", .45, 1.7), r = Rr / st.k, d = r * (1.1 + .7 * R.kick + .3 * Math.sin(t * .3 + sd * 9)) * L("pen", .3, 1.8);
       g.lineCap = "round"; g.lineWidth = 1.3; g.strokeStyle = hsl(n.hue + Math.sin(t * .2 + sd * 9) * 35, 100, 66, .75); g.beginPath();
       for (let q = 0; q <= 8; q++) {
         st.th += dt * (2.6 + 3 * R.rms) / 8 * dirn;
@@ -270,26 +293,29 @@ const FORMS = [
       }
       g.stroke(); sprite(g, n.hue, st.prev[0], st.prev[1], S * .02, .9); } },
   { key: "cradle", name: "Cat's cradle", fade: .5, char: "wander", init: () => ({ s: {} }),
-    draw(E) { const { g, n, R, S, st, dt, W, H } = E, sd = E.node.seed, pegs = [[.07, .12], [.93, .12], [.07, .88], [.93, .88]];
-      const targets = E.all.filter(o => o.rt !== n).map(o => ({ key: "n" + o.node.id, x: o.rt.x, y: o.rt.y, node: true })).concat(pegs.map((p, i) => ({ key: "p" + i, x: p[0] * W, y: p[1] * H, node: false })));
-      targets.forEach((tg, i) => { if (!st.s[tg.key]) { const hs = seeded(sd * 100 + i * 7.3); st.s[tg.key] = { amp: 0, mode: 1 + Math.floor(hs * 3), f: 18 + seeded(sd * 31 + i) * 30, ph: 0, on: tg.node || seeded(sd * 77 + i) < .6 }; } });
-      if (E.beat) { const keys = targets.map(q => q.key).filter(k => st.s[k].on); for (let k = 0; k < 2 && keys.length; k++) st.s[keys[Math.floor(Math.random() * keys.length)]].amp = 1; }
+    shape: [{ key: "strings", label: "Corner strings", def: .6 }, { key: "tension", label: "Tension" }, { key: "pluck", label: "Pluck" }],
+    draw(E) { const { g, n, R, S, st, dt, W, H, L, k } = E, sd = E.node.seed, pegs = [[.07, .12], [.93, .12], [.07, .88], [.93, .88]], keep = k("strings");
+      const targets = E.all.filter(o => o.rt !== n).map(o => ({ key: "n" + o.node.id, x: o.rt.x, y: o.rt.y, node: true })).concat(pegs.map((p, i) => ({ key: "p" + i, x: p[0] * W, y: p[1] * H, node: false, rank: seeded(sd * 77 + i) })));
+      targets.forEach((tg, i) => { if (!st.s[tg.key]) { const hs = seeded(sd * 100 + i * 7.3); st.s[tg.key] = { amp: 0, mode: 1 + Math.floor(hs * 3), f: 18 + seeded(sd * 31 + i) * 30, ph: 0 }; } st.s[tg.key].on = tg.node || tg.rank < keep; });
+      if (E.beat) { const keys = targets.map(q => q.key).filter(key => st.s[key].on); for (let j = 0; j < 2 && keys.length; j++) st.s[keys[Math.floor(Math.random() * keys.length)]].amp = 1; }
       g.lineCap = "round";
-      targets.forEach(tg => { const s = st.s[tg.key]; if (!s.on) return; s.amp *= Math.exp(-dt * 1.6); s.ph += dt * s.f;
-        const dx = tg.x - n.x, dy = tg.y - n.y, l = Math.hypot(dx, dy) || 1, nx = -dy / l, ny = dx / l, amp = S * .05 * s.amp * (1 + R.bass) + S * .003 * R.breath * R.idle, pts = [];
-        for (let k = 0; k <= 30; k++) { const u = k / 30, o = Math.sin(Math.PI * u * s.mode) * amp * Math.sin(s.ph); pts.push([n.x + dx * u + nx * o, n.y + dy * u + ny * o]); }
+      const ten = L("tension", .35, 2.2), pl = L("pluck", .25, 2.2);
+      targets.forEach(tg => { const s = st.s[tg.key]; if (!s.on) return; s.amp *= Math.exp(-dt * 1.6); s.ph += dt * s.f * ten;
+        const dx = tg.x - n.x, dy = tg.y - n.y, l = Math.hypot(dx, dy) || 1, nx = -dy / l, ny = dx / l, amp = (S * .05 * s.amp * (1 + R.bass) + S * .003 * R.breath * R.idle) * pl, pts = [];
+        for (let j = 0; j <= 30; j++) { const u = j / 30, o = Math.sin(Math.PI * u * s.mode) * amp * Math.sin(s.ph); pts.push([n.x + dx * u + nx * o, n.y + dy * u + ny * o]); }
         [[3, .1 + .2 * s.amp], [1, .3 + .6 * s.amp]].forEach(([w, a]) => { g.lineWidth = w; g.strokeStyle = hsl(n.hue, 100, 72, a); strokePath(g, pts); });
         if (!tg.node) { g.lineWidth = 1; g.strokeStyle = "rgba(235,235,245,.4)"; g.beginPath(); g.arc(tg.x, tg.y, 4, 0, TAU); g.stroke(); } });
       sprite(g, n.hue, n.x, n.y, S * (.025 + .02 * R.kick), .95); } },
   { key: "seaweed", name: "Seaweed", fade: 1, char: "anchored", def: { roam: .1 }, init: () => ({ b: [] }),
-    draw(E) { const { g, n, R, S, st, t, dt } = E, i = E.node.seed * 7;
-      for (let f = 0; f < 5; f++) {
-        const N = 26, seg = S * (.0085 + .003 * (f % 3)), pts = [[n.x, n.y]];
-        let x = n.x, y = n.y, a = -Math.PI / 2 + (f - 2) * .3;
-        for (let k = 1; k <= N; k++) { const u = k / N; a += u * .1 * Math.sin(t * 1.5 - k * .3 + f * 1.3 + i) * (1 + E2(R.energy)) - n.vx * .00006; x += Math.cos(a) * seg; y += Math.sin(a) * seg; pts.push([x, y]); }
+    shape: [{ key: "fronds", label: "Fronds", min: 2, max: 9, def: .43 }, { key: "length", label: "Length" }, { key: "sway", label: "Sway" }],
+    draw(E) { const { g, n, R, S, st, t, dt, L, I } = E, i = E.node.seed * 7, cnt = I("fronds"), sway = L("sway", .2, 2.1), lenK = L("length", .5, 1.8);
+      for (let f = 0; f < cnt; f++) {
+        const N = 26, seg = S * (.0085 + .003 * (f % 3)) * lenK, pts = [[n.x, n.y]], off = cnt > 1 ? f / (cnt - 1) - .5 : 0;
+        let x = n.x, y = n.y, a = -Math.PI / 2 + off * 1.2;
+        for (let k = 1; k <= N; k++) { const u = k / N; a += u * .1 * Math.sin(t * 1.5 - k * .3 + f * 1.3 + i) * (1 + E2(R.energy)) * sway - n.vx * .00006; x += Math.cos(a) * seg; y += Math.sin(a) * seg; pts.push([x, y]); }
         ribbonNeon(g, pts, n.hue + f * 8, ff => S * .016 * (.35 + Math.sin(Math.PI * ff) * .7) * (1 - ff * .45), .55 + .3 * R.kick);
       }
-      if (E.beat && Math.random() < .5) for (let b = 0; b < 2; b++) st.b.push({ x: n.x + (Math.random() - .5) * S * .08, y: n.y - S * .1, r: S * (.006 + Math.random() * .01), life: 2.5 });
+      if (E.beat && Math.random() < .5) for (let b = 0; b < 2; b++) st.b.push({ x: n.x + (Math.random() - .5) * S * .08, y: n.y - S * .1 * lenK, r: S * (.006 + Math.random() * .01), life: 2.5 });
       for (let k = st.b.length - 1; k >= 0; k--) { const b = st.b[k]; b.life -= dt; if (b.life <= 0) { st.b.splice(k, 1); continue; } b.y -= dt * S * .18; b.x += Math.sin(b.y * .05 + k) * .4;
         g.lineWidth = 1; g.strokeStyle = hsl(n.hue, 80, 85, Math.min(1, b.life) * .7); g.beginPath(); g.arc(b.x, b.y, b.r, 0, TAU); g.stroke(); }
       sprite(g, n.hue, n.x, n.y, S * .025, .7); } }
@@ -379,7 +405,7 @@ function mkNode(form, hx, hy, hue, over = {}) {
   const f = FORM[form];
   return Object.assign({
     id: "n" + Date.now().toString(36) + (seq++), form, char: f.char, charAuto: true, hx, hy, dir: -Math.PI / 2, hue,
-    level: 1, listen: "mix", bus: "", visible: true, seed: Math.random(),
+    level: 1, listen: "mix", bus: "", visible: true, seed: Math.random(), shape: {},
     p: Object.assign({}, PDEF, f.def || {}, over.p || {}),
     o1: { wave: "sine", rate: .6, depth: .16 }, o2: { on: true, wave: "sine", rate: .9, depth: .14, phase: .25 }
   }, over, { p: Object.assign({}, PDEF, f.def || {}, over.p || {}) });
@@ -538,7 +564,7 @@ function arcPath(cx, cy, r, a0, a1) {
 let TICKS = ""; for (let i = 0; i <= 10; i++) { const a = -135 + i * 27, [x0, y0] = polar(50, 50, 49, a), [x1, y1] = polar(50, 50, 53, a); TICKS += `M${x0.toFixed(1)} ${y0.toFixed(1)}L${x1.toFixed(1)} ${y1.toFixed(1)}`; }
 function makeKnob(def, get, set, size = "md") {
   const min = def.min ?? 0, max = def.max ?? 1, dflt = def.dflt ?? (def.bipolar ? 0 : .5);
-  const fmt = v => def.bipolar ? ((v > 0 ? "+" : "") + Math.round(v * 100)) : Math.round(v * 100) + "%";
+  const fmt = def.fmt || (v => def.bipolar ? ((v > 0 ? "+" : "") + Math.round(v * 100)) : Math.round(v * 100) + "%");
   const wrap = document.createElement("div"); wrap.className = "knob-wrap";
   const knob = document.createElement("div"); knob.className = "knob " + size; knob.tabIndex = 0; knob.setAttribute("role", "slider"); knob.setAttribute("aria-label", def.label);
   knob.innerHTML = `<svg viewBox="0 0 100 100" aria-hidden="true"><path class="ticks" d="${TICKS}"/><path class="track" d="${arcPath(50, 50, 45, -135, 135)}"/><path class="arc"/></svg><div class="rim"></div><div class="cap"></div><div class="needle"></div>`;
@@ -609,6 +635,10 @@ function renderRack() {
         ${chipsHTML(FORMS.map(f => [f.key, f.name]), node.form, "form", "grid3")}
       </section>
       <section class="panel rsec" data-seg="shape">
+        <div class="label">Shape · ${esc(FORM[node.form].name)}</div>
+        <div class="knobs" id="shape-knobs"></div>
+      </section>
+      <section class="panel rsec" data-seg="shape">
         <div class="label">Character</div>
         ${chipsHTML(CHARS.map(c => [c.key, c.name]), node.char, "char", "grid2")}
         <p class="desc">${esc(CHAR[node.char].desc)}</p>
@@ -641,6 +671,12 @@ function renderRack() {
             ${rangeRow("o2-phase", "Phase", 0, 1, .01, node.o2.phase, Math.round(node.o2.phase * 100) + "%")}</div>` : `<p class="desc">Choose the Custom path character to build a motion path from oscillators.</p>`}
         </div></details>
       </section>`;
+    const sk = $("#shape-knobs");
+    (FORM[node.form].shape || []).forEach(it => {
+      const discrete = it.min != null || it.max != null, lo = it.min ?? 0, hi = it.max ?? 1;
+      const fmt = discrete ? (v => { const n = Math.round(lerp(lo, hi, v)); return it.fmt ? it.fmt(n) : String(n); }) : undefined;
+      sk.append(makeKnob({ label: it.label, dflt: it.def ?? .5, fmt }, () => (node.shape[it.key] != null ? node.shape[it.key] : (it.def ?? .5)), v => { node.shape[it.key] = v; }).el);
+    });
     const kb = $("#node-knobs");
     PKEYS.forEach(k => kb.append(makeKnob(Object.assign({ dflt: PDEF[k] }, PINFO[k]), () => node.p[k], v => { node.p[k] = v; }).el));
   } else if (sel.type === "bus") {
@@ -659,7 +695,8 @@ function renderRack() {
     const kb = $("#bus-knobs");
     BUSKEYS.forEach(key => kb.append(makeKnob({ label: PINFO[key].label, min: -1, max: 1, bipolar: true, dflt: 0 }, () => b.push[key], v => { b.push[key] = v; }).el));
   } else {
-    box.innerHTML = `<section class="panel rsec" data-seg="shape"><div class="label">Selection</div><p class="empty-rack">Select a node to choose its form, how it travels, and how it reacts. Tap a node on the canvas or in the list, or add one with +.</p></section>`;
+    const msg = `<p class="empty-rack">No node selected. Tap a node on the canvas or in the Nodes list to edit it, or add one with +.</p>`;
+    box.innerHTML = `<section class="panel rsec" data-seg="shape"><div class="label">Shape</div>${msg}</section><section class="panel rsec mobile-only" data-seg="tune"><div class="label">Tune</div>${msg}</section>`;
   }
   box.querySelectorAll('input[type=range]').forEach(paintRange);
 }
@@ -667,7 +704,7 @@ $("#rack").addEventListener("click", e => {
   const t = e.target.closest("button"); if (!t) return;
   if (sel.type === "node") {
     const node = nodeById(sel.id); if (!node) return;
-    if (t.dataset.form) { node.form = t.dataset.form; if (node.charAuto) node.char = FORM[node.form].char; const rt = RT.get(node.id); if (rt) rt.st = null; Object.assign(node.p, FORM[node.form].def || {}); }
+    if (t.dataset.form) { node.form = t.dataset.form; node.shape = {}; if (node.charAuto) node.char = FORM[node.form].char; const rt = RT.get(node.id); if (rt) rt.st = null; Object.assign(node.p, FORM[node.form].def || {}); }
     else if (t.dataset.char) { node.char = t.dataset.char; node.charAuto = false; const rt = RT.get(node.id); if (rt) rt.cs = {}; }
     else if (t.dataset.listen) node.listen = t.dataset.listen;
     else if (t.dataset.bus !== undefined) node.bus = t.dataset.bus;
@@ -958,7 +995,11 @@ function frame(now) {
     else { lx.globalCompositeOperation = "destination-out"; lx.fillStyle = `rgba(0,0,0,${a})`; lx.fillRect(0, 0, rt.layer.width, rt.layer.height); }
     lx.setTransform(FD, 0, 0, FD, 0, 0); lx.globalCompositeOperation = "lighter";
     const bus = node.bus && state.buses[node.bus];
-    try { f.draw({ g: lx, n: rt, node, st: rt.st, R: rt.R, S: S0 * (.5 + rt.p.size), W, H, dt, t: rt.tUse, beat: rt.beat, all, frame: frameShared, level: node.level * (bus ? bus.level : 1) }); }
+    const items = f.shape || [], shp = node.shape || {};
+    const k = key => { const it = items.find(x => x.key === key); return shp[key] != null ? shp[key] : (it && it.def != null ? it.def : .5); };
+    const L = (key, lo, hi) => lerp(lo, hi, k(key));
+    const I = key => { const it = items.find(x => x.key === key) || {}; return Math.round(lerp(it.min ?? 0, it.max ?? 1, k(key))); };
+    try { f.draw({ g: lx, n: rt, node, st: rt.st, R: rt.R, S: S0 * (.5 + rt.p.size), W, H, dt, t: rt.tUse, beat: rt.beat, all, frame: frameShared, level: node.level * (bus ? bus.level : 1), k, L, I }); }
     catch (err) { console.error(err); }
     lx.globalAlpha = 1; lx.setLineDash([]);
   });
@@ -1074,7 +1115,7 @@ function load() {
   state = { nodes: [], buses: freshBuses(), moods: freshMoods(), master: { reaction: .65, punch: .6, decay: .45 }, aspect: mobile ? "fill" : "16:9", grid: 32, snap: true, scene: "Night Drive" };
   if (data && Array.isArray(data.nodes)) {
     Object.assign(state, data);
-    state.nodes = data.nodes.filter(n => FORM[n.form] && CHAR[n.char]).map(n => Object.assign(n, { p: Object.assign({}, PDEF, n.p) }));
+    state.nodes = data.nodes.filter(n => FORM[n.form] && CHAR[n.char]).map(n => Object.assign(n, { p: Object.assign({}, PDEF, n.p), shape: n.shape || {} }));
     state.moods = Object.assign(freshMoods(), data.moods || {}); state.buses = Object.assign(freshBuses(), data.buses || {});
     state.master = Object.assign({ reaction: .65, punch: .6, decay: .45 }, data.master || {});
   } else { const s = SCENES["Night Drive"](); state.nodes = s.nodes; state.moods = s.moods; }

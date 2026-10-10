@@ -181,6 +181,7 @@ input[type=range].hue::-webkit-slider-thumb { margin-top: -4.5px; }
 .beat { width: 9px; height: 9px; border-radius: 50%; background: #2a2a2f; box-shadow: 0 0 0 1px #000; }
 
 .tabbar { display: none; }
+.mobile-only { display: none; }
 .mseg { display: none; }
 .toast { position: fixed; left: 50%; top: calc(6px + env(safe-area-inset-top, 0px)); transform: translate(-50%, -10px); display: flex; align-items: center; gap: 14px; background: #1b1b1f; border: 1px solid var(--line-hi); color: var(--fg); padding: 9px 14px; border-radius: 10px; font-size: 13px; max-width: min(92vw, 480px); opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s; z-index: 50; line-height: 1.45; }
 .toast.show { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }

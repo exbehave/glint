@@ -31,6 +31,7 @@
     <div class="top-right">
       <label for="scene" class="label">Scene</label>
       <select id="scene" class="select"></select>
+      <button class="icon-btn" id="save-btn" aria-label="Save design" title="Save design" aria-expanded="false"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M2 1.5h8l2.5 2.5v8.5h-11z" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linejoin="round"/><path d="M4 1.5v3.5h5V1.5M4 12.5V8.5h6v4" stroke="currentColor" stroke-width="1.2" fill="none"/></svg></button>
       <label for="aspect" class="label">Frame</label>
       <select id="aspect" class="select">
         <option value="16:9">16:9</option><option value="9:16">9:16</option><option value="1:1">1:1</option>
@@ -113,6 +114,13 @@
 </div>
 
 <button class="btn-quiet exit-perform" id="exit-perform" hidden>Exit Perform</button>
+<div class="panel save-pop" id="save-pop" hidden role="dialog" aria-label="Save design">
+  <div class="label">Save design</div>
+  <form class="save-form" id="save-form"><label class="sr" for="save-name">Design name</label><input class="num-in" id="save-name" maxlength="40" placeholder="Name this design" autocomplete="off"><button class="src" type="submit">Save</button></form>
+  <p class="desc" id="save-note">Saves the nodes, personalities, buses and Master settings on this device.</p>
+  <div class="label">My designs</div>
+  <ul class="list saved" id="saved-list"></ul>
+</div>
 <div class="toast" id="toast" role="status" aria-live="polite"><span id="toast-text"></span><button id="toast-act" hidden></button></div>
 <script src="app.js"></script>
 </body>

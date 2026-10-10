@@ -408,7 +408,7 @@ function mkNode(form, hx, hy, hue, over = {}) {
     level: 1, listen: "mix", bus: "", visible: true, seed: Math.random(), shape: {},
     p: Object.assign({}, PDEF, f.def || {}, over.p || {}),
     o1: { wave: "sine", rate: .6, depth: .16 }, o2: { on: true, wave: "sine", rate: .9, depth: .14, phase: .25 }
-  }, over, { p: Object.assign({}, PDEF, f.def || {}, over.p || {}) });
+  }, over, { p: Object.assign({}, PDEF, f.def || {}, over.p || {}), shape: Object.assign({}, over.shape || {}) });
 }
 function freshBuses() { const b = {}; ["A", "B", "C"].forEach(k => b[k] = { level: 1, mute: false, push: Object.fromEntries(BUSKEYS.map(x => [x, 0])) }); return b; }
 function freshMoods() { return Object.fromEntries(MOODS.map(m => [m.key, { on: false, op: .65, mode: m.mode }])); }
@@ -434,6 +434,18 @@ const SCENES = {
       at("aurora", .5, .12, 150, "anchored", { p: { roam: .1 } }), at("wave", .5, .9, 175, "anchored")], moods: moodsWith([["dreamy", .45]]) }),
   // Two trees grow up from the ground under a halo moon, with fireflies drifting between them.
   "Neon Grove": () => ({ nodes: [at("branches", .3, .9, 40, "anchored", { p: { size: .6 } }), at("branches", .7, .9, 330, "anchored", { p: { size: .6 } }), at("halo", .5, .2, 190, "anchored"), at("dust", .5, .5, 150, "moth")], moods: moodsWith([["glitch", .35]]) }),
+  // Five ribbons hang from a rail and swing at slightly different speeds, so they drift in and out of step.
+  "Pendulum Wave": () => ({ nodes: [0, 1, 2, 3, 4].map(i => at("ribbon", .18 + i * .16, .04, 285 - i * 22, "metronome", { seed: .5, p: { roam: .8, tempo: .3 + i * .045, social: 0, chaos: 0, energy: .1 }, shape: { length: .3 } })), moods: moodsWith([["dreamy", .25]]) }),
+  // A neon snake: one ribbon leads and four follow in its wake, shading from magenta to blue.
+  "Conga Line": () => ({ nodes: [at("ribbon", .5, .5, 320, "wander", { p: { roam: .8, tempo: .5 }, shape: { thick: .6 } })].concat([0, 1, 2, 3].map(i => at("ribbon", .5, .5, 300 - i * 20, "follow", { shape: { thick: .55 - i * .07, length: .4 } }))), moods: moodsWith([["hypnotic", .3]]) }),
+  // Two mirrored tornadoes twist in opposite directions under a shared halo.
+  "Twin Flames": () => ({ nodes: [at("tornado", .28, .93, 320, "anchored", { p: { size: .3 }, shape: { flare: .5, twist: .7, height: .4 } }), at("tornado", .72, .93, 190, "anchored", { p: { size: .3 }, shape: { flare: .5, twist: .3, height: .4 } }), at("halo", .5, .16, 45, "anchored", { p: { size: .35 }, shape: { count: 0, tilt: .4 } })], moods: moodsWith([["dreamy", .4]]) }),
+  // A flat halo star at the center sprays sparks in every direction, crowned by lightning at the four compass points.
+  "Supernova": () => ({ nodes: [at("halo", .5, .5, 45, "anchored", { p: { size: .65 }, shape: { tilt: 0, count: .67, speed: .7 } }), at("dust", .5, .5, 30, "anchored", { shape: { amount: .8, spread: 1, life: .6 } }), at("lightning", .5, .16, 200, "anchored", { shape: { forks: .6 } }), at("lightning", .84, .5, 215, "anchored", { shape: { forks: .6 } }), at("lightning", .5, .84, 230, "anchored", { shape: { forks: .6 } }), at("lightning", .16, .5, 245, "anchored", { shape: { forks: .6 } })], moods: moodsWith([["electric", .5]]) }),
+  // Sky, storm and sea in three bands: an aurora above, a row of lightning, a rolling wave below.
+  "Thunderhead": () => ({ nodes: [at("aurora", .5, .1, 260, "anchored", { p: { roam: .08 }, shape: { width: .9, height: .6 } }), at("lightning", .25, .34, 220, "anchored", { shape: { forks: .8, reach: .8 } }), at("lightning", .5, .3, 235, "anchored", { shape: { forks: .8, reach: .8 } }), at("lightning", .75, .34, 250, "anchored", { shape: { forks: .8, reach: .8 } }), at("wave", .5, .86, 200, "anchored", { shape: { height: .4, freq: .3 } })], moods: moodsWith([["electric", .35]]) }),
+  // Six fern fronds ring a golden spirograph, each aimed outward, curling in the quiet and opening on the drop.
+  "Fern Circle": () => ({ nodes: [at("spiro", .5, .5, 45, "anchored", { shape: { gears: .5 } })].concat([0, 1, 2, 3, 4, 5].map(i => { const a = i / 6 * TAU - Math.PI / 2; return at("fiddle", .5 + Math.cos(a) * .3, .5 + Math.sin(a) * .3, i % 2 ? 150 : 95, "anchored", { dir: a, shape: { fronds: 0, length: .4 } }); })), moods: moodsWith([["fluid", .3], ["hypnotic", .25]]) }),
   "Blank canvas": () => ({ nodes: [], moods: freshMoods() })
 };
 let state = null;
@@ -600,7 +612,7 @@ function renderLists() {
     const li = document.createElement("li"); li.className = "row-item" + (node.visible ? "" : " off");
     li.setAttribute("role", "option"); li.setAttribute("aria-selected", sel.type === "node" && sel.id === node.id ? "true" : "false");
     li.style.setProperty("--sw", `hsl(${node.hue} 90% 60%)`);
-    li.innerHTML = `<span class="swatch"></span><span class="row-text"><span class="row-name">${esc(nodeLabel(node))}</span><span class="row-sub">${esc(CHAR[node.char].name)}</span></span><span class="tag${node.bus ? "" : " empty"}">${node.bus || "–"}</span><button class="eye" aria-label="${node.visible ? "Hide" : "Show"} node">${node.visible ? EYE_ON : EYE_OFF}</button>`;
+    li.innerHTML = `<span class="swatch"></span><span class="row-text"><span class="row-name">${esc(nodeLabel(node))}</span><span class="row-sub">${esc(CHAR[node.char].name)}</span></span>${node.bus ? `<span class="tag" title="Bus ${node.bus}">${node.bus}</span>` : "<span></span>"}<button class="eye" aria-label="${node.visible ? "Hide" : "Show"} node">${node.visible ? EYE_ON : EYE_OFF}</button>`;
     li.addEventListener("click", e => { if (e.target.closest(".eye")) { node.visible = !node.visible; renderLists(); scheduleSave(); return; } select("node", node.id); });
     ul.append(li);
   });
@@ -894,7 +906,7 @@ function travel(node, rt, p, E) {
   switch (node.char) {
     case "anchored": tx = hx + Math.sin(t * .9 + sd * 9) * roam * .1; ty = hy + Math.sin(t * .7 + sd * 5) * roam * .06; break;
     case "waltz": { const th = TAU * t * .3 * (sd > .5 ? 1 : -1), acc = .45 * Math.sin(TAU * t * .3 * 3); tx = hx + Math.cos(th + acc) * roam * .75; ty = hy + Math.sin(th + acc) * roam * .5; break; }
-    case "metronome": { const sw = Math.sin(TAU * t * .45) * (.7 + .5 * p.energy); tx = hx + Math.sin(sw) * roam; ty = hy + Math.cos(sw) * roam * .7;
+    case "metronome": { const sw = Math.sin(TAU * t * .45) * (.7 + .5 * p.energy); tx = hx + Math.sin(sw) * roam; ty = hy + Math.cos(sw) * roam;
       const wild = p.chaos * 2 + Math.max(0, p.energy - .55) * 3; if (wild > .3) { const a2 = sw * 2.3 + Math.sin(t * 2.7 + sd * 9) * wild; tx += Math.sin(a2) * roam * .45; ty += Math.cos(a2) * roam * .35; } break; }
     case "custom": { const amp = S0 * .9 * (.4 + p.energy), tt = t * 1.4, a = wave(node.o1.wave, tt * node.o1.rate) * node.o1.depth * amp, b = node.o2.on ? wave(node.o2.wave, tt * node.o2.rate + node.o2.phase) * node.o2.depth * amp : 0;
       tx = hx + Math.cos(node.dir) * a - Math.sin(node.dir) * b; ty = hy + Math.sin(node.dir) * a + Math.cos(node.dir) * b; break; }
@@ -1065,14 +1077,70 @@ function drawSpec() {
 
 /* ================= Scenes, tabs, perform, toast ================= */
 const sceneSel = $("#scene");
-sceneSel.innerHTML = Object.keys(SCENES).map(k => `<option value="${esc(k)}">${esc(k)}</option>`).join("");
+const DKEY = "glint.designs.v1";
+function getDesigns() { try { const d = JSON.parse(localStorage.getItem(DKEY) || "[]"); return Array.isArray(d) ? d : []; } catch (_) { return []; } }
+function putDesigns(d) { try { localStorage.setItem(DKEY, JSON.stringify(d)); return true; } catch (_) { return false; } }
+function snapshotDesign() { const moods = {}; for (const k in state.moods) { const { on, op, mode } = state.moods[k]; moods[k] = { on, op, mode }; } return JSON.parse(JSON.stringify({ nodes: state.nodes, buses: state.buses, moods, master: state.master, aspect: state.aspect })); }
+const sceneLabel = v => v.startsWith("my:") ? v.slice(3) : v;
+function renderSceneOptions() {
+  const designs = getDesigns();
+  sceneSel.innerHTML = `<optgroup label="Scenes">${Object.keys(SCENES).map(k => `<option value="${esc(k)}">${esc(k)}</option>`).join("")}</optgroup>` +
+    (designs.length ? `<optgroup label="My designs">${designs.map(d => `<option value="my:${esc(d.name)}">${esc(d.name)}</option>`).join("")}</optgroup>` : "");
+  const has = [...sceneSel.options].some(o => o.value === state.scene);
+  sceneSel.value = has ? state.scene : "Night Drive";
+}
 let undoSnap = null;
 function loadScene(name, keepUndo) {
-  if (!keepUndo) undoSnap = JSON.stringify(state);
-  const s = SCENES[name](); state.nodes = s.nodes; state.moods = s.moods; state.buses = freshBuses(); state.scene = name;
-  RT.clear(); renderMoods(); select(state.nodes.length ? "node" : "none", state.nodes.length ? state.nodes[0].id : null); scheduleSave();
+  if (!keepUndo) undoSnap = JSON.stringify(Object.assign({}, state, { moods: snapshotDesign().moods }));
+  if (name.startsWith("my:")) {
+    const d = getDesigns().find(x => x.name === name.slice(3)); if (!d) { toast("That design isn't saved on this device."); return false; }
+    const s = JSON.parse(JSON.stringify(d.state));
+    state.nodes = (s.nodes || []).filter(n => FORM[n.form] && CHAR[n.char]).map(n => Object.assign(n, { p: Object.assign({}, PDEF, n.p), shape: n.shape || {} }));
+    state.moods = Object.assign(freshMoods(), s.moods || {}); state.buses = Object.assign(freshBuses(), s.buses || {});
+    state.master = Object.assign({ reaction: .65, punch: .6, decay: .45 }, s.master || {}); if (s.aspect) state.aspect = s.aspect;
+  } else {
+    const s = SCENES[name](); state.nodes = s.nodes; state.moods = s.moods; state.buses = freshBuses();
+  }
+  state.scene = name;
+  RT.clear(); renderMoods(); applyStateUI(); select(state.nodes.length ? "node" : "none", state.nodes.length ? state.nodes[0].id : null); scheduleSave();
+  return true;
 }
-sceneSel.addEventListener("change", () => { loadScene(sceneSel.value); toast(`Loaded ${sceneSel.value}.`, "Undo", () => { if (!undoSnap) return; state = JSON.parse(undoSnap); undoSnap = null; RT.clear(); sceneSel.value = state.scene; renderMoods(); select("none", null); applyStateUI(); scheduleSave(); }); });
+function undoLoad() { if (!undoSnap) return; state = JSON.parse(undoSnap); undoSnap = null; RT.clear(); renderMoods(); select("none", null); applyStateUI(); scheduleSave(); }
+sceneSel.addEventListener("change", () => { if (loadScene(sceneSel.value)) toast(`Loaded ${sceneLabel(sceneSel.value)}.`, "Undo", undoLoad); });
+
+/* save panel */
+const savePop = $("#save-pop"), saveBtn = $("#save-btn");
+function renderSaved() {
+  const ul = $("#saved-list"), designs = getDesigns(); ul.innerHTML = "";
+  if (!designs.length) { ul.innerHTML = '<li class="empty">Nothing saved yet.</li>'; return; }
+  designs.slice().sort((a, b) => b.savedAt - a.savedAt).forEach(d => {
+    const li = document.createElement("li");
+    li.innerHTML = `<span class="row-text"><span class="row-name"></span><span class="row-sub">${new Date(d.savedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })} · ${d.state.nodes.length} node${d.state.nodes.length === 1 ? "" : "s"}</span></span><button class="btn-quiet" data-load>Open</button><button class="btn-quiet" data-del aria-label="Delete ${esc(d.name)}">Delete</button>`;
+    li.querySelector(".row-name").textContent = d.name;
+    li.querySelector("[data-load]").addEventListener("click", () => { if (loadScene("my:" + d.name)) { closeSave(); toast(`Opened ${d.name}.`, "Undo", undoLoad); } });
+    li.querySelector("[data-del]").addEventListener("click", () => {
+      const all = getDesigns(), idx = all.findIndex(x => x.name === d.name); if (idx < 0) return;
+      const [gone] = all.splice(idx, 1); putDesigns(all); renderSaved(); renderSceneOptions();
+      toast(`Deleted ${d.name}.`, "Undo", () => { const now = getDesigns(); now.push(gone); putDesigns(now); renderSaved(); renderSceneOptions(); });
+    });
+    ul.append(li);
+  });
+}
+function openSave() { savePop.hidden = false; saveBtn.setAttribute("aria-expanded", "true"); $("#save-name").value = state.scene.startsWith("my:") ? state.scene.slice(3) : ""; $("#save-note").textContent = "Saves the nodes, personalities, buses and Master settings on this device."; renderSaved(); setTimeout(() => $("#save-name").focus(), 30); }
+function closeSave() { savePop.hidden = true; saveBtn.setAttribute("aria-expanded", "false"); }
+saveBtn.addEventListener("click", e => { e.stopPropagation(); savePop.hidden ? openSave() : closeSave(); });
+document.addEventListener("pointerdown", e => { if (!savePop.hidden && !savePop.contains(e.target) && !saveBtn.contains(e.target)) closeSave(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && !savePop.hidden) closeSave(); });
+$("#save-form").addEventListener("submit", e => {
+  e.preventDefault();
+  const name = $("#save-name").value.trim().replace(/\s+/g, " ");
+  if (!name) { $("#save-note").textContent = "Give the design a name first."; $("#save-name").focus(); return; }
+  const all = getDesigns(), existing = all.findIndex(x => x.name === name), entry = { name, savedAt: Date.now(), state: snapshotDesign() };
+  if (existing >= 0) all[existing] = entry; else all.push(entry);
+  if (!putDesigns(all)) { $("#save-note").textContent = "This device's storage is full or blocked, so the design couldn't be saved."; return; }
+  state.scene = "my:" + name; renderSceneOptions(); renderSaved(); scheduleSave();
+  $("#save-note").textContent = existing >= 0 ? `Updated ${name}.` : `Saved ${name}. It's in the Scene menu under My designs.`;
+});
 function setMobileGroup(g) { document.body.dataset.mg = g; $$("#mseg button").forEach(b => b.setAttribute("aria-pressed", b.dataset.mg === g)); }
 $("#mseg").addEventListener("click", e => { const b = e.target.closest("button"); if (b) setMobileGroup(b.dataset.mg); });
 setMobileGroup("shape");
@@ -1106,7 +1174,7 @@ function scheduleSave() {
   saveTimer = setTimeout(() => { try { const moods = {}; for (const k in state.moods) { const { on, op, mode } = state.moods[k]; moods[k] = { on, op, mode }; } localStorage.setItem(KEY, JSON.stringify(Object.assign({}, state, { moods }))); } catch (_) {} }, 400);
 }
 function applyStateUI() {
-  $("#aspect").value = state.aspect; $("#grid").value = String(state.grid); $("#snap").checked = state.snap; sceneSel.value = state.scene in SCENES ? state.scene : "Night Drive";
+  $("#aspect").value = state.aspect; $("#grid").value = String(state.grid); $("#snap").checked = state.snap; renderSceneOptions();
   buildMaster(); renderLists(); renderRack(); layout();
 }
 function load() {

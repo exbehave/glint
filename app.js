@@ -121,7 +121,7 @@ const FORMS = [
         if (d >= depth) { tips.push([ex, ey]); return; }
         const s = spread * (1 - d * .06) + Math.sin(t * 1.1 + d + i) * .14, nl = len * .76;
         br(ex, ey, a - s, nl, d + 1); br(ex, ey, a + s, nl, d + 1);
-      })(n.x, n.y, n.ang + Math.PI, trunk, 0);
+      })(n.x, n.y, E.node.char === "anchored" ? n.ang : n.ang + Math.PI, trunk, 0);
       [[3.4, .12], [1, .85]].forEach(([wm, al]) => { for (let d = 0; d <= depth; d++) { g.lineWidth = (1.2 + (depth - d) * 1.1) * wm; g.strokeStyle = hsl(n.hue + d * 8, 100, 62 + (wm < 2 ? 18 : 0), al); g.beginPath(); segs.forEach(s => { if (s[6] === d) { g.moveTo(s[0], s[1]); g.quadraticCurveTo(s[2], s[3], s[4], s[5]); } }); g.stroke(); } });
       tips.forEach((p, k) => { const tw = .5 + .5 * Math.sin(t * 4 + k * .7 + i); sprite(g, n.hue + 20, p[0], p[1], S * (.008 + .012 * R.hat) * (.6 + .6 * tw), .7 * tw + .2); });
       sprite(g, n.hue, n.x, n.y, S * .035, .9); } },
@@ -289,7 +289,7 @@ const FORMS = [
         for (let k = 1; k <= N; k++) { const u = k / N; a += u * .1 * Math.sin(t * 1.5 - k * .3 + f * 1.3 + i) * (1 + E2(R.energy)) - n.vx * .00006; x += Math.cos(a) * seg; y += Math.sin(a) * seg; pts.push([x, y]); }
         ribbonNeon(g, pts, n.hue + f * 8, ff => S * .016 * (.35 + Math.sin(Math.PI * ff) * .7) * (1 - ff * .45), .55 + .3 * R.kick);
       }
-      if (E.beat) for (let b = 0; b < 4; b++) st.b.push({ x: n.x + (Math.random() - .5) * S * .08, y: n.y - S * .1, r: S * (.006 + Math.random() * .01), life: 2.5 });
+      if (E.beat && Math.random() < .5) for (let b = 0; b < 2; b++) st.b.push({ x: n.x + (Math.random() - .5) * S * .08, y: n.y - S * .1, r: S * (.006 + Math.random() * .01), life: 2.5 });
       for (let k = st.b.length - 1; k >= 0; k--) { const b = st.b[k]; b.life -= dt; if (b.life <= 0) { st.b.splice(k, 1); continue; } b.y -= dt * S * .18; b.x += Math.sin(b.y * .05 + k) * .4;
         g.lineWidth = 1; g.strokeStyle = hsl(n.hue, 80, 85, Math.min(1, b.life) * .7); g.beginPath(); g.arc(b.x, b.y, b.r, 0, TAU); g.stroke(); }
       sprite(g, n.hue, n.x, n.y, S * .025, .7); } }
@@ -387,14 +387,27 @@ function mkNode(form, hx, hy, hue, over = {}) {
 function freshBuses() { const b = {}; ["A", "B", "C"].forEach(k => b[k] = { level: 1, mute: false, push: Object.fromEntries(BUSKEYS.map(x => [x, 0])) }); return b; }
 function freshMoods() { return Object.fromEntries(MOODS.map(m => [m.key, { on: false, op: .65, mode: m.mode }])); }
 function moodsWith(list) { const m = freshMoods(); list.forEach(([k, op, mode]) => Object.assign(m[k], { on: true, op, mode: mode || MOOD[k].mode })); return m; }
+// Scenes are composed on purpose: symmetric placements, a clear focal point, and a palette per scene.
+const at = (form, x, y, hue, char, over = {}) => mkNode(form, x, y, hue, Object.assign({ char, charAuto: false }, over));
 const SCENES = {
-  "Night Drive": () => ({ nodes: [mkNode("ribbon", .3, .45, 312, { bus: "A" }), mkNode("ribbon", .62, .35, 190, { bus: "A" }), mkNode("ribbon", .5, .66, 38, { bus: "A" }), mkNode("orbiters", .76, .62, 205), mkNode("whip", .24, .7, 268)], moods: moodsWith([["hypnotic", .4]]) }),
-  "Neon Storm": () => ({ nodes: [mkNode("tornado", .5, .86, 300, { p: { size: .6 } }), mkNode("lightning", .28, .35, 210), mkNode("lightning", .72, .3, 265), mkNode("dust", .5, .45, 40)], moods: moodsWith([["electric", .6]]) }),
-  "Kelp Garden": () => ({ nodes: [mkNode("seaweed", .2, .88, 150, { bus: "A" }), mkNode("seaweed", .45, .9, 175, { bus: "A" }), mkNode("seaweed", .78, .87, 95, { bus: "A" }), mkNode("fiddle", .62, .58, 120), mkNode("vine", .4, .4, 320)], moods: moodsWith([["fluid", .55], ["dreamy", .35]]) }),
-  "Cartoon Party": () => ({ nodes: [mkNode("tubeman", .22, .92, 310), mkNode("tubeman", .78, .92, 45), mkNode("doodle", .4, .32, 350), mkNode("doodle", .6, .45, 200), mkNode("cradle", .5, .62, 150)], moods: moodsWith([["aggressive", .45]]) }),
-  "Mandala": () => ({ nodes: [mkNode("kaleido", .38, .4, 300), mkNode("kaleido", .62, .6, 45), mkNode("spiro", .3, .6, 330), mkNode("spiro", .7, .38, 175), mkNode("halo", .5, .5, 190)], moods: moodsWith([["hypnotic", .6]]) }),
-  "Lava Lounge": () => ({ nodes: [mkNode("lava", .35, .5, 15), mkNode("lava", .6, .55, 300), mkNode("lava", .5, .38, 190), mkNode("aurora", .5, .25, 150), mkNode("wave", .5, .78, 175)], moods: moodsWith([["dreamy", .5]]) }),
-  "Neon Grove": () => ({ nodes: [mkNode("branches", .3, .62, 40), mkNode("branches", .7, .56, 330), mkNode("halo", .5, .38, 190), mkNode("dust", .5, .7, 150)], moods: moodsWith([["glitch", .45]]) }),
+  // Three ribbons skate around a gold orbiter at the center.
+  "Night Drive": () => ({ nodes: [at("orbiters", .5, .5, 45, "anchored", { p: { size: .55 } }), at("ribbon", .5, .5, 312, "waltz", { bus: "A", p: { roam: .34 } }), at("ribbon", .5, .5, 265, "waltz", { bus: "A", p: { roam: .5 } }), at("ribbon", .5, .5, 190, "waltz", { bus: "A", p: { roam: .66 } })], moods: moodsWith([["hypnotic", .35]]) }),
+  // A tornado rises from the bottom center between two storm clouds; embers circle it.
+  "Neon Storm": () => ({ nodes: [at("tornado", .5, .9, 300, "anchored", { p: { size: .6 } }), at("lightning", .2, .24, 210, "anchored"), at("lightning", .8, .24, 265, "anchored"), at("dust", .5, .55, 40, "moth")], moods: moodsWith([["electric", .55]]) }),
+  // An evenly spaced seaweed bed, a pair of ferns, and a vine drifting through the water above.
+  "Kelp Garden": () => ({ nodes: [at("seaweed", .14, .93, 160, "anchored", { bus: "A" }), at("seaweed", .38, .93, 175, "anchored", { bus: "A" }), at("seaweed", .62, .93, 140, "anchored", { bus: "A" }), at("seaweed", .86, .93, 185, "anchored", { bus: "A" }), at("fiddle", .26, .7, 120, "anchored"), at("fiddle", .74, .7, 95, "anchored"), at("vine", .5, .38, 320, "wander", { p: { roam: .6 } })], moods: moodsWith([["fluid", .5], ["dreamy", .3]]) }),
+  // Two tube dancers frame the stage, two doodles bob between them, strings stretch from the center.
+  "Cartoon Party": () => ({ nodes: [at("tubeman", .2, .95, 310, "anchored"), at("tubeman", .8, .95, 45, "anchored"), at("doodle", .36, .3, 350, "anchored"), at("doodle", .64, .3, 200, "anchored"), at("cradle", .5, .6, 150, "anchored")], moods: moodsWith([["aggressive", .4]]) }),
+  // Everything turns around one center: a spirograph and halo in the middle, two petal rings orbiting.
+  "Mandala": () => ({ nodes: [at("spiro", .5, .5, 330, "anchored", { p: { size: .6 } }), at("halo", .5, .5, 190, "anchored"), at("kaleido", .5, .3, 45, "waltz", { p: { roam: .3 } }), at("kaleido", .5, .72, 285, "waltz", { p: { roam: .3 } })], moods: moodsWith([["hypnotic", .55]]) }),
+  // A lava lamp: three blobs rise and sink in the center column under an aurora, over a wave.
+  "Lava Lounge": () => ({ nodes: [
+      at("lava", .36, .5, 15, "custom", { p: { social: 0, size: .38 }, o1: { wave: "sine", rate: .2, depth: .32 }, o2: { on: false, wave: "sine", rate: .5, depth: .05, phase: 0 } }),
+      at("lava", .5, .5, 320, "custom", { p: { social: 0, size: .38 }, o1: { wave: "sine", rate: .27, depth: .34 }, o2: { on: true, wave: "sine", rate: .13, depth: .04, phase: .3 } }),
+      at("lava", .64, .5, 280, "custom", { p: { social: 0, size: .38 }, o1: { wave: "sine", rate: .34, depth: .3 }, o2: { on: false, wave: "sine", rate: .5, depth: .05, phase: 0 } }),
+      at("aurora", .5, .12, 150, "anchored", { p: { roam: .1 } }), at("wave", .5, .9, 175, "anchored")], moods: moodsWith([["dreamy", .45]]) }),
+  // Two trees grow up from the ground under a halo moon, with fireflies drifting between them.
+  "Neon Grove": () => ({ nodes: [at("branches", .3, .9, 40, "anchored", { p: { size: .6 } }), at("branches", .7, .9, 330, "anchored", { p: { size: .6 } }), at("halo", .5, .2, 190, "anchored"), at("dust", .5, .5, 150, "moth")], moods: moodsWith([["glitch", .35]]) }),
   "Blank canvas": () => ({ nodes: [], moods: freshMoods() })
 };
 let state = null;
@@ -730,6 +743,7 @@ function renderMoods() {
   });
   renderPill();
 }
+$("#blend-pill").addEventListener("click", () => { if (window.matchMedia("(max-width: 899px)").matches) setMobileGroup("mood"); else $("#moods").scrollIntoView({ block: "nearest" }); });
 function renderPill() {
   const on = MOODS.filter(m => state.moods[m.key].on).map(m => m.name), pill = $("#blend-pill");
   pill.hidden = !on.length;

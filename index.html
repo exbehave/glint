@@ -59,7 +59,6 @@
         <div class="stage" id="stage">
           <canvas id="fx"></canvas>
           <canvas id="ui" aria-label="Canvas. Drag a node's home point to move it; drag the arrow tip to aim it."></canvas>
-          <div class="blend-pill" id="blend-pill" hidden></div>
         </div>
       </div>
       <div class="stage-tools">
@@ -71,6 +70,7 @@
         <label class="tool-check" for="grid">Grid
           <select id="grid" class="select"><option value="24">24</option><option value="32" selected>32</option><option value="48">48</option></select>
         </label>
+        <button class="blend-pill" id="blend-pill" hidden aria-label="Active personalities"></button>
         <span class="hint">Shift drags freely · double-click empty grid to add a node</span>
       </div>
     </section>

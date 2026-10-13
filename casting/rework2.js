@@ -72,8 +72,8 @@ const SEAWEED2 = Object.assign({}, FORM.seaweed, { key: "seaweed2", name: "Seawe
 
 /* ---- Tornado: slower and smoother so each strand's path reads, with a dancing hourglass silhouette ---- */
 const TORNADO2 = Object.assign({}, FORM.tornado, { key: "tornado2", name: "Tornado", init: () => ({ strands: [], ph: 0, w: 0 }),
-  shape: [{ key: "flare", label: "Top width", def: .82 }, { key: "base", label: "Bottom width", def: 0 }, { key: "height", label: "Height" }, { key: "twist", label: "Twist", def: .83 },
-    { key: "strands", label: "Strands", min: 2, max: 9, def: .2857 }, { key: "spin", label: "Spin speed", def: .3 }, { key: "cinch", label: "Waist cinch", def: .6 }, { key: "sway", label: "Body sway", def: .6 }],
+  shape: [{ key: "flare", label: "Top width", def: 1 }, { key: "base", label: "Bottom width", def: 0 }, { key: "height", label: "Height", def: .36 }, { key: "twist", label: "Twist", def: 1 },
+    { key: "strands", label: "Strands", min: 2, max: 9, def: 1 }, { key: "spin", label: "Spin speed", def: .99 }, { key: "cinch", label: "Waist cinch", def: .07 }, { key: "sway", label: "Body sway", def: 1 }],
   draw(E) { const { g, n, R, S, st, t, dt, L, I, k } = E, cnt = I("strands"), loud = loudOf(R);
     if (st.strands.length !== cnt) st.strands = Array.from({ length: cnt }, (_, i) => { const b = E.node.seed * 50 + i; return { dh: i * 360 / cnt, az: i / cnt * TAU + seeded(b) * .4, twist: .9 + seeded(b + 9) * .5, pitch: 1.1 + seeded(b + 19) * .5, dir: i % 2 ? -1 : 1, ph: seeded(b + 29) }; });
     // spin is integrated, so the music changes its speed smoothly instead of jumping the strands around
@@ -90,9 +90,9 @@ const TORNADO2 = Object.assign({}, FORM.tornado, { key: "tornado2", name: "Torna
     spriteWhite(g, bx, by, S * (.07 + .04 * R.kick) * (1 + base * 2), .95); } });
 
 /* ---- Boiling doodle: more shapes ---- */
-const DOODLE_SHAPES = ["Flower", "Blob", "Spiral", "Heart", "Star", "Cloud", "Moon", "Teardrop", "Squiggle"];
+const DOODLE_SHAPES = ["Flower", "Blob", "Spiral", "Heart", "Star", "Cloud", "Moon", "Teardrop", "Squiggle", "Rose", "Infinity", "Trefoil knot", "Butterfly", "Spiro star", "Lotus"];
 const DOODLE2 = Object.assign({}, FORM.doodle, { key: "doodle2", name: "Boiling doodle",
-  shape: [{ key: "kind", label: "Shape", min: 0, max: 8, def: .25, fmt: v => DOODLE_SHAPES[v] }, { key: "wobble", label: "Wobble", def: 1 }, { key: "size", label: "Size", def: 1 }, { key: "morph", label: "Change shape on the beat", def: 0 }],
+  shape: [{ key: "kind", label: "Shape", min: 0, max: 14, def: 8 / 14, fmt: v => DOODLE_SHAPES[v] }, { key: "wobble", label: "Wobble", def: 1 }, { key: "size", label: "Size", def: 1 }, { key: "morph", label: "Change shape on the beat", def: 0 }],
   draw(E) { const { g, n, R, S, st, t, dt, L, I, k } = E;
     st.boil = (st.boil || 0) + dt; st.seed = st.seed || 0; if (st.boil > 1 / 9) { st.boil = 0; st.seed++; }
     if (st.kind == null) st.kind = I("kind");
@@ -101,7 +101,7 @@ const DOODLE2 = Object.assign({}, FORM.doodle, { key: "doodle2", name: "Boiling 
     const kind = st.kind;
     g.lineCap = g.lineJoin = "round";
     const jit = S * .006 * (1 + R.hat * 2.5) * L("wobble", 0, 3), base = E.node.seed * 1e4, J = q => (seeded(st.seed * 97 + q + base) - .5) * jit * 2;
-    const sz = S * (.08 + .05 * E2(R.energy)) * (1 + .35 * R.kick) * L("size", .45, 1.8), N = 64, pts = [];
+    const sz = S * (.08 + .05 * E2(R.energy)) * (1 + .35 * R.kick) * L("size", .45, 1.8), N = kind > 8 ? 260 : 64, pts = [], jk = kind > 8 ? .4 : 1;
     for (let q = 0; q <= N; q++) { const u = q / N; let x, y;
       if (kind === 0) { const a = u * TAU + t * .3, r = sz * (.62 + .38 * Math.cos(a * 5 - t * .4)); x = Math.cos(a) * r; y = Math.sin(a) * r; }
       else if (kind === 1) { const a = u * TAU - t * .3, r = sz * (.82 + .18 * Math.sin(a * 3 + t) + .08 * Math.sin(a * 7)); x = Math.cos(a) * r; y = Math.sin(a) * r; }
@@ -111,8 +111,14 @@ const DOODLE2 = Object.assign({}, FORM.doodle, { key: "doodle2", name: "Boiling 
       else if (kind === 5) { const a = u * TAU, r = sz * (.72 + .16 * Math.abs(Math.sin(a * 3.5 + t * .3))); x = Math.cos(a) * r * 1.25; y = Math.sin(a) * r * .8; }
       else if (kind === 6) { if (u < .5) { const b = lerp(.32 * Math.PI, 1.68 * Math.PI, u * 2); x = Math.cos(b) * sz; y = Math.sin(b) * sz; } else { const b = lerp(1.42 * Math.PI, .58 * Math.PI, (u - .5) * 2); x = sz * .48 + Math.cos(b) * sz * .82; y = Math.sin(b) * sz * .82; } }
       else if (kind === 7) { const a = u * TAU; x = sz * .75 * Math.sin(a) * Math.pow(Math.sin(a / 2), 1.2); y = -sz * Math.cos(a) * .95; }
-      else { const a = u * TAU * 3; x = (u - .5) * sz * 2.4 + Math.cos(a) * sz * .32; y = Math.sin(a) * sz * .38 + Math.sin(u * TAU + t) * sz * .15; }
-      pts.push([n.x + x + J(q * 3), n.y + y + J(q * 5 + 71)]); }
+      else if (kind === 8) { const a = u * TAU * 3; x = (u - .5) * sz * 2.4 + Math.cos(a) * sz * .32; y = Math.sin(a) * sz * .38 + Math.sin(u * TAU + t) * sz * .15; }
+      else if (kind === 9) { const th = u * TAU * 3 + t * .15, r = sz * Math.cos(5 / 3 * th); x = r * Math.cos(th); y = r * Math.sin(th); }
+      else if (kind === 10) { const th = u * TAU + t * .1, d = 1 + Math.sin(th) ** 2; x = sz * 1.3 * Math.cos(th) / d; y = sz * 1.3 * Math.sin(th) * Math.cos(th) / d; }
+      else if (kind === 11) { const th = u * TAU, rot = t * .15, px = sz * .38 * (Math.sin(th) + 2 * Math.sin(2 * th)), py = sz * .38 * (Math.cos(th) - 2 * Math.cos(2 * th)); x = px * Math.cos(rot) - py * Math.sin(rot); y = px * Math.sin(rot) + py * Math.cos(rot); }
+      else if (kind === 12) { const th = u * TAU * 6, r = Math.exp(Math.cos(th)) - 2 * Math.cos(4 * th) - Math.pow(Math.sin(th / 12), 5); x = sz * .28 * Math.sin(th) * r; y = -sz * .28 * Math.cos(th) * r; }
+      else if (kind === 13) { const th = u * TAU * 3 + t * .2, Rr = 5, rr = 3, dd = 5; x = sz / 7 * ((Rr - rr) * Math.cos(th) + dd * Math.cos((Rr - rr) / rr * th)); y = sz / 7 * ((Rr - rr) * Math.sin(th) - dd * Math.sin((Rr - rr) / rr * th)); }
+      else { const th = u * TAU * 2, layer = th < TAU ? 1 : .62, r = sz * layer * (.3 + .7 * Math.abs(Math.sin(3 * th + (layer < 1 ? .52 : 0) + t * .1))); x = r * Math.cos(th); y = r * Math.sin(th); }
+      pts.push([n.x + x + J(q * 3) * jk, n.y + y + J(q * 5 + 71) * jk]); }
     g.lineWidth = 2.4; g.strokeStyle = hsl(n.hue, 100, 68, .9); strokePath(g, pts);
     g.lineWidth = 1; g.strokeStyle = hsl(n.hue, 50, 92, .5); strokePath(g, pts.map((p, q) => [p[0] + 1.5 + J(q + 900), p[1] - 1 + J(q + 700)])); } });
 
@@ -150,8 +156,8 @@ REWORKS.push(
   { form: FIREWORK, from: "Dust spray", char: "anchored", hue: 330, p: { roam: .02, trails: .6 }, desc: "Bursts at random spots on the canvas: peony, willow, ring, crossette, glitter and chrysanthemum, in several colors. Louder music launches them more often, makes them bigger, and sets off finales of several at once." },
   { form: KALEIDO2, from: "Kaleidoscope", char: "follow", hue: 300, p: { chaos: 1, energy: 1, grace: 1, roam: 1, size: 1, tempo: 1, trails: 1 }, desc: "Your settings, and now the folds turn on their axis about a third of the time, clockwise or counterclockwise at random, holding still in between." },
   { form: SEAWEED2, from: "Seaweed", char: "anchored", hy: .92, hue: 300, p: { chaos: .12, energy: 1, grace: .5, roam: 0, size: .72, tempo: 1, trails: .29 }, desc: "Your settings, with iridescent bubbles: pink, gold and champagne gradients that turn as they rise." },
-  { form: TORNADO2, from: "Tornado", char: "anchored", hy: .9, hue: 300, p: { chaos: .38, energy: .42, grace: 1, roam: .77, size: .17, tempo: 0, trails: .6 }, desc: "Starts from your settings, much slower and smoother so each strand's path reads. The silhouette dances: a cinched waist that drifts up and down and a body that sways side to side." },
-  { form: DOODLE2, from: "Boiling doodle", char: "wallflower", hue: 300, p: COMMON_P, desc: "Your settings, with nine shapes now: flower, blob, spiral, heart, star, cloud, moon, teardrop and squiggle. Turn up \"Change shape on the beat\" to have it switch on its own." },
+  { form: TORNADO2, from: "Tornado", char: "anchored", hy: .9, hue: 300, p: { chaos: .05, energy: .42, grace: 1, roam: .77, size: .35, tempo: 0, trails: .6 }, desc: "Starts from your settings, much slower and smoother so each strand's path reads. The silhouette dances: a cinched waist that drifts up and down and a body that sways side to side." },
+  { form: DOODLE2, from: "Boiling doodle", char: "wallflower", hue: 300, p: COMMON_P, desc: "Your settings, with fifteen shapes now, from simple (flower, heart, star, moon) to intricate (rose, infinity, trefoil knot, butterfly curve, spiro star, lotus). Turn up \"Change shape on the beat\" to have it switch on its own." },
   { form: VINE2, from: "Filigree vine", char: "wander", hue: 300, p: COMMON_P, desc: "The color now drifts slowly through a range, so older lingering parts of the vine contrast with the new growth. (Your saved slider settings for this one didn't come through; re-save them here.)" }
 );
 [FIREWORK, KALEIDO2, SEAWEED2, TORNADO2, DOODLE2, VINE2].forEach(f => { FORM[f.key] = f; });

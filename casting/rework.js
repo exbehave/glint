@@ -81,8 +81,8 @@ const GRAFFITI = { key: "graffiti", name: "Graffiti", fade: 1, init: () => ({ ma
         const place = ([x, y]) => { const px = (x - bw / 2) * scale, py = (y - bh / 2) * scale; return [cx + bw * scale / 2 + px * cr - py * sr, cy + bh * scale / 2 + px * sr + py * cr]; };
         // each stroke is gone over 1-3 times, a different number of times each, never quite on the same line
         const queue = [];
-        strokes.forEach(s => { const passes = 1 + (Math.random() < .55 + .4 * sk ? 1 : 0) + (Math.random() < .3 + .4 * sk ? 1 : 0) + (Math.random() < .35 * sk ? 1 : 0) + (Math.random() < .2 * sk ? 1 : 0);
-          for (let q = 0; q < passes; q++) queue.push(jitterLine(s.map(place), S * .009 * (.4 + 1.8 * sk) * (q ? 1.5 : 1), S * .035 * sk, S * .006 * (.5 + sk))); });
+        strokes.forEach(s => { const passes = 1 + (Math.random() < .55 + .4 * sk ? 1 : 0) + (Math.random() < .3 + .4 * sk ? 1 : 0) + (Math.random() < .35 * sk ? 1 : 0) + (Math.random() < .2 * sk ? 1 : 0) + (Math.random() < .3 * sk * sk ? 1 : 0);
+          for (let q = 0; q < passes; q++) queue.push(jitterLine(s.map(place), S * .009 * (.4 + 1.8 * sk) * (q ? 1.5 : 1), S * .035 * sk, S * .008 * (.4 + 1.4 * sk))); });
         st.job = { queue, si: 0, pi: 0 };
       } }
     (st.boxes || []).forEach(b => { b.life -= dt; });
@@ -103,7 +103,7 @@ const GRAFFITI = { key: "graffiti", name: "Graffiti", fade: 1, init: () => ({ ma
       const pts = mk.pts, N = pts.length; if (N < 2) continue;
       // scratchy: a soft glow, a broken main line, and two hairlines that wander off it like pencil grain
       mk.seed ??= Math.random() * 1000;
-      [[2.4, .07, 55, 0, 0], [.8, .75, 62, 0, .12], [.35, .55, 75, 1, .18], [.3, .45, 70, -1, .22], [.25, .35, 80, 2, .3], [.25, .3, 68, -2, .35]].forEach(([wK, al, lt, off, drop]) => {
+      [[2.4, .07, 55, 0, 0], [.8, .75, 62, 0, .12], [.35, .55, 75, 1, .18], [.3, .45, 70, -1, .22], [.25, .35, 80, 2, .3], [.25, .3, 68, -2, .35], [.2, .25 * sk, 82, 3, .4], [.2, .22 * sk, 66, -3, .45]].forEach(([wK, al, lt, off, drop]) => {
         for (let i = 1; i < N; i++) { if (drop && seeded(mk.seed + i * 1.7 + wK * 31) < drop) continue; const p0 = pts[i - 1], p1 = pts[i], o = off * (1 + p1[2] * .5) * (.5 + seeded(mk.seed + i * .3 + off * 7));
           g.lineWidth = Math.max(.5, p1[2] * wK); g.strokeStyle = hsl(p1[3] + (i / N) * span * .2 + off * 12, 100, lt, al * fadeA); g.beginPath(); g.moveTo(p0[0] + o, p0[1] - o * .6); g.lineTo(p1[0] + o, p1[1] - o * .6); g.stroke(); } });
       g.lineWidth = .7; g.strokeStyle = `rgba(255,255,255,${.3 * fadeA})`; strokePath(g, pts); }
@@ -337,7 +337,7 @@ const LIPS = { key: "lips", name: "Smooch", fade: 1, init: () => ({ s: 0, curl: 
     for (let i = st.prints.length - 1; i >= 0; i--) { const p = st.prints[i]; p.sc += dt * (.35 + .5 * loud); p.a -= dt * .55; if (p.a <= 0) { st.prints.splice(i, 1); continue; } outline(p.sc, p.a * .3); } } };
 
 const REWORKS = [
-  { form: GRAFFITI, from: "Neon ribbon + Metronome", char: "anchored", hue: 300, p: { grace: .19, roam: .76 }, desc: "A neon pencil sketches notebook doodles (crown, Cool S, cube, star, heart, smiley, bolt, spiral, eye, arrow) and short words, going over some lines two or three times. Lines swell up to 5× with the music; edit the word list below." },
+  { form: GRAFFITI, from: "Neon ribbon + Metronome", char: "anchored", hue: 300, p: { grace: .19, roam: .48, size: .65, trails: .27 }, desc: "A neon pencil sketches notebook doodles (crown, Cool S, cube, star, heart, smiley, bolt, spiral, eye, arrow) and short words, going over some lines two or three times. Lines swell up to 5× with the music; edit the word list below." },
   { form: STORM, from: "Lightning", char: "anchored", hue: 210, p: { chaos: 1, energy: 1, grace: .72, roam: .91, size: .53, tempo: 1, trails: .86 }, desc: "Three storm cells circle and bump into each other. The Hits each other slider sets how many strikes land on another cell (yours is at 100%; lower it for random strikes); strikes grow in size, frequency and violence as it gets louder." },
   { form: CHESHIRE, from: "Halo rings", char: "anchored", hue: 225, p: { chaos: 1, energy: 1, grace: 1, roam: .6, size: .7, tempo: 1, trails: .59 }, desc: "Two cat eyes slanted down toward the middle, with sculpted brows and spinning spiral irises. Kicks push Size, Trails and Roam toward 100%. Half-lidded and sly when it's quiet; when it's loud they go wide and lopsided, pupils shrink to pinpricks, lids twitch, and rings pour out." },
   { form: SWIM, from: "Whip strand", char: "anchored", hue: 190, p: { roam: .02 }, desc: "A current of whip-tailed swimmers heading one way, each at its own steady speed. Louder music sends in more of them; drums add little bursts. Name still to be picked." },

@@ -16,8 +16,10 @@ const VISUALS = [
   ["synapse", fromCasting("synapse")],
   ["lips", fromCasting("lips")],
   ["cradle", { char: "waltz", hue: 319, p: { chaos: .45, energy: 1, grace: 1, roam: .38, size: 1, tempo: 1, trails: 1 }, shape: { pluck: .47, strings: 1, tension: .98 } }],
-  ["doodle", { char: "wallflower", hue: 300, p: COMMON, shape: { kind: 1, size: 1, wobble: 1 } }],
-  ["tubeman", { char: "anchored", hue: 300, hy: .94, p: Object.assign({}, COMMON, { roam: .14 }), shape: { flop: .13, height: .23 } }]
+  ["doodle2", fromCasting("doodle2")],
+  ["tubeman", { char: "anchored", hue: 300, hy: .94, p: Object.assign({}, COMMON, { roam: .14 }), shape: { flop: .13, height: .23 } }],
+  ["tornado2", fromCasting("tornado2")],
+  ["vine2", fromCasting("vine2")]
 ];
 const VIS = Object.fromEntries(VISUALS);
 // these place their own parts on the canvas, so a movement choice would do nothing
@@ -41,7 +43,7 @@ function newLayer(form) {
   return { id: "L" + Date.now().toString(36) + (seq++), form, char: v.char, hue: v.hue, level: 1, on: true, hy: v.hy ?? .52, seed: Math.random(), shape: Object.assign({}, v.shape), p: Object.assign({}, PDEF, v.p) };
 }
 function fresh() { return { layers: [newLayer("cheshire")], moods: Object.fromEntries(MOODS.map(m => [m.key, { on: false, op: .5, mode: m.mode }])), music: { reaction: 1, punch: 1, decay: 1 } }; }
-function load() { try { const s = JSON.parse(localStorage.getItem(KEY) || "null"); if (s && Array.isArray(s.layers) && s.layers.length && s.layers.every(l => VIS[l.form])) { MOODS.forEach(m => { s.moods[m.key] ||= { on: false, op: .5, mode: m.mode }; }); return s; } } catch (_) {} return fresh(); }
+function load() { try { const s = JSON.parse(localStorage.getItem(KEY) || "null"); if (s && Array.isArray(s.layers)) s.layers.forEach(l => { if (l.form === "doodle") l.form = "doodle2"; }); if (s && Array.isArray(s.layers) && s.layers.length && s.layers.every(l => VIS[l.form])) { MOODS.forEach(m => { s.moods[m.key] ||= { on: false, op: .5, mode: m.mode }; }); return s; } } catch (_) {} return fresh(); }
 let saveT = 0; function save() { clearTimeout(saveT); saveT = setTimeout(() => { try { localStorage.setItem(KEY, JSON.stringify(state, (k, v) => k === "_st" ? undefined : v)); } catch (_) {} }, 300); }
 state = load();
 

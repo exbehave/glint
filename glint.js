@@ -19,11 +19,12 @@ const VISUALS = [
   ["doodle2", fromCasting("doodle2")],
   ["tubeman", { char: "anchored", hue: 300, hy: .94, p: Object.assign({}, COMMON, { roam: .14 }), shape: { flop: .13, height: .23 } }],
   ["tornado2", fromCasting("tornado2")],
-  ["vine2", fromCasting("vine2")]
+  ["vine2", fromCasting("vine2")],
+  ["firework", fromCasting("firework")]
 ];
 const VIS = Object.fromEntries(VISUALS);
 // these place their own parts on the canvas, so a movement choice would do nothing
-const FIXED = new Set(["graffiti", "storm", "cheshire", "synapse", "lips"]);
+const FIXED = new Set(["graffiti", "storm", "cheshire", "synapse", "lips", "firework"]);
 const MOTION = [
   { key: "energy", label: "Energy", hint: "How big and busy it gets" },
   { key: "tempo", label: "Tempo", hint: "How fast its clock runs" },

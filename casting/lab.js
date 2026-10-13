@@ -41,7 +41,7 @@ const docId = it => it.kind + "-" + it.key;
 
 function freshTweak(it) {
   if (it.kind === "rework") { const r = it.r; return { form: r.form.key, char: r.char, hue: r.hue, hy: r.hy, shape: {}, p: Object.assign({}, PDEF, r.p), o1: { wave: "sine", rate: .6, depth: .16 }, o2: { on: true, wave: "sine", rate: .9, depth: .14, phase: .25 } }; }
-  if (it.kind === "form") { const f = FORM[it.key]; return { form: it.key, char: f.char, hue: 300, shape: {}, p: Object.assign({}, PDEF, COMMON, f.def || {}), o1: { wave: "sine", rate: .6, depth: .16 }, o2: { on: true, wave: "sine", rate: .9, depth: .14, phase: .25 } }; }
+  if (it.kind === "form") { const f = FORM[it.key]; return { form: it.key, char: f.keepChar || f.char, hue: f.keepHue ?? 300, shape: {}, p: Object.assign({}, PDEF, COMMON, f.def || {}, f.keepP || {}), o1: { wave: "sine", rate: .6, depth: .16 }, o2: { on: true, wave: "sine", rate: .9, depth: .14, phase: .25 } }; }
   return { form: "tracer", char: it.key, hue: 190, shape: MOCAP_DEF[it.key] ? { length: .85 } : {}, mc: MOCAP_DEF[it.key] ? Object.assign({}, MOCAP_DEF[it.key]) : undefined, p: Object.assign({}, PDEF, COMMON, MOCAP_DEF[it.key] ? { roam: .4 } : {}), o1: { wave: "sine", rate: .6, depth: .16 }, o2: { on: true, wave: "sine", rate: .9, depth: .14, phase: .25 } };
 }
 const tw = () => { const it = cur(), id = docId(it); return tweaks[id] ||= freshTweak(it); };
@@ -240,7 +240,7 @@ function renderControls() {
       const fmt = v => { if (sh.cfmt) return sh.cfmt(v); if (!steps) return pct(v); const n = Math.round(lerp(mn, mx, v)); return sh.fmt ? sh.fmt(n) : String(n); };
       c.append(slider("sh-" + sh.key, sh.label, "", 0, 1, steps ? 1 / steps : .01, v0, fmt, v => { t.shape[sh.key] = v; })); });
     box.append(s);
-    if (it.kind === "rework") { /* these place their own parts on the canvas */ } else {
+    if (it.kind === "rework" && ["graffiti", "storm", "cheshire", "swim", "synapse", "lips", "firework"].includes(it.key)) { /* these place their own parts on the canvas */ } else {
     const [s2, c2] = section("Movement", "try it with other characters");
     c2.append(selectRow("mv-char", "Character", CHARS.filter(ch => ch.key !== "custom").map(ch => [ch.key, ch.name + (ch.key === (it.kind === "rework" ? it.r.char : FORM[it.key].char) ? " · default" : "")]), t.char, v => { t.char = v; restart(); renderHead(); renderControls(); }));
     box.append(s2);

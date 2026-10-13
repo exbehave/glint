@@ -5,7 +5,7 @@ Glint is a music-visualizer design studio. You place **nodes** on a canvas, give
 Full living spec: https://claude.ai/code/artifact/a483d844-f6de-483d-a87d-b19ce74aca4e
 
 ## Where things live
-- **Repo:** `exbehave/glint` (private). Plain static files: `index.html`, `styles.css`, `app.js`, `forms.html`, icons, `manifest.webmanifest`. No build step.
+- **Repo:** `exbehave/glint` (private). Plain static files: `index.html` + `glint.css` + `glint.js` + `engine/` (the app), `studio.html` + `studio.js` + `styles.css` (previous Studio), `casting/` (test bench source), `forms.html`, icons, `manifest.webmanifest`. No build step.
 - **Live site:** https://kennedy-glint.netlify.app (Netlify builds from `main` on every push; the project is public).
 - No Supabase yet: designs save per device in localStorage `glint.studio.v2`. Add cloud sync with the `deploy-web-app` skill when designs need to follow Kennedy across devices.
 - Netlify's free plan charges credits per production deploy; if edits get frequent, adopt In the Loop's `preview` branch workflow.
@@ -64,13 +64,22 @@ Kennedy's feedback on the first Studio build: visuals were monotonous dot sprays
 - Saved per browser (localStorage `glint.studio.v2`). Up to 10 nodes. Adaptive quality lowers resolution if frames run slow.
 
 ## Casting and the first launched reworks (Oct 12–13, 2026)
-- **Casting** is the test bench: one form or character at a time on a blank stage, every property on a slider, Keep / Rework / Cut verdict plus notes. Live page (private Claude artifact): https://claude.ai/artifact/ENcZAuj6ecQQW3D5xuStb8. Notes are in its database collection `reviews` (doc ids `form-<key>`, `char-<key>`, `rework-<key>`, `general`); each saved note also records the slider positions. Source: `casting/` (built by concatenating `mocap.js engine.js mocap-char.js rework.js lab.js` into `shell.html`).
+- **Casting** is the test bench: one form or character at a time on a blank stage, every property on a slider, Keep / Rework / Cut verdict plus notes. Live page (private Claude artifact): https://claude.ai/artifact/ENcZAuj6ecQQW3D5xuStb8. Notes are in its database collection `reviews` (doc ids `form-<key>`, `char-<key>`, `rework-<key>`, `general`); each saved note also records the slider positions. Source: `casting/` (built by concatenating `mocap.js engine.js mocap-char.js rework.js rework2.js lab.js` into `shell.html`).
 - Launched into the Studio as forms, listed first, each with Kennedy's chosen defaults (`def`, `hue`): **Graffiti** (neon pencil sketching doodles and an editable word list, retracing strokes 1–5 times), **Lightning trio** (three cells orbit and strike each other), **Cheshire** (two menacing cat eyes with spiral irises; halos start as copies of the eye outline, then warp and tear as they fade; kicks push Size/Trails/Roam toward 100% via `kickBoost`), **Nerve stems** (dense core plus 3–5 stems; loud parts grow up to 8 more into every quadrant), **Smooch** (aurora-curtain lips that pucker and curl on the beat; name chosen by Kennedy).
 - The original forms they came from (Neon ribbon, Lightning, Halo rings, Branching limbs, Aurora curtain) are still in the Studio because scenes use them; Kennedy hasn't decided whether to retire them.
 - Cut in Casting: Wave line, Swimmers (the Whip strand rework). Not launched: the mocap characters (Dancer, Tai chi; CMU motion capture, credit line required) are still under review.
 - Kennedy's working defaults: music Reaction, Punch and Decay at 100% (now the Studio's fresh-start master settings), high energy and tempo, lots of chaos.
 - Graffiti's default word list is deliberately cheeky and explicit (Kennedy's call). Swap it before any public launch or app store review.
 - Text shape settings (`text: true`, e.g. Graffiti's word list) render as a text box under the Shape knobs.
+
+## Glint v3: the stripped-down app (Oct 13, 2026) — `index.html`
+Kennedy asked to overhaul the whole interface: combine up to three visuals, with only the sliders each one needs. Decisions:
+- `index.html` + `glint.css` + `glint.js` are the app now. The engine is shared through `engine/core.js` (helpers, original forms, characters, travel), `engine/forms.js` (forms built in Casting) and `engine/moods.js` (personalities). Promote changes from `casting/` into `engine/` on purpose; the app does not load Casting's files.
+- The picker only offers approved visuals (Kennedy's choice): Graffiti, Lightning trio, Cheshire, Nerve stems, Smooch, Cat's cradle, Boiling doodle, Tube dancer. Each starts from Kennedy's saved settings (`VISUALS` in glint.js). Add a visual there when Kennedy approves it in Casting.
+- Per visual: color, opacity, its Shape sliders, a Movement picker only where movement matters (not for self-placing visuals), and Motion sliders folded away.
+- Kept from the old app: personalities (with opacity and blend) and full-screen play. Dropped: nodes list, buses, scenes, saved designs, aspect ratios, dragging, the knob deck. The current design autosaves on the device (localStorage `glint.v3`).
+- The previous Studio lives at `studio.html` / `studio.js` / `styles.css`, untouched.
+- Next after refining: more "paths" for the drawing visuals (Graffiti and similar), i.e. what they trace or sketch.
 
 ## Personalities
 - Starting set: Hypnotic, Aggressive, Dreamy, Glitch, Electric, Fluid. Multiple can be active at once.

@@ -1,0 +1,365 @@
+/* ================= Casting: one node at a time ================= */
+const $ = s => document.querySelector(s);
+const cv = $("#stage"), Bc = cv, Bx = cv.getContext("2d");
+const lavaC = mk(8, 8), lavaX = lavaC.getContext("2d"); let lavaImg = null;
+let W = 600, H = 400, DPR = 1;
+let db = null, dirty = false, pendingVerdict = null;
+
+const KNOBS = [
+  { key: "energy", label: "Energy", hint: "How big and busy it gets" },
+  { key: "tempo", label: "Tempo", hint: "How fast its clock runs" },
+  { key: "grace", label: "Grace", hint: "Smooth glide, or stepped and jerky when low" },
+  { key: "chaos", label: "Chaos", hint: "Random jitter on its position" },
+  { key: "size", label: "Size", hint: "Overall scale" },
+  { key: "trails", label: "Trails", hint: "How long its marks linger" },
+  { key: "roam", label: "Roam", hint: "How far it travels from home" },
+  { key: "magnetism", label: "Magnetism", hint: "Pulls toward the partner (+) or pushes away (−)", min: -1, partner: true },
+  { key: "social", label: "Social", hint: "Locks its rhythm to the partner's", partner: true }
+];
+// Starting point for visuals still to revisit, taken from what Kennedy's keeps have in common
+const COMMON = { energy: 1, tempo: 1, chaos: .85, grace: .5, roam: .75, size: .55, trails: .6 };
+const PDEF = { energy: .55, tempo: .45, grace: .7, chaos: .15, size: .5, trails: .5, roam: .45, magnetism: 0, social: .3 };
+const NEEDS_PARTNER = new Set(["skater", "moth", "wallflower", "follow"]);
+const LOW_HOME = { tornado: .9, tubeman: .94, seaweed: .92, fiddle: .72, aurora: .45 };
+const WAVES = ["sine", "triangle", "square", "saw", "noise"];
+
+// Bench aid only, not a Glint form: a plain glowing trail so a character's movement reads on its own.
+const TRACER = { key: "tracer", name: "Plain trail", fade: 1, init: () => ({ h: [] }), shape: [{ key: "length", label: "Trail length" }],
+  draw(E) { const { g, n, S, st, L, R } = E; st.h.push([n.x, n.y]); const max = Math.round(L("length", 20, 260)); while (st.h.length > max) st.h.shift();
+    g.lineCap = g.lineJoin = "round";
+    [[6, .1], [1.6, .75]].forEach(([w, a]) => { g.lineWidth = w; g.strokeStyle = hsl(n.hue, 90, 70, a); strokePath(g, st.h); });
+    sprite(g, n.hue, n.x, n.y, S * (.03 + .03 * R.kick), .95); } };
+const formOf = key => key === "tracer" ? TRACER : FORM[key];
+
+/* ---------- state ---------- */
+const lab = { mode: "reworks", idx: { reworks: 0, forms: 0, chars: 0 }, partner: false, music: { reaction: 1, punch: 1, decay: 1 } };
+const tweaks = {};     // per item, kept while you move around the list
+const reviews = {};    // saved feedback, from the store
+const itemsFor = m => m === "reworks" ? REWORKS.map(r => ({ kind: "rework", key: r.form.key, name: r.form.name, desc: r.desc, from: r.from, r })) : m === "forms" ? FORMS.map(f => ({ kind: "form", key: f.key, name: f.name })) : CHARS.map(c => ({ kind: "char", key: c.key, name: c.name, desc: c.desc }));
+const cur = () => itemsFor(lab.mode)[lab.idx[lab.mode]];
+const docId = it => it.kind + "-" + it.key;
+
+function freshTweak(it) {
+  if (it.kind === "rework") { const r = it.r; return { form: r.form.key, char: r.char, hue: r.hue, hy: r.hy, shape: {}, p: Object.assign({}, PDEF, r.p), o1: { wave: "sine", rate: .6, depth: .16 }, o2: { on: true, wave: "sine", rate: .9, depth: .14, phase: .25 } }; }
+  if (it.kind === "form") { const f = FORM[it.key]; return { form: it.key, char: f.char, hue: 300, shape: {}, p: Object.assign({}, PDEF, COMMON, f.def || {}), o1: { wave: "sine", rate: .6, depth: .16 }, o2: { on: true, wave: "sine", rate: .9, depth: .14, phase: .25 } }; }
+  return { form: "tracer", char: it.key, hue: 190, shape: MOCAP_DEF[it.key] ? { length: .85 } : {}, mc: MOCAP_DEF[it.key] ? Object.assign({}, MOCAP_DEF[it.key]) : undefined, p: Object.assign({}, PDEF, COMMON, MOCAP_DEF[it.key] ? { roam: .4 } : {}), o1: { wave: "sine", rate: .6, depth: .16 }, o2: { on: true, wave: "sine", rate: .9, depth: .14, phase: .25 } };
+}
+const tw = () => { const it = cur(), id = docId(it); return tweaks[id] ||= freshTweak(it); };
+
+/* ---------- nodes ---------- */
+const RT = new Map();
+function subjectNode() {
+  const t = tw(), hy = t.hy ?? LOW_HOME[t.form] ?? .52, hx = lab.partner && hy < .7 ? .38 : .5;
+  return { id: "subject", form: t.form, char: t.char, hx, hy, dir: t.dir ?? -Math.PI / 2, hue: t.hue, level: 1, listen: "mix", seed: .62, shape: t.shape, p: t.p, o1: t.o1, o2: t.o2, mc: t.mc };
+}
+function partnerNode() { return { id: "partner", form: "tracer", char: "wander", hx: .7, hy: .4, dir: -Math.PI / 2, hue: 45, level: .55, listen: "mix", seed: .21, shape: { length: .3 }, p: Object.assign({}, PDEF, { roam: .35, size: .35 }) }; }
+function runtime(node) {
+  let rt = RT.get(node.id);
+  const sig = node.form + "|" + node.char;
+  if (!rt || rt.sig !== sig) {
+    rt = { sig, x: null, y: null, cx: node.hx * W, cy: node.hy * H, vx: 0, vy: 0, ang: node.dir, spin: 0, clock: node.seed * 10, hold: 1, hist: [], cs: {}, idleGap: node.seed * 1.2, p: node.p, R: null };
+    const f = formOf(node.form); rt.st = f.init ? f.init(node) : {};
+    rt.layer = mk(cv.width, cv.height); rt.lx = rt.layer.getContext("2d");
+    RT.set(node.id, rt);
+  }
+  if (rt.layer.width !== cv.width || rt.layer.height !== cv.height) { rt.layer.width = cv.width; rt.layer.height = cv.height; }
+  return rt;
+}
+function restart() { RT.clear(); }
+
+/* ---------- audio: demo beat or a file you load ---------- */
+const A = { bass: 0, mid: 0, treble: 0, rms: 0, kick: 0, midHit: 0, hat: 0, active: false };
+const au = { ctx: null, an: null, input: null, mode: "none", el: null, elSrc: null, demo: null, freq: null, time: null };
+const agc = { bass: .2, mid: .2, treble: .2, rms: .1 }, prevB = { bass: 0, mid: 0, treble: 0 }, since = { bass: 1, mid: 1, treble: 1 };
+function ensureCtx() {
+  if (au.ctx) return au.ctx;
+  const ctx = new (window.AudioContext || window.webkitAudioContext)(), an = ctx.createAnalyser(); an.fftSize = 2048; an.smoothingTimeConstant = .5;
+  const input = ctx.createGain(); input.connect(an); an.connect(ctx.destination);
+  Object.assign(au, { ctx, an, input, freq: new Uint8Array(an.frequencyBinCount), time: new Uint8Array(an.fftSize) });
+  return ctx;
+}
+function stopAll() {
+  if (au.demo) { clearInterval(au.demo.timer); try { au.demo.bus.disconnect(); } catch (_) {} au.demo = null; }
+  if (au.el) { au.el.pause(); try { au.elSrc.disconnect(); } catch (_) {} URL.revokeObjectURL(au.el.src); au.el = null; }
+  au.mode = "none"; syncMusicUI("Silence · idle motion only");
+}
+function startDemo() {
+  stopAll(); const ctx = ensureCtx(); ctx.resume();
+  const bus = ctx.createGain(); bus.gain.value = .6; bus.connect(au.input);
+  const nb = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate), nd = nb.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+  const noise = (t, d) => { const s = ctx.createBufferSource(); s.buffer = nb; s.start(t, Math.random() * .5); s.stop(t + d); return s; };
+  const env = (g, t, v, d) => { g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(.0008, t + d); };
+  const kick = (t, v) => { const o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.setValueAtTime(165, t); o.frequency.exponentialRampToValueAtTime(42, t + .12); env(g, t, v, .42); o.connect(g).connect(bus); o.start(t); o.stop(t + .45); };
+  const snare = (t, v) => { const f = ctx.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = 1900; f.Q.value = .8; const g = ctx.createGain(); env(g, t, v * .5, .2); noise(t, .22).connect(f).connect(g).connect(bus); };
+  const hat = (t, v) => { const f = ctx.createBiquadFilter(); f.type = "highpass"; f.frequency.value = 7500; const g = ctx.createGain(); env(g, t, v * .16, .05); noise(t, .06).connect(f).connect(g).connect(bus); };
+  const bass = (t, fq, d) => { const o = ctx.createOscillator(), f = ctx.createBiquadFilter(), g = ctx.createGain(); o.type = "sawtooth"; o.frequency.value = fq; f.type = "lowpass"; f.frequency.setValueAtTime(900, t); f.frequency.exponentialRampToValueAtTime(220, t + d); g.gain.setValueAtTime(.0008, t); g.gain.exponentialRampToValueAtTime(.2, t + .008); g.gain.exponentialRampToValueAtTime(.0008, t + d); o.connect(f).connect(g).connect(bus); o.start(t); o.stop(t + d + .02); };
+  const ROOTS = [55, 43.65, 65.41, 49], step = 60 / 122 / 4; let next = ctx.currentTime + .08, n = 0;
+  function sched(i, t) { const s = i % 16, bar = Math.floor(i / 16), sec = bar % 8, ci = bar % 4;
+    if (sec === 7 && s >= 12) { snare(t, .4 + (s - 12) * .15); return; }
+    if (s % 4 === 0) kick(t, 1); if (s === 4 || s === 12) snare(t, .9);
+    if (s % 4 === 2) hat(t, 1); else if (s % 2 === 1) hat(t, .45);
+    if ([0, 3, 6, 10, 14].includes(s)) bass(t, ROOTS[ci] * (s === 10 ? 2 : 1), step * 2.2); }
+  const timer = setInterval(() => { while (next < ctx.currentTime + .12) { sched(n, next); next += step; n++; } }, 25);
+  au.demo = { timer, bus }; au.mode = "demo"; syncMusicUI("Demo beat · 122 BPM");
+}
+function startFile(f) {
+  stopAll(); const ctx = ensureCtx(); ctx.resume();
+  const el = new Audio(); el.src = URL.createObjectURL(f); el.loop = true;
+  const src = ctx.createMediaElementSource(el); src.connect(au.input);
+  au.el = el; au.elSrc = src; au.mode = "file";
+  el.addEventListener("error", () => { if (au.el === el) { stopAll(); syncMusicUI(`Couldn't play “${f.name}”. Try an MP3 or M4A.`); } });
+  el.play().catch(() => {});
+  syncMusicUI(f.name.replace(/\.[^.]+$/, "") + " · looping");
+}
+function band(lo, hi, hz) { const f = au.freq; let s = 0, c = 0; for (let i = Math.max(1, Math.floor(lo / hz)); i <= Math.ceil(hi / hz) && i < f.length; i++) { s += f[i]; c++; } return c ? s / c / 255 : 0; }
+function updateAudio(dt) {
+  const hits = { kick: false, mid: false, hat: false }, dec = 2 + (1 - lab.music.decay) * 14;
+  A.kick *= Math.exp(-dec * dt); A.midHit *= Math.exp(-dec * dt); A.hat *= Math.exp(-dec * 1.6 * dt);
+  const playing = au.mode !== "none" && !(au.mode === "file" && au.el && au.el.paused); A.active = playing;
+  if (!playing) { A.bass *= .9; A.mid *= .9; A.treble *= .9; A.rms *= .9; return hits; }
+  au.an.getByteFrequencyData(au.freq); au.an.getByteTimeDomainData(au.time);
+  const hz = au.ctx.sampleRate / au.an.fftSize, raw = { bass: band(30, 140, hz), mid: band(250, 2500, hz), treble: band(5000, 12000, hz) };
+  let sum = 0; for (let i = 0; i < au.time.length; i++) { const v = (au.time[i] - 128) / 128; sum += v * v; }
+  const rms = Math.sqrt(sum / au.time.length), keep = Math.pow(.5, dt / 4);
+  for (const key of ["bass", "mid", "treble"]) {
+    agc[key] = Math.max(raw[key], agc[key] * keep, .04);
+    const norm = clamp(raw[key] / agc[key], 0, 1), flux = norm - prevB[key]; since[key] += dt;
+    if (flux > .11 && norm > .6 && since[key] > .11) { since[key] = 0; if (key === "bass") { A.kick = 1; hits.kick = true; } else if (key === "mid") { A.midHit = 1; hits.mid = true; } else { A.hat = 1; hits.hat = true; } }
+    prevB[key] = norm; A[key] = lerp(A[key], Math.pow(norm, 1.4), .5);
+  }
+  agc.rms = Math.max(rms, agc.rms * keep, .02); A.rms = lerp(A.rms, clamp(rms / agc.rms, 0, 1), .4);
+  return hits;
+}
+
+/* ---------- render loop ---------- */
+function resize() {
+  const r = cv.getBoundingClientRect(); DPR = Math.min(2, window.devicePixelRatio || 1);
+  W = Math.max(50, r.width); H = Math.max(50, r.height);
+  const w = Math.round(W * DPR), h = Math.round(H * DPR); if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; restart(); }
+}
+new ResizeObserver(resize).observe(cv);
+let gclock = 0, gtime = 0, last = performance.now(), paused = false;
+function frame(now) {
+  requestAnimationFrame(frame);
+  const dt = Math.min(.05, (now - last) / 1000); last = now; if (paused) return; gtime += dt;
+  const hits = updateAudio(dt), m = lab.music, r = m.reaction, breath = .5 + .5 * Math.sin(gtime * .9), idle = 1 - r * .7, S0 = Math.min(W, H);
+  gclock += dt * (.3 + idle * .25 * breath + A.rms * r * 1.2);
+  const nodes = [subjectNode()]; if (lab.partner) nodes.push(partnerNode());
+  const all = nodes.map(node => ({ node, rt: runtime(node) }));
+  all.forEach(({ node, rt }) => {
+    let p = node.p; const kb = formOf(node.form).kickBoost;
+    if (kb) { const kick = clamp(A.kick * r * m.punch, 0, 1); p = Object.assign({}, p); kb.forEach(key => { p[key] += (1 - p[key]) * kick; }); }
+    rt.p = p;
+    const R = { kick: A.kick * r * m.punch * 1.4 * (.5 + p.energy), bass: A.bass * r, mid: A.mid * r, treble: A.treble * r, rms: A.rms * r, hat: A.hat * r, idle, breath };
+    R.energy = (idle * (.3 + .25 * breath) + R.rms * 1.1 + R.kick * .45) * (.35 + 1.3 * p.energy);
+    rt.R = R; rt.hue = node.hue;
+    rt.clock += dt * (.3 + idle * .25 * breath + R.rms * 1.2 + R.kick * .5) * (.35 + 1.4 * p.tempo);
+    rt.tUse = lerp(rt.clock + node.seed * 13, gclock, p.social);
+    let beat = A.active ? (hits.kick && r > .05) : false;
+    if (!A.active) { rt.idleGap -= dt * (.6 + .8 * p.tempo); if (rt.idleGap <= 0) { beat = true; rt.idleGap = 1.2 + Math.random() * 1.2; } }
+    rt.beat = beat;
+  });
+  all.forEach(({ node, rt }) => travel(node, rt, rt.p, { dt, S0, tc: rt.tUse * .6, all, beat: rt.beat, gt: gtime }));
+  const shared = { lava: [] };
+  all.forEach(({ node, rt }) => {
+    const f = formOf(node.form), lx = rt.lx, a = fadeAlpha(f.fade, rt.p.trails, dt);
+    lx.setTransform(1, 0, 0, 1, 0, 0); lx.globalAlpha = 1;
+    if (a >= 1) lx.clearRect(0, 0, rt.layer.width, rt.layer.height);
+    else { lx.globalCompositeOperation = "destination-out"; lx.fillStyle = `rgba(0,0,0,${a})`; lx.fillRect(0, 0, rt.layer.width, rt.layer.height); }
+    lx.setTransform(DPR, 0, 0, DPR, 0, 0); lx.globalCompositeOperation = "lighter";
+    const items = f.shape || [], shp = node.shape || {};
+    const k = key => { const it = items.find(x => x.key === key); return shp[key] != null ? shp[key] : (it && it.def != null ? it.def : .5); };
+    const L = (key, lo, hi) => lerp(lo, hi, k(key));
+    const I = key => { const it = items.find(x => x.key === key) || {}; return Math.round(lerp(it.min ?? 0, it.max ?? 1, k(key))); };
+    try { f.draw({ g: lx, n: rt, node, p: rt.p, st: rt.st, R: rt.R, S: S0 * (.5 + rt.p.size), W, H, dt, t: rt.tUse, beat: rt.beat, all, frame: shared, level: node.level, k, L, I }); } catch (err) { console.error(err); }
+    lx.globalAlpha = 1; lx.setLineDash([]);
+  });
+  Bx.setTransform(1, 0, 0, 1, 0, 0); Bx.globalAlpha = 1; Bx.globalCompositeOperation = "source-over"; Bx.clearRect(0, 0, cv.width, cv.height);
+  Bx.globalCompositeOperation = "lighter";
+  all.forEach(({ node, rt }) => { if (node.form === "lava") return; Bx.globalAlpha = node.level; Bx.drawImage(rt.layer, 0, 0); });
+  if (shared.lava.length) drawLava(shared.lava);
+  Bx.globalAlpha = 1; Bx.globalCompositeOperation = "source-over";
+  const beatEl = $("#beat"); beatEl.style.opacity = .18 + A.kick * .82;
+}
+
+/* ---------- UI ---------- */
+function slider(id, label, hint, min, max, step, val, fmt, onInput) {
+  const row = document.createElement("div"); row.className = "ctl";
+  row.innerHTML = `<div class="ctl-top"><label for="${id}">${esc(label)}</label><output id="${id}-o">${fmt(val)}</output></div><input type="range" id="${id}" min="${min}" max="${max}" step="${step}" value="${val}">${hint ? `<div class="ctl-hint">${esc(hint)}</div>` : ""}`;
+  const inp = row.querySelector("input"), out = row.querySelector("output");
+  const paint = () => inp.style.setProperty("--p", ((inp.value - min) / (max - min) * 100) + "%"); paint();
+  inp.addEventListener("input", () => { const v = parseFloat(inp.value); out.textContent = fmt(v); paint(); onInput(v); });
+  return row;
+}
+const pct = v => Math.round(v * 100) + "%";
+function selectRow(id, label, opts, val, onChange) {
+  const row = document.createElement("div"); row.className = "ctl";
+  row.innerHTML = `<div class="ctl-top"><label for="${id}">${esc(label)}</label></div><select id="${id}" class="sel">${opts.map(([k, n]) => `<option value="${k}"${k === val ? " selected" : ""}>${esc(n)}</option>`).join("")}</select>`;
+  row.querySelector("select").addEventListener("change", e => onChange(e.target.value));
+  return row;
+}
+function section(title, sub) { const s = document.createElement("section"); s.className = "grp"; s.innerHTML = `<h3>${esc(title)}${sub ? `<span>${esc(sub)}</span>` : ""}</h3><div class="ctls"></div>`; return [s, s.querySelector(".ctls")]; }
+
+function renderStrip() {
+  const strip = $("#strip"); strip.innerHTML = "";
+  itemsFor(lab.mode).forEach((it, i) => {
+    const b = document.createElement("button"), rv = reviews[docId(it)];
+    b.className = "pick"; b.setAttribute("aria-pressed", i === lab.idx[lab.mode]); b.dataset.v = rv && rv.verdict || "";
+    b.innerHTML = `<i></i>${esc(it.name)}`;
+    b.addEventListener("click", () => go(i)); strip.append(b);
+  });
+  const on = strip.querySelector('[aria-pressed="true"]'); if (on) on.scrollIntoView({ block: "nearest", inline: "center" });
+  const list = itemsFor(lab.mode), done = list.filter(it => reviews[docId(it)] && reviews[docId(it)].verdict).length;
+  $("#progress").textContent = `${done} of ${list.length} reviewed`;
+}
+function renderHead() {
+  const it = cur(), list = itemsFor(lab.mode), t = tw();
+  $("#item-name").textContent = it.name;
+  $("#item-count").textContent = `${lab.idx[lab.mode] + 1} / ${list.length}`;
+  $("#item-desc").textContent = it.kind === "rework" ? it.desc + " From your notes on " + it.from + "." : it.kind === "char" ? it.desc : `Moves as ${CHAR[t.char].name}${t.char === FORM[it.key].char ? " (its default)" : ""}.`;
+}
+function mocapSection(box, t) {
+  if (!MOCAP_DEF[t.char]) return;
+  t.mc = Object.assign({}, MOCAP_DEF[t.char], t.mc || {});
+  const [s, c] = section("Performance", "real motion capture");
+  c.append(selectRow("mc-clip", "Clip", Object.entries(MOCAP).map(([k, m]) => [k, m.name + " · " + (m.n / m.fps).toFixed(0) + "s"]), t.mc.clip, v => { t.mc.clip = v; restart(); }));
+  c.append(selectRow("mc-joint", "Follow", MOCAP_TRACK, t.mc.joint, v => { t.mc.joint = v; restart(); }));
+  c.append(slider("mc-orbit", "Camera orbit", "How fast the view circles the performer", 0, 1, .01, t.mc.orbit, pct, v => { t.mc.orbit = v; }));
+  c.append(slider("mc-height", "Camera height", "Eye level, or looking down from above", 0, 1, .01, t.mc.height, pct, v => { t.mc.height = v; }));
+  c.append(slider("mc-persp", "Depth", "How strongly near limbs grow and far ones shrink", 0, 1, .01, t.mc.persp, pct, v => { t.mc.persp = v; }));
+  box.append(s);
+}
+function renderControls() {
+  const box = $("#controls"); box.innerHTML = ""; const it = cur(), t = tw(), f = formOf(t.form);
+  // the thing under test comes first
+  if (it.kind === "form" || it.kind === "rework") {
+    const [s, c] = section("Shape", it.kind === "rework" ? "this take" : "unique to this form");
+    (f.shape || []).forEach(sh => { if (sh.text) { const row = document.createElement("div"); row.className = "ctl"; row.innerHTML = `<div class="ctl-top"><label for="sh-${sh.key}">${esc(sh.label)}</label></div><textarea id="sh-${sh.key}" class="words" rows="2"></textarea>`; const ta = row.querySelector("textarea"); ta.value = t.shape[sh.key] ?? sh.def; ta.addEventListener("input", () => { t.shape[sh.key] = ta.value; }); c.append(row); return; }
+      const mn = sh.min ?? 0, mx = sh.max ?? 1, steps = mn === 0 && mx === 1 ? 0 : mx - mn;
+      const v0 = t.shape[sh.key] ?? sh.def ?? .5;
+      const fmt = v => { if (sh.cfmt) return sh.cfmt(v); if (!steps) return pct(v); const n = Math.round(lerp(mn, mx, v)); return sh.fmt ? sh.fmt(n) : String(n); };
+      c.append(slider("sh-" + sh.key, sh.label, "", 0, 1, steps ? 1 / steps : .01, v0, fmt, v => { t.shape[sh.key] = v; })); });
+    box.append(s);
+    if (it.kind === "rework") { /* these place their own parts on the canvas */ } else {
+    const [s2, c2] = section("Movement", "try it with other characters");
+    c2.append(selectRow("mv-char", "Character", CHARS.filter(ch => ch.key !== "custom").map(ch => [ch.key, ch.name + (ch.key === (it.kind === "rework" ? it.r.char : FORM[it.key].char) ? " · default" : "")]), t.char, v => { t.char = v; restart(); renderHead(); renderControls(); }));
+    box.append(s2);
+    mocapSection(box, t); }
+  } else {
+    const [s, c] = section("Draw as", "swap the plain trail for a form");
+    c.append(selectRow("mv-form", "Form", [["tracer", "Plain trail (bench only)"]].concat(FORMS.map(fm => [fm.key, fm.name])), t.form, v => { t.form = v; t.shape = {}; restart(); renderControls(); }));
+    box.append(s);
+    mocapSection(box, t);
+    if (t.char === "custom") {
+      const [s3, c3] = section("Path", "two oscillators");
+      [["o1", "A"], ["o2", "B"]].forEach(([o, n]) => {
+        c3.append(selectRow("w-" + o, `Wave ${n}`, WAVES.map(w => [w, w[0].toUpperCase() + w.slice(1)]), t[o].wave, v => { t[o].wave = v; }));
+        c3.append(slider("r-" + o, `Rate ${n}`, "", .05, 3, .01, t[o].rate, v => v.toFixed(2) + "×", v => { t[o].rate = v; }));
+        c3.append(slider("d-" + o, `Depth ${n}`, "", 0, .5, .01, t[o].depth, pct, v => { t[o].depth = v; }));
+      });
+      box.append(s3);
+    }
+  }
+  const [s4, c4] = section("Motion", "shared by every node");
+  KNOBS.filter(kn => !kn.partner || lab.partner).forEach(kn => c4.append(slider("p-" + kn.key, kn.label, kn.hint, kn.min ?? 0, 1, .01, t.p[kn.key], kn.min ? v => (v > 0 ? "+" : "") + Math.round(v * 100) : pct, v => { t.p[kn.key] = v; })));
+  box.append(s4);
+  const [s5, c5] = section("Look");
+  c5.append(slider("hue", "Color", "", 0, 359, 1, t.hue, v => Math.round(v) + "°", v => { t.hue = v; }));
+  box.append(s5);
+  $("#hue-swatch").style.background = `hsl(${t.hue} 95% 60%)`;
+}
+function renderReview() {
+  const it = cur(), rv = reviews[docId(it)] || {};
+  document.querySelectorAll("#verdict button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === rv.verdict));
+  $("#notes").value = rv.notes || "";
+  $("#review-for").textContent = it.name;
+  $("#saved-at").textContent = rv.updatedAt ? "Saved " + new Date(rv.updatedAt).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) + (rv.settings ? " with its settings" : "") : (db ? "Not reviewed yet" : "");
+  $("#load-saved").hidden = !rv.settings;
+}
+function renderAll() {
+  $("#tab-reworks").setAttribute("aria-pressed", lab.mode === "reworks"); $("#tab-forms").setAttribute("aria-pressed", lab.mode === "forms"); $("#tab-chars").setAttribute("aria-pressed", lab.mode === "chars");
+  const it = cur();
+  $("#partner").checked = lab.partner;
+  $("#partner-note").textContent = it.kind === "char" && NEEDS_PARTNER.has(it.key) ? "This character reacts to other nodes, so a partner is on." : "A dim second node to react to.";
+  renderStrip(); renderHead(); renderControls(); renderReview();
+}
+function go(i) {
+  const n = itemsFor(lab.mode).length; lab.idx[lab.mode] = (i + n) % n;
+  const it = cur(); lab.partner = it.kind === "char" ? NEEDS_PARTNER.has(it.key) : (it.key === "lightning" || it.key === "cradle" ? lab.partner : false);
+  restart(); renderAll(); remember();
+}
+function setMode(m) { lab.mode = m; go(lab.idx[m]); }
+function syncMusicUI(text) {
+  $("#music-now").textContent = text;
+  $("#m-demo").setAttribute("aria-pressed", au.mode === "demo"); $("#m-off").setAttribute("aria-pressed", au.mode === "none"); $("#m-file-l").setAttribute("aria-pressed", au.mode === "file");
+}
+
+$("#tab-forms").addEventListener("click", () => setMode("forms"));
+$("#tab-reworks").addEventListener("click", () => setMode("reworks"));
+$("#tab-chars").addEventListener("click", () => setMode("chars"));
+$("#prev").addEventListener("click", () => go(lab.idx[lab.mode] - 1));
+$("#next").addEventListener("click", () => go(lab.idx[lab.mode] + 1));
+$("#reset").addEventListener("click", () => { delete tweaks[docId(cur())]; restart(); renderAll(); });
+$("#replay").addEventListener("click", () => restart());
+$("#partner").addEventListener("change", e => { lab.partner = e.target.checked; restart(); renderControls(); });
+$("#m-demo").addEventListener("click", () => au.mode === "demo" ? stopAll() : startDemo());
+$("#m-off").addEventListener("click", stopAll);
+$("#m-file").addEventListener("change", e => { const f = e.target.files && e.target.files[0]; if (f) startFile(f); e.target.value = ""; });
+$("#stage").addEventListener("click", () => { paused = !paused; $("#paused").hidden = !paused; });
+document.addEventListener("keydown", e => { if (e.target.closest("input, textarea, select")) return; if (e.key === "ArrowRight") go(lab.idx[lab.mode] + 1); if (e.key === "ArrowLeft") go(lab.idx[lab.mode] - 1); });
+(function music() {
+  const box = $("#music-ctl");
+  box.append(slider("reaction", "Reaction", "0% = idle motion only", 0, 1, .01, lab.music.reaction, pct, v => { lab.music.reaction = v; }),
+    slider("punch", "Punch", "How hard beats hit", 0, 1, .01, lab.music.punch, pct, v => { lab.music.punch = v; }),
+    slider("decay", "Decay", "How long each hit rings", 0, 1, .01, lab.music.decay, pct, v => { lab.music.decay = v; }));
+})();
+
+/* ---------- feedback store ---------- */
+function setStatus(msg, bad) { const el = $("#store-status"); el.textContent = msg; el.dataset.bad = bad ? "1" : ""; }
+async function connectStore() {
+  if (!window.claude || !window.claude.use) { setStatus("Notes can't be saved in this view.", true); disableReview(); return; }
+  db = await window.claude.use("db");
+  if (!db) { setStatus("Notes can't be saved in this view. Open it from claude.ai while signed in.", true); disableReview(); return; }
+  setStatus("Notes save for Claude to read.");
+  db.collection("reviews").onSnapshot(snap => {
+    snap.docs.forEach(d => { reviews[d.id] = d.data(); });
+    snap.docChanges().forEach(ch => { if (ch.type === "removed") delete reviews[ch.doc.id]; });
+    renderStrip(); if (!dirty) renderReview(); else $("#saved-at").textContent = "Unsaved changes";
+    const g = reviews.general; if (g && document.activeElement !== $("#general")) $("#general").value = g.notes || "";
+  }, err => setStatus("Lost the connection to saved notes (" + err.code + "). Reload the page.", true));
+}
+function disableReview() { ["#save", "#notes", "#general", "#save-general"].forEach(s => $(s).disabled = true); document.querySelectorAll("#verdict button").forEach(b => b.disabled = true); }
+$("#notes").addEventListener("input", () => { dirty = true; $("#saved-at").textContent = "Unsaved changes"; });
+document.querySelectorAll("#verdict button").forEach(b => b.addEventListener("click", () => {
+  pendingVerdict = b.dataset.v; dirty = true;
+  document.querySelectorAll("#verdict button").forEach(x => x.setAttribute("aria-pressed", x === b)); $("#saved-at").textContent = "Unsaved changes";
+}));
+function snapshotSettings() { const t = tw(); return JSON.parse(JSON.stringify({ form: t.form, char: t.char, hue: Math.round(t.hue), shape: t.shape, motion: t.p, partner: lab.partner, music: { source: au.mode, ...lab.music }, path: t.char === "custom" ? { a: t.o1, b: t.o2 } : undefined, performance: MOCAP_DEF[t.char] ? t.mc : undefined })); }
+$("#save").addEventListener("click", async () => {
+  if (!db) return; const it = cur(), id = docId(it), prev = reviews[id] || {};
+  const body = { kind: it.kind, key: it.key, name: it.name, verdict: pendingVerdict ?? prev.verdict ?? null, notes: $("#notes").value.trim(), settings: snapshotSettings(), updatedAt: new Date().toISOString() };
+  const btn = $("#save"); btn.disabled = true; btn.textContent = "Saving…";
+  try { await db.collection("reviews").doc(id).set(body); reviews[id] = body; dirty = false; pendingVerdict = null; renderReview(); renderStrip(); btn.textContent = "Saved"; setTimeout(() => btn.textContent = "Save notes", 1400); }
+  catch (e) { $("#saved-at").textContent = e.code === "invalid_argument" ? "Only you can save notes here." : "Didn't save (" + e.code + "). Try again."; btn.textContent = "Save notes"; }
+  btn.disabled = false;
+});
+$("#load-saved").addEventListener("click", () => {
+  const rv = reviews[docId(cur())]; if (!rv || !rv.settings) return; const s = rv.settings, t = tw();
+  Object.assign(t, { form: s.form, char: s.char, hue: s.hue, shape: Object.assign({}, s.shape), p: Object.assign({}, PDEF, s.motion) });
+  if (s.path) { t.o1 = Object.assign({}, s.path.a); t.o2 = Object.assign({}, s.path.b); }
+  if (s.performance) t.mc = Object.assign({}, s.performance);
+  lab.partner = !!s.partner; restart(); renderAll();
+});
+$("#save-general").addEventListener("click", async () => {
+  if (!db) return; const btn = $("#save-general"); btn.disabled = true;
+  try { await db.collection("reviews").doc("general").set({ kind: "general", notes: $("#general").value.trim(), updatedAt: new Date().toISOString() }); btn.textContent = "Saved"; setTimeout(() => btn.textContent = "Save ideas", 1400); }
+  catch (e) { btn.textContent = "Didn't save, try again"; }
+  btn.disabled = false;
+});
+function remember() { dirty = false; pendingVerdict = null; try { localStorage.setItem("casting.pos2", JSON.stringify({ mode: lab.mode, idx: lab.idx })); } catch (_) {} }
+
+try { const pos = JSON.parse(localStorage.getItem("casting.pos2") || "null"); if (pos && pos.idx) { lab.mode = ["reworks", "forms", "chars"].includes(pos.mode) ? pos.mode : "reworks"; lab.idx.reworks = clamp(pos.idx.reworks | 0, 0, REWORKS.length - 1); lab.idx.forms = clamp(pos.idx.forms | 0, 0, FORMS.length - 1); lab.idx.chars = clamp(pos.idx.chars | 0, 0, CHARS.length - 1); } } catch (_) {}
+syncMusicUI("Silence · idle motion only");
+go(lab.idx[lab.mode]);
+resize(); requestAnimationFrame(frame);
+connectStore();

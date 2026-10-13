@@ -1,0 +1,192 @@
+<title>Glint Casting</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500&family=IBM+Plex+Mono:wght@400&display=swap">
+<style>
+/* Layout: an audition room. Stage (canvas) dominant on the left and sticky on phones; the rack on the right holds
+   the thing under test first, then shared motion, then the verdict card. Grayscale steel UI; only the stage has color. */
+:root {
+  color-scheme: dark;
+  --bg: #08080a;
+  --panel: #111114;
+  --panel-hi: #19191d;
+  --well: #040405;
+  --line: rgba(232, 232, 242, .08);
+  --line-hi: rgba(232, 232, 242, .18);
+  --fg: #d8d8de;
+  --muted: #8f8f98;
+  --dim: #5c5c64;
+  --silver: #f2f2f6;
+  --keep: #b9d8c4;
+  --rework: #d9cfae;
+  --cut: #d6a9a9;
+  --font-ui: "Jost", "Futura", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --r: 10px;
+}
+* { box-sizing: border-box; }
+html, body { background: var(--bg); color: var(--fg); }
+body { font-family: var(--font-ui); font-size: 14px; -webkit-font-smoothing: antialiased; }
+button, select, input, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 1px solid var(--silver); outline-offset: 2px; }
+.wrap { max-width: 1320px; margin: 0 auto; padding-inline: 16px; padding-block: 0 40px; }
+
+.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding-block: 14px; border-bottom: 1px solid var(--line); }
+.mark { font-weight: 300; font-size: 20px; letter-spacing: .42em; color: var(--silver); }
+.mark span { letter-spacing: .18em; font-size: 12px; color: var(--muted); margin-left: .6em; text-transform: uppercase; }
+.seg { display: inline-flex; background: var(--panel); border: 1px solid var(--line-hi); border-radius: 999px; padding: 3px; }
+.seg button { background: none; border: 0; border-radius: 999px; padding: 6px 14px; color: var(--muted); letter-spacing: .04em; }
+.seg button[aria-pressed="true"] { background: var(--panel-hi); color: var(--silver); box-shadow: inset 0 1px 0 rgba(255,255,255,.08); }
+.progress { font-family: var(--font-data); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.strip { display: flex; gap: 6px; overflow-x: auto; padding-block: 12px; scrollbar-width: thin; }
+.pick { flex: none; display: inline-flex; align-items: center; gap: 7px; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; color: var(--muted); white-space: nowrap; }
+.pick i { width: 7px; height: 7px; border-radius: 50%; border: 1px solid var(--dim); }
+.pick[data-v="keep"] i { background: var(--keep); border-color: var(--keep); }
+.pick[data-v="rework"] i { background: var(--rework); border-color: var(--rework); }
+.pick[data-v="cut"] i { background: var(--cut); border-color: var(--cut); }
+.pick[aria-pressed="true"] { color: var(--silver); border-color: var(--line-hi); background: var(--panel-hi); }
+
+.main { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 18px; align-items: start; }
+.stage-col { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 8px); display: grid; gap: 10px; min-width: 0; }
+.stage { position: relative; aspect-ratio: 16 / 10; max-width: 100%; border-radius: var(--r); overflow: hidden; border: 1px solid var(--line);
+  background-color: var(--well); background-image: radial-gradient(rgba(232,232,242,.07) 1px, transparent 1.2px); background-size: 28px 28px; background-position: 14px 14px; }
+#stage { width: 100%; height: 100%; display: block; cursor: pointer; }
+.paused { position: absolute; left: 12px; top: 10px; font-family: var(--font-data); font-size: 11px; letter-spacing: .12em; color: var(--muted); pointer-events: none; }
+.beat { position: absolute; right: 12px; top: 12px; width: 8px; height: 8px; border-radius: 50%; background: var(--silver); opacity: .18; pointer-events: none; }
+.namebar { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; }
+.arrow { width: 40px; height: 40px; border-radius: 50%; background: var(--panel); border: 1px solid var(--line-hi); color: var(--silver); font-size: 18px; line-height: 1; }
+.arrow:hover { background: var(--panel-hi); }
+.name { min-width: 0; text-align: center; }
+.name h2 { margin: 0; font-weight: 300; font-size: 24px; letter-spacing: .06em; color: var(--silver); text-wrap: balance; }
+.name .count { font-family: var(--font-data); font-size: 11px; color: var(--dim); margin-left: 8px; letter-spacing: 0; vertical-align: middle; }
+.name p { margin: 4px auto 0; color: var(--muted); max-width: 60ch; font-size: 13.5px; line-height: 1.45; }
+.tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; }
+.btn { background: var(--panel); border: 1px solid var(--line-hi); border-radius: 8px; padding: 7px 12px; color: var(--fg); font-size: 13px; }
+.btn:hover:not(:disabled) { background: var(--panel-hi); }
+.btn[aria-pressed="true"] { background: var(--silver); color: #0b0b0d; border-color: var(--silver); }
+.btn:disabled { opacity: .45; cursor: default; }
+.toggle { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
+.toggle input { accent-color: #cfcfd6; width: 16px; height: 16px; }
+.swatch { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+
+.rack { display: grid; gap: 12px; min-width: 0; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 14px; display: grid; gap: 12px; min-width: 0; }
+.card > h3, .grp h3 { margin: 0; font-size: 11.5px; font-weight: 400; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); display: flex; justify-content: space-between; gap: 8px; }
+.grp h3 span { letter-spacing: .04em; text-transform: none; color: var(--dim); font-size: 12px; }
+#controls { display: grid; gap: 18px; }
+.grp { display: grid; gap: 10px; }
+.ctls { display: grid; gap: 12px; }
+.ctl { display: grid; gap: 5px; }
+.ctl-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.ctl label { color: var(--fg); font-size: 13.5px; }
+.ctl output { font-family: var(--font-data); font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.ctl-hint { font-size: 12px; color: var(--dim); line-height: 1.35; }
+input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 22px; background: transparent; margin: 0; --p: 50%; }
+input[type=range]::-webkit-slider-runnable-track { height: 3px; border-radius: 2px; background: linear-gradient(90deg, var(--silver) var(--p), #2a2a30 var(--p)); }
+input[type=range]::-moz-range-track { height: 3px; border-radius: 2px; background: linear-gradient(90deg, var(--silver) var(--p), #2a2a30 var(--p)); }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; margin-top: -6.5px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fafafc, #9a9aa3 70%); border: 1px solid #2a2a30; }
+input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fafafc, #9a9aa3 70%); border: 1px solid #2a2a30; }
+.sel { appearance: none; -webkit-appearance: none; width: 100%; background-color: var(--panel-hi); border: 1px solid var(--line-hi); border-radius: 7px; padding: 8px 28px 8px 10px; font-size: 13.5px;
+  background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position: calc(100% - 15px) 52%, calc(100% - 11px) 52%; background-size: 4px 4px; background-repeat: no-repeat; }
+
+.verdict { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.verdict button { background: var(--panel-hi); border: 1px solid var(--line-hi); border-radius: 8px; padding: 8px 6px; color: var(--muted); display: inline-flex; gap: 7px; align-items: center; justify-content: center; }
+.verdict button i { width: 8px; height: 8px; border-radius: 50%; }
+.verdict [data-v="keep"] i { background: var(--keep); } .verdict [data-v="rework"] i { background: var(--rework); } .verdict [data-v="cut"] i { background: var(--cut); }
+.verdict button[aria-pressed="true"] { color: var(--silver); border-color: var(--silver); }
+textarea.words { min-height: 0; font-size: 13px; }
+textarea { width: 100%; min-height: 110px; resize: vertical; background: var(--well); border: 1px solid var(--line-hi); border-radius: 8px; padding: 10px; line-height: 1.45; font-size: 14px; }
+.row { display: flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.meta { font-size: 12px; color: var(--dim); }
+.status { font-size: 12px; color: var(--dim); }
+.status[data-bad="1"] { color: var(--cut); }
+.primary { background: var(--silver); color: #0b0b0d; border: 0; border-radius: 8px; padding: 8px 16px; font-weight: 500; }
+.primary:disabled { opacity: .45; cursor: default; }
+.music-now { font-family: var(--font-data); font-size: 12px; color: var(--muted); }
+.file-btn { position: relative; overflow: hidden; }
+.file-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+#music-ctl { display: grid; gap: 12px; }
+
+@media (max-width: 860px) {
+  .main { grid-template-columns: minmax(0, 1fr); }
+  .stage-col { top: env(safe-area-inset-top, 0px); z-index: 2; background: var(--bg); padding-block: 6px; }
+  .stage { aspect-ratio: 4 / 3; max-height: 36vh; width: 100%; }
+  .name h2 { font-size: 20px; }
+  .name p { font-size: 12.5px; }
+}
+@media (prefers-reduced-motion: reduce) { .strip { scroll-behavior: auto; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="mark">GLINT<span>Casting</span></div>
+    <div class="seg" role="group" aria-label="What to audition">
+      <button id="tab-reworks" aria-pressed="true">Reworks</button>
+      <button id="tab-forms" aria-pressed="false">Forms</button>
+      <button id="tab-chars" aria-pressed="false">Characters</button>
+    </div>
+    <div class="progress" id="progress">0 of 19 reviewed</div>
+  </header>
+
+  <nav class="strip" id="strip" aria-label="Pick one to audition"></nav>
+
+  <div class="main">
+    <div class="stage-col">
+      <div class="stage"><canvas id="stage" aria-label="Live preview. Tap to pause."></canvas><div class="paused" id="paused" hidden>PAUSED · TAP TO RESUME</div><div class="beat" id="beat"></div></div>
+      <div class="namebar">
+        <button class="arrow" id="prev" aria-label="Previous">‹</button>
+        <div class="name"><h2><span id="item-name">Neon ribbon</span><span class="count" id="item-count">1 / 19</span></h2><p id="item-desc"></p></div>
+        <button class="arrow" id="next" aria-label="Next">›</button>
+      </div>
+      <div class="tools">
+        <button class="btn" id="replay">Restart</button>
+        <button class="btn" id="reset">Reset to defaults</button>
+        <label class="toggle"><input type="checkbox" id="partner"> Partner</label>
+        <span class="meta" id="partner-note"></span>
+      </div>
+    </div>
+
+    <aside class="rack">
+      <div class="card">
+        <h3>Music <span class="swatch" id="hue-swatch" aria-hidden="true"></span></h3>
+        <div class="row" style="justify-content:flex-start">
+          <button class="btn" id="m-demo" aria-pressed="false">Demo beat</button>
+          <label class="btn file-btn" id="m-file-l" aria-pressed="false">Load a song<input type="file" id="m-file" accept="audio/*"></label>
+          <button class="btn" id="m-off" aria-pressed="true">Silence</button>
+        </div>
+        <div class="music-now" id="music-now"></div>
+        <div id="music-ctl"></div>
+      </div>
+
+      <div class="card" id="controls"></div>
+
+      <div class="card">
+        <h3>Your verdict <span id="review-for"></span></h3>
+        <div class="verdict" id="verdict" role="group" aria-label="Verdict">
+          <button data-v="keep" aria-pressed="false"><i></i>Keep</button>
+          <button data-v="rework" aria-pressed="false"><i></i>Rework</button>
+          <button data-v="cut" aria-pressed="false"><i></i>Cut</button>
+        </div>
+        <label for="notes" class="meta">What works, what doesn't, what you'd change</label>
+        <textarea id="notes" placeholder="e.g. Love the taper, but it reads as a snake at high energy. Try a softer glow and slower whip on the beat."></textarea>
+        <div class="row">
+          <span class="meta" id="saved-at"></span>
+          <div class="row">
+            <button class="btn" id="load-saved" hidden>Load saved settings</button>
+            <button class="primary" id="save">Save notes</button>
+          </div>
+        </div>
+        <div class="meta">Saving also records every slider position, so I see exactly what you were looking at.</div>
+      </div>
+
+      <div class="card">
+        <h3>New ideas</h3>
+        <label for="general" class="meta">Characters or forms you'd like to see, and anything about Glint overall</label>
+        <textarea id="general"></textarea>
+        <div class="row"><span class="status" id="store-status">Connecting…</span><button class="btn" id="save-general">Save ideas</button></div>
+      </div>
+    </aside>
+  </div>
+  <p class="meta" style="margin-top:24px">Motion capture: CMU Graphics Lab Motion Capture Database, mocap.cs.cmu.edu (created with funding from NSF EIA-0196217). BVH conversion by B. Hahne.</p>
+</div>

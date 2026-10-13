@@ -97,3 +97,11 @@ body.playing .stage { aspect-ratio: auto; width: 100vw; height: 100vh; height: 1
   .stage-col { top: env(safe-area-inset-top, 0px); z-index: 2; background: var(--bg); padding-block: 6px; }
   .stage { aspect-ratio: 4 / 3; max-height: 40vh; width: 100%; }
 }
+
+/* saved designs */
+#save-form { flex-wrap: nowrap; }
+.name-in { flex: 1; min-width: 0; background: var(--well); border: 1px solid var(--line-hi); border-radius: 8px; padding: 7px 10px; font-size: 13.5px; }
+.design { display: inline-flex; align-items: stretch; border: 1px solid var(--line); border-radius: 999px; background: var(--panel-hi); overflow: hidden; }
+.design button { background: none; border: 0; color: var(--fg); font-size: 13px; padding: 6px 4px 6px 12px; }
+.design .x { color: var(--dim); padding: 6px 10px 6px 6px; }
+.design .x.armed { color: #d6a9a9; padding-left: 8px; }

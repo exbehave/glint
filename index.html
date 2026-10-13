@@ -35,6 +35,15 @@
     </div>
 
     <aside class="rack">
+      <section class="card" id="designs-card">
+        <h3>My designs <span>saved on this device</span></h3>
+        <form class="row" id="save-form">
+          <input class="name-in" id="design-name" type="text" placeholder="Name this combo" maxlength="40" aria-label="Design name">
+          <button class="btn" type="submit" id="save-design">Save</button>
+        </form>
+        <div class="chips" id="design-list"></div>
+        <div class="now" id="design-msg" aria-live="polite"></div>
+      </section>
       <section class="card" id="layer-card"></section>
 
       <section class="card">

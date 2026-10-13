@@ -254,16 +254,46 @@ function musicUI(text) {
   $("#m-demo").setAttribute("aria-pressed", au.mode === "demo"); $("#m-off").setAttribute("aria-pressed", au.mode === "none"); $("#m-file-l").setAttribute("aria-pressed", au.mode === "file"); $("#m-mic").setAttribute("aria-pressed", au.mode === "mic");
 }
 function renderAll() { sel = clamp(sel, 0, state.layers.length - 1); renderLayers(); renderLayer(); }
-(function musicControls() {
-  const box = $("#music-ctl"), m = state.music;
+function rebuildMusic() {
+  const box = $("#music-ctl"), m = state.music; box.innerHTML = "";
   box.append(slider("reaction", "Reaction", "0% = idle motion only", 0, 1, .01, m.reaction, pct, v => { m.reaction = v; }),
     slider("punch", "Punch", "How hard beats hit", 0, 1, .01, m.punch, pct, v => { m.punch = v; }),
     slider("decay", "Decay", "How long each hit rings", 0, 1, .01, m.decay, pct, v => { m.decay = v; }));
-})();
+}
+rebuildMusic();
 $("#m-demo").addEventListener("click", () => au.mode === "demo" ? stopAll() : startDemo());
 $("#m-off").addEventListener("click", () => stopAll());
 $("#m-mic").addEventListener("click", () => au.mode === "mic" ? stopAll() : startMic());
 $("#m-file").addEventListener("change", e => { const f = e.target.files && e.target.files[0]; if (f) startFile(f); e.target.value = ""; });
+
+/* ---------- saved designs: the whole combo, every setting, on this device ---------- */
+const DKEY = "glint.designs.v3";
+const getDesigns = () => { try { const d = JSON.parse(localStorage.getItem(DKEY) || "[]"); return Array.isArray(d) ? d : []; } catch (_) { return []; } };
+const putDesigns = d => { try { localStorage.setItem(DKEY, JSON.stringify(d)); return true; } catch (_) { return false; } };
+const snapshot = () => JSON.parse(JSON.stringify({ layers: state.layers, moods: state.moods, music: state.music }, (k, v) => k === "_st" ? undefined : v));
+let armed = null, msgT = 0;
+function designMsg(t) { $("#design-msg").textContent = t; clearTimeout(msgT); msgT = setTimeout(() => { $("#design-msg").textContent = ""; }, 3000); }
+function renderDesigns() {
+  const box = $("#design-list"), list = getDesigns(); box.innerHTML = "";
+  if (!list.length) { box.innerHTML = '<span class="desc">Nothing saved yet. Name your current combo and tap Save.</span>'; return; }
+  list.forEach(d => { const w = document.createElement("span"); w.className = "design";
+    w.innerHTML = `<button class="load">${esc(d.name)}</button><button class="x${armed === d.name ? " armed" : ""}" aria-label="Delete ${esc(d.name)}">${armed === d.name ? "Delete?" : "×"}</button>`;
+    w.querySelector(".load").addEventListener("click", () => {
+      const s = JSON.parse(JSON.stringify(d.design)); s.layers = s.layers.filter(l => VIS[l.form] || l.form === "doodle").map(l => Object.assign(l, { form: l.form === "doodle" ? "doodle2" : l.form, id: "L" + Date.now().toString(36) + (seq++) }));
+      if (!s.layers.length) { designMsg("That design's visuals aren't available anymore."); return; }
+      MOODS.forEach(m => { s.moods[m.key] ||= { on: false, op: .5, mode: m.mode }; });
+      state = s; RT.clear(); sel = 0; $("#design-name").value = d.name; save(); renderAll(); renderMoods(); rebuildMusic(); designMsg(`Loaded "${d.name}".`); });
+    w.querySelector(".x").addEventListener("click", () => {
+      if (armed !== d.name) { armed = d.name; renderDesigns(); setTimeout(() => { if (armed === d.name) { armed = null; renderDesigns(); } }, 3000); return; }
+      armed = null; putDesigns(getDesigns().filter(x => x.name !== d.name)); renderDesigns(); designMsg(`Deleted "${d.name}".`); });
+    box.append(w); });
+}
+$("#save-form").addEventListener("submit", e => { e.preventDefault();
+  const name = $("#design-name").value.trim(); if (!name) { designMsg("Give it a name first."); $("#design-name").focus(); return; }
+  const list = getDesigns(), i = list.findIndex(d => d.name.toLowerCase() === name.toLowerCase()), entry = { name, savedAt: new Date().toISOString(), design: snapshot() };
+  if (i >= 0) list[i] = entry; else list.unshift(entry);
+  if (!putDesigns(list)) { designMsg("Couldn't save. This browser's storage may be full or blocked."); return; }
+  renderDesigns(); designMsg(i >= 0 ? `Updated "${name}".` : `Saved "${name}".`); });
 
 /* ---------- full-screen play ---------- */
 let hintT = 0;
@@ -279,4 +309,4 @@ document.addEventListener("keydown", e => { if (e.key === "Escape" && document.b
 document.addEventListener("fullscreenchange", () => { if (!document.fullscreenElement && document.body.classList.contains("playing")) setPlaying(false); });
 
 musicUI("Silence · idle motion only");
-renderAll(); renderMoods(); resize(); requestAnimationFrame(frame);
+renderAll(); renderMoods(); renderDesigns(); resize(); requestAnimationFrame(frame);

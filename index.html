@@ -55,6 +55,11 @@
           <button class="btn" id="m-off" aria-pressed="true">Silence</button>
         </div>
         <div class="now" id="now">Silence · idle motion only</div>
+        <div class="transport" id="transport" hidden>
+          <button class="btn" id="t-play" aria-label="Play">Play</button>
+          <input type="range" id="t-seek" min="0" max="1000" value="0" step="1" aria-label="Song position">
+          <span class="t-time" id="t-time">0:00 / 0:00</span>
+        </div>
         <div class="ctls" id="music-ctl"></div>
       </section>
 

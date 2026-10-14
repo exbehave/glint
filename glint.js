@@ -85,14 +85,34 @@ function startDemo() {
   au.demo = { timer, bus }; au.mode = "demo"; musicUI("Demo beat · 122 BPM");
 }
 function startFile(f) {
-  stopAll(); const ctx = ensureCtx(); ctx.resume(); au.out.gain.value = 1;
-  const el = new Audio(); el.src = URL.createObjectURL(f); el.loop = true;
+  stopAll(); const ctx = ensureCtx(); ctx.resume().catch(() => {}); au.out.gain.value = 1;
+  const el = new Audio(); el.src = URL.createObjectURL(f); el.loop = true; el.playsInline = true;
   const src = ctx.createMediaElementSource(el); src.connect(au.input);
-  au.el = el; au.elSrc = src; au.mode = "file";
+  au.el = el; au.elSrc = src; au.mode = "file"; au.name = f.name.replace(/\.[^.]+$/, "");
   el.addEventListener("error", () => { if (au.el === el) stopAll(`Couldn't play "${f.name}". Try an MP3 or M4A.`); });
-  el.play().catch(() => {});
-  musicUI(f.name.replace(/\.[^.]+$/, "") + " · looping");
+  ["play", "pause", "timeupdate", "loadedmetadata", "durationchange"].forEach(ev => el.addEventListener(ev, () => { if (au.el === el) transportUI(); }));
+  musicUI(au.name + " · looping");
+  el.play().catch(() => { if (au.el === el) { musicUI(au.name + " · tap Play to start"); transportUI(); } });
 }
+const fmt = t => !isFinite(t) ? "0:00" : Math.floor(t / 60) + ":" + String(Math.floor(t % 60)).padStart(2, "0");
+let seeking = false;
+function transportUI() {
+  const el = au.el, box = $("#transport");
+  box.hidden = !(au.mode === "file" && el);
+  if (box.hidden) return;
+  const b = $("#t-play"); b.textContent = el.paused ? "Play" : "Pause"; b.setAttribute("aria-label", b.textContent);
+  if (!seeking) $("#t-seek").value = el.duration ? Math.round(el.currentTime / el.duration * 1000) : 0;
+  $("#t-time").textContent = fmt(el.currentTime) + " / " + fmt(el.duration);
+}
+$("#t-play").addEventListener("click", () => {
+  const el = au.el; if (!el) return;
+  if (el.paused) { au.ctx.resume().catch(() => {}); el.play().then(() => musicUI(au.name + " · looping")).catch(() => musicUI(`Couldn't start "${au.name}".`)); }
+  else { el.pause(); musicUI(au.name + " · paused"); }
+});
+$("#t-seek").addEventListener("input", e => { seeking = true; const el = au.el; if (el && el.duration) { el.currentTime = e.target.value / 1000 * el.duration; $("#t-time").textContent = fmt(el.currentTime) + " / " + fmt(el.duration); } });
+$("#t-seek").addEventListener("change", () => { seeking = false; });
+// Tapping "Load a song" is a real tap, so unlock sound then; iPhone may refuse to start audio after the file picker closes
+$("#m-file").addEventListener("click", () => { try { ensureCtx().resume().catch(() => {}); } catch (_) {} });
 async function startMic() {
   stopAll();
   // iPhone Safari only starts sound processing from a direct tap, so the engine starts before the permission prompt
@@ -252,6 +272,7 @@ function renderMoods() {
 }
 function musicUI(text) {
   $("#now").textContent = text;
+  transportUI();
   $("#m-demo").setAttribute("aria-pressed", au.mode === "demo"); $("#m-off").setAttribute("aria-pressed", au.mode === "none"); $("#m-file-l").setAttribute("aria-pressed", au.mode === "file"); $("#m-mic").setAttribute("aria-pressed", au.mode === "mic");
 }
 function renderAll() { sel = clamp(sel, 0, state.layers.length - 1); renderLayers(); renderLayer(); }

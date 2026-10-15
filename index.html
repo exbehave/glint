@@ -54,7 +54,19 @@
           <button class="btn" id="m-mic" aria-pressed="false">Microphone</button>
           <button class="btn" id="m-off" aria-pressed="true">Silence</button>
         </div>
+        <div class="capture" id="capture" hidden>
+          <div class="cap-head">On this computer</div>
+          <div class="row">
+            <button class="btn" id="m-screen" aria-pressed="false">Tab or screen audio</button>
+            <button class="btn" id="m-dev" aria-pressed="false">Audio input…</button>
+          </div>
+          <div class="row" id="dev-row" hidden>
+            <select class="sel" id="dev-sel" aria-label="Audio input device"></select>
+          </div>
+          <p class="desc" id="cap-help"></p>
+        </div>
         <div class="now" id="now">Silence · idle motion only</div>
+        <div class="meter" id="meter" hidden aria-hidden="true"><i id="lvl"></i></div>
         <div class="transport" id="transport" hidden>
           <button class="btn" id="t-play" aria-label="Play">Play</button>
           <input type="range" id="t-seek" min="0" max="1000" value="0" step="1" aria-label="Song position">

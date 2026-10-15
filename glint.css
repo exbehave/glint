@@ -87,6 +87,10 @@ details > summary h3::after { content: "+"; font-family: var(--font-data); }
 details[open] > summary h3::after { content: "−"; }
 .danger { color: #d6a9a9; }
 .foot { font-size: 12px; color: var(--dim); margin: 4px 2px; }
+.capture { display: grid; gap: 8px; padding-top: 10px; border-top: 1px solid var(--line); }
+.cap-head { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); }
+.meter { height: 3px; border-radius: 2px; background: #1d1d22; overflow: hidden; }
+.meter i { display: block; height: 100%; width: 0; background: var(--silver); transition: width .08s linear; }
 
 /* full-screen play: only the design */
 body.playing .top, body.playing .rack, body.playing .layers { display: none; }

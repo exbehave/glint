@@ -63,6 +63,7 @@ function stopAll(msg) {
   if (au.demo) { clearInterval(au.demo.timer); try { au.demo.bus.disconnect(); } catch (_) {} au.demo = null; }
   if (au.el) { au.el.pause(); try { au.elSrc.disconnect(); } catch (_) {} URL.revokeObjectURL(au.el.src); au.el = null; }
   if (au.mic) { au.mic.getTracks().forEach(t => t.stop()); try { au.micSrc.disconnect(); } catch (_) {} au.mic = null; }
+  if (au.devTimer) { clearTimeout(au.devTimer); au.devTimer = 0; }
   au.mode = "none"; musicUI(msg || "Silence · idle motion only");
 }
 function startDemo() {
@@ -124,16 +125,82 @@ async function startMic() {
     au.mic = stream; au.micSrc = src; au.mode = "mic"; musicUI("Microphone · listening");
   } catch (err) { stopAll(err && err.name === "NotAllowedError" ? "Microphone access was blocked. Allow it in Settings → Safari → Microphone." : "The microphone couldn't start."); }
 }
+/* ---------- desktop: capture audio that's already playing on this computer ---------- */
+const UA = navigator.userAgent, MOBILE = /iPhone|iPad|iPod|Android/i.test(UA) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(UA));
+const CHROMIUM = !!(navigator.userAgentData && navigator.userAgentData.brands && navigator.userAgentData.brands.some(b => /Chromium|Google Chrome|Microsoft Edge|Opera/.test(b.brand)));
+const MAC = /Macintosh|Mac OS X/.test(UA), CAN_SHARE = !MOBILE && !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia);
+const NO_AUDIO = MAC
+  ? "No sound came through. In the share window, pick a Chrome tab and leave “Also share tab audio” on. For apps like Spotify or Music, pick Entire screen and turn on “Share system audio” (needs Chrome 141+ and macOS 14.2+), or use Audio input with a loopback device."
+  : "No sound came through. In the share window, pick a tab with “Also share tab audio” on, or pick Entire screen with “Share system audio” on.";
+function captureHelp() {
+  if (!CHROMIUM) return "Tab and screen audio work in Chrome or Edge. In this browser, use Audio input with a loopback device (such as BlackHole on a Mac) to capture apps.";
+  return MAC ? "Tab or screen audio: pick a tab to hear a web player, or Entire screen to hear apps (macOS 14.2+). Audio input: a microphone, an audio interface, or a loopback device like BlackHole."
+    : "Tab or screen audio: pick a tab to hear a web player, or Entire screen with system audio to hear every app. Audio input: a microphone, audio interface, or loopback device.";
+}
+function liveStream(stream, mode, text) {
+  const ctx = ensureCtx(); au.out.gain.value = 0;   // never play captured sound back out (it would echo)
+  const src = ctx.createMediaStreamSource(new MediaStream(stream.getAudioTracks())); src.connect(au.input);
+  au.mic = stream; au.micSrc = src; au.mode = mode; musicUI(text);
+  stream.getTracks().forEach(t => t.addEventListener("ended", () => { if (au.mic === stream) stopAll(mode === "screen" ? "Sharing stopped." : "The audio input disconnected."); }));
+}
+async function startScreen() {
+  stopAll(); $("#dev-row").hidden = true; const ctx = ensureCtx(); ctx.resume().catch(() => {});
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, suppressLocalAudioPlayback: false }, systemAudio: "include", selfBrowserSurface: "exclude", surfaceSwitching: "include", preferCurrentTab: false });
+  } catch (err) { stopAll(err && err.name === "NotAllowedError" ? "Sharing was canceled." : "Sharing couldn't start" + (err && err.name ? " (" + err.name + ")." : ".")); return; }
+  if (!stream.getAudioTracks().length) { stream.getTracks().forEach(t => t.stop()); stopAll(NO_AUDIO); return; }
+  if (ctx.state !== "running") { try { await ctx.resume(); } catch (_) {} }
+  const v = stream.getVideoTracks()[0], surf = v && v.getSettings ? v.getSettings().displaySurface : "";
+  liveStream(stream, "screen", surf === "browser" ? "Listening to a tab" : surf === "window" ? "Listening to a window" : "Listening to your computer's sound");
+}
+const DEVKEY = "glint.input";
+async function fillDevices() {
+  const sel = $("#dev-sel");
+  let list = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === "audioinput");
+  if (list.length && !list.some(d => d.label)) {   // names stay hidden until the browser has asked once
+    try { const s = await navigator.mediaDevices.getUserMedia({ audio: true }); s.getTracks().forEach(t => t.stop()); } catch (_) { return false; }
+    list = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === "audioinput");
+  }
+  let pref = ""; try { pref = localStorage.getItem(DEVKEY) || ""; } catch (_) {}
+  sel.innerHTML = `<option value="">Choose an input…</option>` + list.map((d, i) => `<option value="${esc(d.deviceId)}"${d.deviceId === pref ? " selected" : ""}>${esc(d.label || "Input " + (i + 1))}${/blackhole|loopback|soundflower|vb-audio|cable|stereo mix/i.test(d.label) ? " · loopback" : ""}</option>`).join("");
+  return list.length > 0;
+}
+async function startDevice(id) {
+  stopAll(); const ctx = ensureCtx(); ctx.resume().catch(() => {});
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: { exact: id }, echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: { ideal: 2 } } });
+    if (ctx.state !== "running") { try { await ctx.resume(); } catch (_) {} }
+    try { localStorage.setItem(DEVKEY, id); } catch (_) {}
+    const t = stream.getAudioTracks()[0]; liveStream(stream, "device", "Listening to " + (t && t.label ? t.label : "your audio input"));
+    $("#m-dev").setAttribute("aria-pressed", "true");
+  } catch (err) { stopAll(err && err.name === "NotAllowedError" ? "Access to audio inputs was blocked. Allow it in the browser's site settings." : "That input couldn't start" + (err && err.name ? " (" + err.name + ")." : ".")); }
+}
+if (CAN_SHARE) {
+  $("#capture").hidden = false; $("#cap-help").textContent = captureHelp();
+  $("#m-screen").disabled = !CHROMIUM && !navigator.mediaDevices.getDisplayMedia;
+  $("#m-screen").addEventListener("click", () => au.mode === "screen" ? stopAll() : startScreen());
+  $("#m-dev").addEventListener("click", async () => {
+    if (au.mode === "device") { stopAll(); $("#dev-row").hidden = true; return; }
+    const row = $("#dev-row"); if (!row.hidden) { row.hidden = true; return; }
+    const ok = await fillDevices(); row.hidden = false;
+    if (!ok) { $("#dev-sel").innerHTML = `<option value="">No audio inputs found or access blocked</option>`; return; }
+    const v = $("#dev-sel").value; if (v) startDevice(v);
+  });
+  $("#dev-sel").addEventListener("change", e => { if (e.target.value) startDevice(e.target.value); });
+  navigator.mediaDevices.addEventListener && navigator.mediaDevices.addEventListener("devicechange", () => { if (!$("#dev-row").hidden) fillDevices(); });
+}
 function band(lo, hi, hz) { const f = au.freq; let s = 0, c = 0; for (let i = Math.max(1, Math.floor(lo / hz)); i <= Math.ceil(hi / hz) && i < f.length; i++) { s += f[i]; c++; } return c ? s / c / 255 : 0; }
 function updateAudio(dt) {
   const hits = { kick: false, mid: false, hat: false }, dec = 2 + (1 - state.music.decay) * 14;
   A.kick *= Math.exp(-dec * dt); A.midHit *= Math.exp(-dec * dt); A.hat *= Math.exp(-dec * 1.6 * dt);
   const playing = au.mode !== "none" && !(au.mode === "file" && au.el && au.el.paused); A.active = playing;
-  if (!playing) { A.bass *= .9; A.mid *= .9; A.treble *= .9; A.rms *= .9; return hits; }
+  if (!playing) { A.bass *= .9; A.mid *= .9; A.treble *= .9; A.rms *= .9; A.raw = 0; return hits; }
   au.an.getByteFrequencyData(au.freq); au.an.getByteTimeDomainData(au.time);
   const hz = au.ctx.sampleRate / au.an.fftSize, raw = { bass: band(30, 140, hz), mid: band(250, 2500, hz), treble: band(5000, 12000, hz) };
   let sum = 0; for (let i = 0; i < au.time.length; i++) { const v = (au.time[i] - 128) / 128; sum += v * v; }
   const rms = Math.sqrt(sum / au.time.length), keep = Math.pow(.5, dt / 4);
+  A.raw = rms;
   for (const key of ["bass", "mid", "treble"]) {
     agc[key] = Math.max(raw[key], agc[key] * keep, .04);
     const norm = clamp(raw[key] / agc[key], 0, 1), flux = norm - prevB[key]; since[key] += dt;
@@ -211,6 +278,7 @@ function frame(now) {
   MOODS.forEach(md => { const s = state.moods[md.key]; if (!s.on || s.op <= 0) return; s._st ||= {};
     F.save(); F.globalCompositeOperation = s.mode; F.globalAlpha = s.op; try { md.draw(F, Bc, s._st, M); } catch (err) { console.error(err); } F.restore(); });
   $("#beat").style.opacity = .18 + A.kick * .82;
+  const live = au.mode === "mic" || au.mode === "screen" || au.mode === "device"; $("#meter").hidden = !live; if (live) $("#lvl").style.width = Math.min(100, (A.raw || 0) * 400) + "%";
 }
 
 /* ---------- UI ---------- */
@@ -273,7 +341,7 @@ function renderMoods() {
 function musicUI(text) {
   $("#now").textContent = text;
   transportUI();
-  $("#m-demo").setAttribute("aria-pressed", au.mode === "demo"); $("#m-off").setAttribute("aria-pressed", au.mode === "none"); $("#m-file-l").setAttribute("aria-pressed", au.mode === "file"); $("#m-mic").setAttribute("aria-pressed", au.mode === "mic");
+  $("#m-demo").setAttribute("aria-pressed", au.mode === "demo"); $("#m-off").setAttribute("aria-pressed", au.mode === "none"); $("#m-file-l").setAttribute("aria-pressed", au.mode === "file"); $("#m-mic").setAttribute("aria-pressed", au.mode === "mic"); if (CAN_SHARE) { $("#m-screen").setAttribute("aria-pressed", au.mode === "screen"); $("#m-dev").setAttribute("aria-pressed", au.mode === "device"); }
 }
 function renderAll() { sel = clamp(sel, 0, state.layers.length - 1); renderLayers(); renderLayer(); }
 function rebuildMusic() {

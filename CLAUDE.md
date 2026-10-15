@@ -80,6 +80,7 @@ Kennedy asked to overhaul the whole interface: combine up to three visuals, with
 - Kept from the old app: personalities (with opacity and blend) and full-screen play. Dropped: nodes list, buses, scenes, aspect ratios, dragging, the knob deck. The current design autosaves on the device (localStorage `glint.v3`).
 - **My designs** (added Oct 13 at Kennedy's request): name and save the whole combo with every setting, load or delete it; saved per device in localStorage `glint.designs.v3`. Saving under an existing name updates it.
 - The previous Studio lives at `studio.html` / `studio.js` / `styles.css`, untouched.
+- **Desktop audio capture** (Oct 14, 2026, computers only; hidden on phones): **Tab or screen audio** uses `getDisplayMedia` with `systemAudio: "include"` (a tab plays its own sound; Entire screen captures apps like Spotify in Chrome 141+ on macOS 14.2+, or on Windows), and **Audio input…** lists every input device (mic, audio interface, loopback such as BlackHole, marked "loopback"), remembering the last pick in localStorage `glint.input`. Captured sound is never played back out (no echo). A level meter shows under the status line for live sources. Untested on Kennedy's own computer so far.
 - Next after refining: more "paths" for the drawing visuals (Graffiti and similar), i.e. what they trace or sketch.
 
 ## Personalities

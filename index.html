@@ -21,7 +21,7 @@
 <div class="wrap">
   <header class="top">
     <div class="mark">GLINT</div>
-    <button class="btn play-btn" id="play">Play full screen</button>
+    <div class="row"><button class="btn" id="cycle">Cycle my designs</button><button class="btn play-btn" id="play">Play full screen</button></div>
   </header>
 
   <div class="main">
@@ -30,19 +30,30 @@
         <canvas id="stage" aria-label="Your design"></canvas>
         <div class="beat" id="beat"></div>
         <button class="exit-play" id="exit-play" hidden>Tap to show controls</button>
+        <div class="cycle-name" id="cycle-name" aria-live="polite"></div>
       </div>
       <nav class="layers" id="layers" aria-label="Visuals in this design"></nav>
     </div>
 
     <aside class="rack">
       <section class="card" id="designs-card">
-        <h3>My designs <span>saved on this device</span></h3>
+        <h3>My designs <span id="designs-where">saved on this device</span></h3>
         <form class="row" id="save-form">
           <input class="name-in" id="design-name" type="text" placeholder="Name this combo" maxlength="40" aria-label="Design name">
           <button class="btn" type="submit" id="save-design">Save</button>
         </form>
         <div class="chips" id="design-list"></div>
         <div class="now" id="design-msg" aria-live="polite"></div>
+        <div class="ctls" id="cycle-ctl"></div>
+        <div class="sync" id="sync" hidden>
+          <div class="row spread"><span class="now" id="sync-msg">Saved on this device only</span><button class="btn" id="sync-toggle" type="button">Sync across devices</button></div>
+          <form class="sync-form" id="sync-form" hidden>
+            <input class="name-in" id="sync-email" type="email" placeholder="Email" autocomplete="username" aria-label="Email">
+            <input class="name-in" id="sync-pass" type="password" placeholder="Password" autocomplete="current-password" aria-label="Password">
+            <button class="btn" type="submit" id="sync-go">Sign in</button>
+            <p class="desc">Same account as In the Loop.</p>
+          </form>
+        </div>
       </section>
       <section class="card" id="layer-card"></section>
 
@@ -85,6 +96,7 @@
     </aside>
   </div>
 </div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
 <script src="engine/core.js"></script>
 <script src="engine/forms.js"></script>
 <script src="engine/forms2.js"></script>

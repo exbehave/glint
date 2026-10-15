@@ -277,6 +277,7 @@ function frame(now) {
   if (!A.active && Math.random() < dt * .8) M.hit = true;
   MOODS.forEach(md => { const s = state.moods[md.key]; if (!s.on || s.op <= 0) return; s._st ||= {};
     F.save(); F.globalCompositeOperation = s.mode; F.globalAlpha = s.op; try { md.draw(F, Bc, s._st, M); } catch (err) { console.error(err); } F.restore(); });
+  if (fadeA > 0) { F.save(); F.globalCompositeOperation = "source-over"; F.globalAlpha = fadeA; F.drawImage(fadeC, 0, 0, cv.width, cv.height); F.restore(); fadeA = Math.max(0, fadeA - dt / 1.6); }
   $("#beat").style.opacity = .18 + A.kick * .82;
   const live = au.mode === "mic" || au.mode === "screen" || au.mode === "device"; $("#meter").hidden = !live; if (live) $("#lvl").style.width = Math.min(100, (A.raw || 0) * 400) + "%";
 }
@@ -362,6 +363,14 @@ const getDesigns = () => { try { const d = JSON.parse(localStorage.getItem(DKEY)
 const putDesigns = d => { try { localStorage.setItem(DKEY, JSON.stringify(d)); return true; } catch (_) { return false; } };
 const snapshot = () => JSON.parse(JSON.stringify({ layers: state.layers, moods: state.moods, music: state.music }, (k, v) => k === "_st" ? undefined : v));
 let armed = null, msgT = 0;
+function applyDesign(d) {
+  const s = JSON.parse(JSON.stringify(d.design)); s.layers = (s.layers || []).filter(l => VIS[l.form] || l.form === "doodle").map(l => Object.assign(l, { form: l.form === "doodle" ? "doodle2" : l.form, id: "L" + Date.now().toString(36) + (seq++) }));
+  if (!s.layers.length) return false;
+  s.moods ||= {}; MOODS.forEach(m => { s.moods[m.key] ||= { on: false, op: .5, mode: m.mode }; }); s.music ||= { reaction: 1, punch: 1, decay: 1 };
+  state = s; RT.clear(); sel = 0; renderAll(); renderMoods(); rebuildMusic(); return true;
+}
+// every change to the saved list goes through here so it also reaches the cloud
+function commitDesigns(list) { if (!putDesigns(list)) return false; if (typeof pushSoon === "function") pushSoon(); return true; }
 function designMsg(t) { $("#design-msg").textContent = t; clearTimeout(msgT); msgT = setTimeout(() => { $("#design-msg").textContent = ""; }, 3000); }
 function renderDesigns() {
   const box = $("#design-list"), list = getDesigns(); box.innerHTML = "";
@@ -369,25 +378,24 @@ function renderDesigns() {
   list.forEach(d => { const w = document.createElement("span"); w.className = "design";
     w.innerHTML = `<button class="load">${esc(d.name)}</button><button class="x${armed === d.name ? " armed" : ""}" aria-label="Delete ${esc(d.name)}">${armed === d.name ? "Delete?" : "×"}</button>`;
     w.querySelector(".load").addEventListener("click", () => {
-      const s = JSON.parse(JSON.stringify(d.design)); s.layers = s.layers.filter(l => VIS[l.form] || l.form === "doodle").map(l => Object.assign(l, { form: l.form === "doodle" ? "doodle2" : l.form, id: "L" + Date.now().toString(36) + (seq++) }));
-      if (!s.layers.length) { designMsg("That design's visuals aren't available anymore."); return; }
-      MOODS.forEach(m => { s.moods[m.key] ||= { on: false, op: .5, mode: m.mode }; });
-      state = s; RT.clear(); sel = 0; $("#design-name").value = d.name; save(); renderAll(); renderMoods(); rebuildMusic(); designMsg(`Loaded "${d.name}".`); });
+      if (!applyDesign(d)) { designMsg("That design's visuals aren't available anymore."); return; }
+      $("#design-name").value = d.name; save(); designMsg(`Loaded "${d.name}".`); });
     w.querySelector(".x").addEventListener("click", () => {
       if (armed !== d.name) { armed = d.name; renderDesigns(); setTimeout(() => { if (armed === d.name) { armed = null; renderDesigns(); } }, 3000); return; }
-      armed = null; putDesigns(getDesigns().filter(x => x.name !== d.name)); renderDesigns(); designMsg(`Deleted "${d.name}".`); });
+      armed = null; commitDesigns(getDesigns().filter(x => x.name !== d.name)); renderDesigns(); designMsg(`Deleted "${d.name}".`); });
     box.append(w); });
 }
 $("#save-form").addEventListener("submit", e => { e.preventDefault();
   const name = $("#design-name").value.trim(); if (!name) { designMsg("Give it a name first."); $("#design-name").focus(); return; }
   const list = getDesigns(), i = list.findIndex(d => d.name.toLowerCase() === name.toLowerCase()), entry = { name, savedAt: new Date().toISOString(), design: snapshot() };
   if (i >= 0) list[i] = entry; else list.unshift(entry);
-  if (!putDesigns(list)) { designMsg("Couldn't save. This browser's storage may be full or blocked."); return; }
+  if (!commitDesigns(list)) { designMsg("Couldn't save. This browser's storage may be full or blocked."); return; }
   renderDesigns(); designMsg(i >= 0 ? `Updated "${name}".` : `Saved "${name}".`); });
 
 /* ---------- full-screen play ---------- */
 let hintT = 0;
 function setPlaying(on) {
+  if (!on) stopCycle();
   document.body.classList.toggle("playing", on); $("#exit-play").hidden = !on;
   if (on) { const el = document.documentElement; if (el.requestFullscreen) el.requestFullscreen().catch(() => {}); $("#exit-play").classList.remove("fade"); clearTimeout(hintT); hintT = setTimeout(() => $("#exit-play").classList.add("fade"), 2500); }
   else if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {});
@@ -396,6 +404,90 @@ function setPlaying(on) {
 $("#play").addEventListener("click", () => setPlaying(true));
 $("#stage-box").addEventListener("click", () => { if (document.body.classList.contains("playing")) setPlaying(false); });
 document.addEventListener("keydown", e => { if (e.key === "Escape" && document.body.classList.contains("playing")) setPlaying(false); });
+
+/* ---------- cycle through saved designs in full screen ---------- */
+const CKEY = "glint.cycle"; let cycleSecs = 18; try { cycleSecs = clamp(+localStorage.getItem(CKEY) || 18, 5, 120); } catch (_) {}
+const fadeC = mk(1, 1); let fadeA = 0, cyc = null;
+function showName(n) { const el = $("#cycle-name"); el.textContent = n; el.classList.add("show"); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove("show"), 2600); }
+function cycleStep(dir) {
+  if (!cyc) return;
+  for (let tries = 0; tries < cyc.list.length; tries++) {
+    cyc.i = (cyc.i + dir + cyc.list.length) % cyc.list.length;
+    fadeC.width = cv.width; fadeC.height = cv.height; fadeC.getContext("2d").drawImage(cv, 0, 0);
+    if (applyDesign(cyc.list[cyc.i])) { fadeA = 1; showName(cyc.list[cyc.i].name); return; }
+  }
+}
+function restartTimer() { clearInterval(cyc.timer); cyc.timer = setInterval(() => cycleStep(1), cycleSecs * 1000); }
+function startCycle() {
+  const list = getDesigns();
+  if (list.length < 2) { designMsg("Save at least two designs to cycle through them."); $("#designs-card").scrollIntoView({ block: "nearest", behavior: "smooth" }); return; }
+  cyc = { list, i: -1, pre: snapshot(), timer: 0 };
+  cycleStep(1); restartTimer(); setPlaying(true);
+}
+function stopCycle() {
+  if (!cyc) return; clearInterval(cyc.timer); const pre = cyc.pre; cyc = null; fadeA = 0;
+  $("#cycle-name").classList.remove("show"); applyDesign({ design: pre });
+}
+$("#cycle").addEventListener("click", startCycle);
+document.addEventListener("keydown", e => { if (!cyc) return; if (e.key === "ArrowRight") { cycleStep(1); restartTimer(); } if (e.key === "ArrowLeft") { cycleStep(-1); restartTimer(); } });
+$("#cycle-ctl").append(slider("cycle-secs", "Cycle every", "Full-screen cycling through your saved designs", 5, 60, 1, cycleSecs, v => Math.round(v) + " s", v => { cycleSecs = v; try { localStorage.setItem(CKEY, String(v)); } catch (_) {} if (cyc) restartTimer(); }));
+
+/* ---------- cloud sync: saved designs follow your account (same sign-in as In the Loop) ---------- */
+const SUPA_URL = "https://lwbbkwftkxjmrpyalrwu.supabase.co", SUPA_KEY = "sb_publishable_j4FskQJtwZnxNBZXH61QJQ_U62I-eaY";
+const SYNC_ROW = "glint:designs", DIRTY = "glint.sync.dirty", MERGED = "glint.sync.merged";
+const lsGet = k => { try { return localStorage.getItem(k); } catch (_) { return null; } }, lsSet = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (_) {} };
+let sb = null, user = null, syncing = false, pushT = 0, lastPull = 0;
+try { if (window.supabase && SUPA_URL) sb = window.supabase.createClient(SUPA_URL, SUPA_KEY, { auth: { persistSession: true, autoRefreshToken: true } }); } catch (_) {}
+function syncUI(msg) {
+  $("#sync").hidden = !sb;
+  $("#sync-msg").textContent = msg || (user ? "Synced to " + (user.email || "your account") : "Saved on this device only");
+  $("#designs-where").textContent = user ? "synced across your devices" : "saved on this device";
+  $("#sync-toggle").textContent = user ? "Sign out" : "Sync across devices";
+  if (user) $("#sync-form").hidden = true;
+}
+function mergeLists(a, b) {
+  const map = new Map();
+  [...a, ...b].forEach(d => { const k = d.name.toLowerCase(), cur = map.get(k); if (!cur || String(d.savedAt) > String(cur.savedAt)) map.set(k, d); });
+  return [...map.values()].sort((x, y) => String(y.savedAt).localeCompare(String(x.savedAt)));
+}
+async function pullCloud() { const { data, error } = await sb.from("kv").select("value").eq("key", SYNC_ROW).maybeSingle(); if (error) throw error; return data && data.value ? JSON.parse(data.value) : null; }
+async function pushCloud(list) { const { error } = await sb.from("kv").upsert({ user_id: user.id, key: SYNC_ROW, value: JSON.stringify(list), updated_at: new Date().toISOString() }); if (error) throw error; }
+async function syncNow() {
+  if (!sb || !user || syncing) return; syncing = true; syncUI("Syncing…");
+  try {
+    const cloud = await pullCloud(), local = getDesigns(), firstHere = lsGet(MERGED) !== user.id, dirty = lsGet(DIRTY) === "1";
+    // first sign-in on this device: combine both; unsent changes here: this device wins; otherwise the cloud is the truth
+    const merged = !cloud ? local : firstHere ? mergeLists(local, cloud) : dirty ? local : cloud;
+    putDesigns(merged);
+    if (!cloud || JSON.stringify(cloud) !== JSON.stringify(merged)) await pushCloud(merged);
+    lsSet(MERGED, user.id); lsSet(DIRTY, null); lastPull = Date.now(); renderDesigns(); syncUI();
+  } catch (_) { syncUI("Couldn't reach the cloud. Designs are still saved here."); }
+  syncing = false;
+}
+function pushSoon() {
+  if (!sb || !user) return; lsSet(DIRTY, "1"); clearTimeout(pushT);
+  pushT = setTimeout(async () => { try { await pushCloud(getDesigns()); lsSet(DIRTY, null); syncUI(); } catch (_) { syncUI("Saved here; will sync when the connection is back."); } }, 600);
+}
+if (sb) {
+  syncUI();
+  sb.auth.getSession().then(({ data }) => { user = data && data.session ? data.session.user : null; syncUI(); if (user) syncNow(); });
+  sb.auth.onAuthStateChange((ev, session) => { const was = user && user.id; user = session ? session.user : null; syncUI(); if (user && user.id !== was) syncNow(); });
+  document.addEventListener("visibilitychange", () => { if (!document.hidden && user && Date.now() - lastPull > 10000) syncNow(); });
+  $("#sync-toggle").addEventListener("click", async () => {
+    if (user) { await sb.auth.signOut(); user = null; syncUI("Signed out. Designs stay saved on this device."); return; }
+    const f = $("#sync-form"); f.hidden = !f.hidden; if (!f.hidden) $("#sync-email").focus();
+  });
+  $("#sync-form").addEventListener("submit", async e => {
+    e.preventDefault();
+    const email = $("#sync-email").value.trim(), password = $("#sync-pass").value;
+    if (!email || !password) { syncUI("Enter your email and password."); return; }
+    $("#sync-go").disabled = true; syncUI("Signing in…");
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+    $("#sync-go").disabled = false;
+    if (error) { syncUI(/invalid/i.test(error.message) ? "That email and password don't match. Use your In the Loop sign-in." : "Couldn't sign in: " + error.message); return; }
+    $("#sync-pass").value = "";
+  });
+}
 document.addEventListener("fullscreenchange", () => { if (!document.fullscreenElement && document.body.classList.contains("playing")) setPlaying(false); });
 
 musicUI("Silence · idle motion only");

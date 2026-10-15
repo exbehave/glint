@@ -114,3 +114,10 @@ body.playing .stage { aspect-ratio: auto; width: 100vw; height: 100vh; height: 1
 .design button { background: none; border: 0; color: var(--fg); font-size: 13px; padding: 6px 4px 6px 12px; }
 .design .x { color: var(--dim); padding: 6px 10px 6px 6px; }
 .design .x.armed { color: #d6a9a9; padding-left: 8px; }
+
+.cycle-name { position: absolute; left: 16px; top: calc(14px + env(safe-area-inset-top, 0px)); font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: var(--silver); opacity: 0; transition: opacity .8s; pointer-events: none; text-shadow: 0 1px 8px rgba(0,0,0,.8); }
+.cycle-name.show { opacity: .85; }
+.sync { display: grid; gap: 8px; padding-top: 10px; border-top: 1px solid var(--line); }
+.sync-form { display: grid; gap: 8px; }
+.sync-form .name-in { width: 100%; }
+@media (max-width: 860px) { .top .row .btn { padding: 7px 10px; } }

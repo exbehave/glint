@@ -7,7 +7,7 @@ Full living spec: https://claude.ai/code/artifact/a483d844-f6de-483d-a87d-b19ce7
 ## Where things live
 - **Repo:** `exbehave/glint` (private). Plain static files: `index.html` + `glint.css` + `glint.js` + `engine/` (the app), `studio.html` + `studio.js` + `styles.css` (previous Studio), `casting/` (test bench source), `forms.html`, icons, `manifest.webmanifest`. No build step.
 - **Live site:** https://kennedy-glint.netlify.app (Netlify builds from `main` on every push; the project is public).
-- No Supabase yet: designs save per device in localStorage `glint.studio.v2`. Add cloud sync with the `deploy-web-app` skill when designs need to follow Kennedy across devices.
+- **Cloud sync (Oct 14, 2026):** saved designs sync through In the Loop's Supabase project (`lwbbkwftkxjmrpyalrwu`, table `kv`, row key `glint:designs`, row-level security per user). Same sign-in as In the Loop; sign-ups stay off. Sign-in sits in the My designs card (optional; without it designs stay on the device). Rules: first sign-in on a device merges local + cloud by name (newest wins); after that the cloud is the source of truth, except unsent local changes (`glint.sync.dirty`) win. Pulls again when the app comes back to the foreground. Only saved designs sync, not the current unsaved combo. Supabase library: jsdelivr `@supabase/supabase-js@2.117.2` UMD.
 - Netlify's free plan charges credits per production deploy; if edits get frequent, adopt In the Loop's `preview` branch workflow.
 
 ## Ground rules for anyone building this
@@ -80,6 +80,7 @@ Kennedy asked to overhaul the whole interface: combine up to three visuals, with
 - Kept from the old app: personalities (with opacity and blend) and full-screen play. Dropped: nodes list, buses, scenes, aspect ratios, dragging, the knob deck. The current design autosaves on the device (localStorage `glint.v3`).
 - **My designs** (added Oct 13 at Kennedy's request): name and save the whole combo with every setting, load or delete it; saved per device in localStorage `glint.designs.v3`. Saving under an existing name updates it.
 - The previous Studio lives at `studio.html` / `studio.js` / `styles.css`, untouched.
+- **Cycle my designs** (Oct 14, 2026): full-screen play that steps through saved designs every N seconds (slider, default 18 s, localStorage `glint.cycle`) with a 1.6 s crossfade and the design's name shown briefly; arrow keys skip; exiting restores the combo that was on screen before.
 - **Desktop audio capture** (Oct 14, 2026, computers only; hidden on phones): **Tab or screen audio** uses `getDisplayMedia` with `systemAudio: "include"` (a tab plays its own sound; Entire screen captures apps like Spotify in Chrome 141+ on macOS 14.2+, or on Windows), and **Audio input…** lists every input device (mic, audio interface, loopback such as BlackHole, marked "loopback"), remembering the last pick in localStorage `glint.input`. Captured sound is never played back out (no echo). A level meter shows under the status line for live sources. Untested on Kennedy's own computer so far.
 - Next after refining: more "paths" for the drawing visuals (Graffiti and similar), i.e. what they trace or sketch.
 

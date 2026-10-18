@@ -138,3 +138,13 @@ body.playing .stage { aspect-ratio: auto; width: 100vw; height: 100vh; height: 1
 .offset-btns { display: flex; gap: 8px; flex-wrap: wrap; }
 .chips.seg { gap: 6px; }
 .chips.seg .chip { padding: 5px 10px; font-size: 12px; }
+/* Color fold: the only color in the interface is the color you're choosing */
+input[type=range].hue::-webkit-slider-runnable-track { height: 6px; background: linear-gradient(90deg, hsl(0 90% 55%), hsl(60 90% 55%), hsl(120 90% 55%), hsl(180 90% 55%), hsl(240 90% 55%), hsl(300 90% 55%), hsl(360 90% 55%)); }
+input[type=range].hue::-moz-range-track { height: 6px; background: linear-gradient(90deg, hsl(0 90% 55%), hsl(60 90% 55%), hsl(120 90% 55%), hsl(180 90% 55%), hsl(240 90% 55%), hsl(300 90% 55%), hsl(360 90% 55%)); }
+input[type=range].hue::-webkit-slider-thumb { margin-top: -6px; }
+.pal-chip { display: inline-flex; align-items: center; gap: 7px; }
+.pal-chip .sw { width: 30px; height: 10px; border-radius: 5px; display: inline-block; }
+.pal-edit { display: grid; gap: 10px; padding: 10px; border: 1px solid var(--line); border-radius: 8px; }
+.sw-live { height: 14px; border-radius: 7px; }
+.x-btn { background: none; border: 0; color: var(--muted); font-size: 18px; line-height: 1; padding: 0 4px 0 10px; }
+.x-btn:hover { color: var(--silver); }

@@ -293,9 +293,37 @@ $("#cal-x").addEventListener("click", () => calEnd(false));
 $("#cal-keep").addEventListener("click", () => calEnd(true));
 $("#cal-again").addEventListener("click", () => { cal.step = 1; cal.res = []; cal.ms = null; calStep(); });
 
+
+/* ---------- color: one color, a rainbow cycle, or a palette that cycles (Oct 18, 2026) ---------- */
+// palettes are lists of hues: every visual tints its own glow from one hue, so a palette steps or glides through hues
+const PRESET_PALS = [
+  { id: "loop", name: "In the Loop", stops: [330, 15, 55, 130, 185, 220, 270] }, { id: "sunset", name: "Sunset", stops: [330, 350, 15, 35, 50] },
+  { id: "ocean", name: "Ocean", stops: [165, 185, 205, 230] }, { id: "vapor", name: "Vaporwave", stops: [300, 275, 195, 175] },
+  { id: "fire", name: "Fire", stops: [355, 15, 35, 52] }, { id: "ice", name: "Ice", stops: [180, 200, 225, 255] },
+  { id: "candy", name: "Pink and gold", stops: [320, 340, 45] }, { id: "acid", name: "Acid", stops: [75, 100, 290, 310] }];
+const PKEY = "glint.palettes"; let myPals = []; try { myPals = JSON.parse(localStorage.getItem(PKEY) || "[]").filter(x => x && Array.isArray(x.stops)); } catch (_) {}
+function savePals() { try { localStorage.setItem(PKEY, JSON.stringify(myPals)); } catch (_) {} }
+const allPals = () => PRESET_PALS.concat(myPals);
+const colorOf = l => l.color || (l.color = { mode: "one", speed: .35, by: "time", pal: "loop", stops: PRESET_PALS[0].stops.slice(), flow: "glide" });
+const CST = new Map();
+const hueLerp = (a, b, u) => a + ((((b - a) % 360) + 540) % 360 - 180) * u;
+function updateColors(dt, hits) {
+  state.layers.forEach(l => { const c = l.color; if (!c || c.mode === "one") return;
+    let s = CST.get(l.id); if (!s) { s = { ph: 0, tgt: 0 }; CST.set(l.id, s); }
+    const sp = lerp(.04, 3, c.speed * c.speed);
+    if (c.by === "beat") { if (hits.kick) s.tgt += 1; s.ph += (s.tgt - s.ph) * (1 - Math.exp(-dt * (c.flow === "jump" ? 30 : 9))); }
+    else { s.ph += dt * sp * (c.by === "loud" ? .1 + 2.6 * V.rms : 1); s.tgt = s.ph; }
+    if (s.ph > 2520) { s.ph -= 2520; s.tgt -= 2520; } }); // 2520 divides evenly by every palette length up to 10, and 12
+}
+function hueNow(l) { const c = l.color; if (!c || c.mode === "one") return l.hue; const s = CST.get(l.id), ph = s ? s.ph : 0;
+  if (c.mode === "rainbow") return l.hue + ph * 30;
+  const st = c.stops && c.stops.length ? c.stops : [l.hue], n = st.length, i = Math.floor(ph), u = ph - i, a = st[((i % n) + n) % n], b = st[(((i + 1) % n) + n) % n];
+  return hueLerp(a, b, c.flow === "jump" && c.by !== "beat" ? (u < .9 ? 0 : (u - .9) / .1) : u); }
+const swatchCSS = stops => stops.length > 1 ? `linear-gradient(90deg, ${stops.map(h => `hsl(${Math.round(h)} 95% 58%)`).join(", ")})` : `hsl(${stops[0]} 95% 58%)`;
+function layerDot(l) { const c = l.color; if (!c || c.mode === "one") return `hsl(${l.hue} 95% 60%)`; if (c.mode === "rainbow") return "conic-gradient(hsl(0 95% 60%), hsl(60 95% 60%), hsl(120 95% 60%), hsl(180 95% 60%), hsl(240 95% 60%), hsl(300 95% 60%), hsl(360 95% 60%))"; return swatchCSS(c.stops); }
 /* ---------- engine ---------- */
 const RT = new Map();
-function nodeOf(l) { return { id: l.id, form: l.form, char: l.char, hx: .5, hy: l.hy ?? .52, dir: -Math.PI / 2, hue: l.hue, level: l.level, listen: "mix", seed: l.seed, shape: l.shape, links: l.links || FORM[l.form].links || [], p: l.p, o1: { wave: "sine", rate: .6, depth: .16 }, o2: { on: true, wave: "sine", rate: .9, depth: .14, phase: .25 } }; }
+function nodeOf(l) { return { id: l.id, form: l.form, char: l.char, hx: .5, hy: l.hy ?? .52, dir: -Math.PI / 2, hue: hueNow(l), level: l.level, listen: "mix", seed: l.seed, shape: l.shape, links: l.links || FORM[l.form].links || [], p: l.p, o1: { wave: "sine", rate: .6, depth: .16 }, o2: { on: true, wave: "sine", rate: .9, depth: .14, phase: .25 } }; }
 function runtime(node) {
   let rt = RT.get(node.id); const sig = node.form + "|" + node.char;
   if (!rt || rt.sig !== sig) {
@@ -318,7 +346,7 @@ let gclock = 0, gtime = 0, last = performance.now();
 function frame(now) {
   requestAnimationFrame(frame);
   const dt = Math.min(.05, (now - last) / 1000); last = now; gtime += dt;
-  const rawHits = updateAudio(dt); calFrame(rawHits); const hits = offsetFeed(rawHits), m = state.music, r = m.reaction, breath = .5 + .5 * Math.sin(gtime * .9), idle = 1 - r * .7, S0 = Math.min(W, H), bias = moodBias();
+  const rawHits = updateAudio(dt); calFrame(rawHits); const hits = offsetFeed(rawHits); updateColors(dt, hits); const m = state.music, r = m.reaction, breath = .5 + .5 * Math.sin(gtime * .9), idle = 1 - r * .7, S0 = Math.min(W, H), bias = moodBias();
   gclock += dt * (.3 + idle * .25 * breath + V.rms * r * 1.2);
   const all = state.layers.filter(l => l.on).map(l => { const node = nodeOf(l); return { node, rt: runtime(node) }; });
   all.forEach(({ node, rt }) => {
@@ -379,7 +407,7 @@ function group(title, sub, open = true) { const d = document.createElement("deta
 function renderLayers() {
   const nav = $("#layers"); nav.innerHTML = "";
   state.layers.forEach((l, i) => { const b = document.createElement("button"); b.className = "layer-tab" + (l.on ? "" : " off"); b.setAttribute("aria-pressed", i === sel);
-    b.style.setProperty("--c", `hsl(${l.hue} 95% 60%)`); b.innerHTML = `<i></i>${esc(FORM[l.form].name)}`; b.addEventListener("click", () => { sel = i; renderAll(); }); nav.append(b); });
+    b.style.setProperty("--c", layerDot(l)); b.innerHTML = `<i></i>${esc(FORM[l.form].name)}`; b.addEventListener("click", () => { sel = i; renderAll(); }); nav.append(b); });
   if (state.layers.length < 3) { const add = document.createElement("button"); add.className = "layer-tab add-tab"; add.textContent = "+ Add a visual";
     add.addEventListener("click", () => { const used = state.layers.map(l => l.form), next = VISUALS.map(v => v[0]).find(k => !used.includes(k)) || "graffiti"; state.layers.push(newLayer(next)); sel = state.layers.length - 1; save(); renderAll(); }); nav.append(add); }
 }
@@ -394,7 +422,7 @@ function renderLayer() {
   VISUALS.forEach(([key]) => { const c = document.createElement("button"); c.className = "chip"; c.textContent = FORM[key].name; c.setAttribute("aria-pressed", key === l.form);
     c.addEventListener("click", () => { if (key === l.form) return; Object.assign(l, newLayer(key), { id: l.id, on: l.on }); save(); renderAll(); }); chips.append(c); });
   box.append(chips);
-  box.append(slider("l-hue", "Color", "", 0, 359, 1, l.hue, v => Math.round(v) + "°", v => { l.hue = v; renderLayers(); }));
+  renderColor(box, l);
   box.append(slider("l-level", "Opacity", "", 0, 1, .01, l.level, pct, v => { l.level = v; }));
   // the visual's own controls
   // a visual can split its controls into named groups (sh.grp); open/closed state survives re-renders
@@ -450,6 +478,48 @@ function musicUI(text) {
   $("#now").textContent = text; if (typeof applyOffset === "function") applyOffset();
   transportUI();
   $("#m-demo").setAttribute("aria-pressed", au.mode === "demo"); $("#m-off").setAttribute("aria-pressed", au.mode === "none"); $("#m-file-l").setAttribute("aria-pressed", au.mode === "file"); $("#m-mic").setAttribute("aria-pressed", au.mode === "mic"); if (CAN_SHARE) { $("#m-screen").setAttribute("aria-pressed", au.mode === "screen"); $("#m-dev").setAttribute("aria-pressed", au.mode === "device"); }
+}
+/* ---------- the Color fold: one color, rainbow, or palette, plus a palette maker ---------- */
+function seg(label, opts, cur, onPick) { const row = document.createElement("div"); row.className = "ctl"; row.innerHTML = `<div class="ctl-top"><label>${esc(label)}</label></div><div class="chips seg"></div>`;
+  opts.forEach(([v, name]) => { const c = document.createElement("button"); c.type = "button"; c.className = "chip"; c.textContent = name; c.setAttribute("aria-pressed", v === cur); c.addEventListener("click", () => onPick(v)); row.lastChild.append(c); }); return row; }
+function hueSlider(id, label, val, onInput) { const r = slider(id, label, "", 0, 359, 1, Math.round(val), v => Math.round(v) + "°", onInput); r.querySelector("input").classList.add("hue"); return r; }
+function renderColor(box, l) {
+  const c = colorOf(l), MODES = [["one", "One color"], ["rainbow", "Rainbow"], ["palette", "Palette"]], again = () => { save(); renderLayers(); renderLayer(); };
+  const [gc, cc] = group("Color", MODES.find(m => m[0] === c.mode)[1], openGrp.color ?? true); gc.addEventListener("toggle", () => { openGrp.color = gc.open; });
+  cc.append(seg("Color", MODES, c.mode, v => { c.mode = v; again(); }));
+  if (c.mode === "one" || c.mode === "rainbow") cc.append(hueSlider("l-hue", c.mode === "one" ? "Hue" : "Starting hue", l.hue, v => { l.hue = v; renderLayers(); }));
+  if (c.mode === "palette") {
+    const list = document.createElement("div"); list.className = "chips pals";
+    allPals().forEach(p => { const b = document.createElement("button"); b.type = "button"; b.className = "chip pal-chip"; b.setAttribute("aria-pressed", c.pal === p.id);
+      b.innerHTML = `<span class="sw" style="background:${swatchCSS(p.stops)}"></span>${esc(p.name)}`; b.addEventListener("click", () => { c.pal = p.id; c.stops = p.stops.slice(); again(); }); list.append(b); });
+    const nb = document.createElement("button"); nb.type = "button"; nb.className = "chip"; nb.textContent = "+ New palette";
+    nb.addEventListener("click", () => { const base = allPals().find(p => p.id === c.pal) || PRESET_PALS[0], p = { id: "my" + Date.now().toString(36), name: "My palette " + (myPals.length + 1), stops: base.stops.slice(0, 4) }; myPals.push(p); savePals(); c.pal = p.id; c.stops = p.stops.slice(); again(); });
+    list.append(nb); const lr = document.createElement("div"); lr.className = "ctl"; lr.innerHTML = `<div class="ctl-top"><label>Palette</label></div>`; lr.append(list); cc.append(lr);
+    const mine = myPals.find(p => p.id === c.pal);
+    if (mine) { // the palette maker: name it, set each color, add or remove colors
+      const ed = document.createElement("div"); ed.className = "pal-edit";
+      const nm = document.createElement("input"); nm.className = "name-in"; nm.value = mine.name; nm.maxLength = 30; nm.setAttribute("aria-label", "Palette name");
+      nm.addEventListener("change", () => { mine.name = nm.value.trim() || mine.name; savePals(); renderLayer(); }); ed.append(nm);
+      const sync = () => { savePals(); state.layers.forEach(x => { if (x.color && x.color.pal === mine.id) x.color.stops = mine.stops.slice(); }); save(); renderLayers(); ed.querySelectorAll(".sw-live").forEach(el => { el.style.background = swatchCSS(mine.stops); }); };
+      const bar = document.createElement("div"); bar.className = "sw-live"; bar.style.background = swatchCSS(mine.stops); ed.append(bar);
+      mine.stops.forEach((h, i) => { const r = hueSlider("st-" + i, "Color " + (i + 1), h, v => { mine.stops[i] = v; sync(); });
+        if (mine.stops.length > 2) { const x = document.createElement("button"); x.type = "button"; x.className = "x-btn"; x.textContent = "×"; x.setAttribute("aria-label", "Remove color " + (i + 1)); x.addEventListener("click", () => { mine.stops.splice(i, 1); sync(); renderLayer(); }); r.querySelector(".ctl-top").append(x); }
+        ed.append(r); });
+      const row = document.createElement("div"); row.className = "row";
+      const add = document.createElement("button"); add.type = "button"; add.className = "btn"; add.textContent = "Add a color"; add.disabled = mine.stops.length >= 10;
+      add.addEventListener("click", () => { const lst = mine.stops[mine.stops.length - 1]; mine.stops.push((lst + 40) % 360); sync(); renderLayer(); });
+      const del = document.createElement("button"); del.type = "button"; del.className = "btn danger"; del.textContent = "Delete palette";
+      del.addEventListener("click", () => { myPals = myPals.filter(p => p !== mine); savePals(); c.pal = "loop"; c.stops = PRESET_PALS[0].stops.slice(); again(); });
+      row.append(add, del); ed.append(row); cc.append(ed);
+    } else { const cp = document.createElement("button"); cp.type = "button"; cp.className = "btn"; cp.textContent = "Copy this palette to edit"; cp.style.justifySelf = "start";
+      cp.addEventListener("click", () => { const base = allPals().find(p => p.id === c.pal) || PRESET_PALS[0], p = { id: "my" + Date.now().toString(36), name: base.name + " (mine)", stops: base.stops.slice() }; myPals.push(p); savePals(); c.pal = p.id; c.stops = p.stops.slice(); again(); }); cc.append(cp); }
+  }
+  if (c.mode !== "one") {
+    cc.append(seg("Moves with", [["time", "Time"], ["beat", "Every beat"], ["loud", "Loudness"]], c.by, v => { c.by = v; again(); }));
+    if (c.by !== "beat") cc.append(slider("c-speed", "Speed", "", 0, 1, .01, c.speed, pct, v => { c.speed = v; }));
+    cc.append(seg("Change", [["glide", "Smooth"], ["jump", "Snap"]], c.flow, v => { c.flow = v; again(); }));
+  }
+  box.append(gc);
 }
 function renderAll() { sel = clamp(sel, 0, state.layers.length - 1); renderLayers(); renderLayer(); }
 function rebuildMusic() {

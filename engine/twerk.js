@@ -119,9 +119,9 @@ const CREW = { key: "crew", name: "Backup crew", fade: 1, char: "anchored", link
 
 // ---- neon line dancer: one continuous curvy outline in profile, back arched, booty out, arms free to dance ----
 // Body type runs from feminine to masculine; every setting keeps a narrow waist with big hips, thighs and booty.
-const DANCES = ["Mix it up", "Twerk", "Duck walk", "Catwalk", "Vogue"];
+const DANCES = ["Mix it up", "Twerk", "Duck walk"];
 const ARM_MOVES = ["Mix it up", "Hands on knees", "Hands up", "Wave", "Booty slap", "Air pump", "Hands on hips", "Floor touch", "Hair flip", "Old way", "New way", "Vogue fem"];
-const ARM_POOL = { 1: [1, 1, 2, 3, 4, 5, 6, 7, 8], 2: [9, 10, 11, 2, 3], 3: [6, 11, 3, 8], 4: [9, 10, 11, 9, 10, 11, 8] }; // what Mix it up picks from, per dance
+const ARM_POOL = { 1: [1, 1, 2, 4, 5, 7, 8, 9, 10, 11, 9, 10, 11], 2: [9, 10, 11, 9, 10, 11, 2, 3] }; // what Mix it up picks from, per dance: voguing runs through both
 const DROP_WHEN = ["Off", "Beat drops", "Loud hits", "Every 8 bars"];
 const BODY_LABEL = v => v < .15 ? "Feminine" : v < .4 ? "Femme-leaning" : v < .6 ? "Androgynous" : v < .85 ? "Masc-leaning" : "Masculine";
 const V2 = { add: (a, b, s = 1) => [a[0] + b[0] * s, a[1] + b[1] * s], mix: (a, b, u) => [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u], norm: v => { const l = Math.hypot(v[0], v[1]) || 1; return [v[0] / l, v[1] / l]; }, sub: (a, b) => [a[0] - b[0], a[1] - b[1]], rot: (v, a) => [v[0] * Math.cos(a) - v[1] * Math.sin(a), v[0] * Math.sin(a) + v[1] * Math.cos(a)] };
@@ -152,9 +152,8 @@ const LINER = { key: "liner", name: "Neon line dancer", fade: 1, char: "anchored
     { key: "bounce", label: "Bounce", def: .65, grp: "Dance" }, { key: "rubber", label: "Rubberiness", def: .6, grp: "Dance" }, { key: "jiggle", label: "Jiggle", def: .6, grp: "Dance" },
     { key: "wobble", label: "Wobble time", def: .55, grp: "Dance" }, { key: "sharp", label: "Snap", def: .6, grp: "Dance" },
     { key: "back", label: "Push back", def: .5, grp: "Dance", when: g => [0, 1].includes(g("dance")) },
-    { key: "stride", label: "Kick and stride", def: .6, grp: "Dance", when: g => [0, 2, 3].includes(g("dance")) },
-    { key: "strut", label: "Hip swing", def: .6, grp: "Dance", when: g => [0, 3, 4].includes(g("dance")) },
-    { key: "travel", label: "Where", min: 0, max: 1, def: 0, fmt: v => ["In place", "Across the stage"][v], grp: "Dance", when: g => [0, 2, 3].includes(g("dance")) },
+    { key: "stride", label: "Kick and stride", def: .6, grp: "Dance", when: g => [0, 2].includes(g("dance")) },
+    { key: "travel", label: "Where", min: 0, max: 1, def: 0, fmt: v => ["In place", "Across the stage"][v], grp: "Dance", when: g => [0, 2].includes(g("dance")) },
     { key: "nod", label: "Head bob", def: .5, grp: "Dance" },
     { key: "armstyle", label: "Arm moves", min: 0, max: ARM_MOVES.length - 1, def: 0, fmt: v => ARM_MOVES[v], grp: "Arms" },
     { key: "armfreq", label: "Switch moves", def: .5, grp: "Arms", when: g => g("armstyle") === 0 },
@@ -171,12 +170,12 @@ const LINER = { key: "liner", name: "Neon line dancer", fade: 1, char: "anchored
   draw(E) { const { g, n, S, st, dt, t, I, k, L, W } = E, gap = twBeat(E, st), beatN = st.beats || 0, newBeat = beatN !== st.lastBeat, ph = st.since * I("per") / gap, uB = clamp(st.since / gap, 0, 1.5), amp = twAmp(E, st), { K: SK, C: SC } = twSprings(E);
     // ---- which dance (Mix it up switches every few bars and blends between them) ----
     const dsel = I("dance");
-    if (dsel === 0) { if (newBeat && beatN % (I("mixbars") * 4) === 0 && beatN > 0) { let nx; do nx = 1 + Math.floor(Math.random() * 4); while (nx === st.dCur); st.dPrev = st.dCur; st.dCur = nx; st.dF = 0; } }
+    if (dsel === 0) { if (newBeat && beatN % (I("mixbars") * 4) === 0 && beatN > 0) { let nx; nx = st.dCur === 1 ? 2 : 1; st.dPrev = st.dCur; st.dCur = nx; st.dF = 0; } }
     else if (dsel !== st.dCur) { st.dPrev = st.dCur; st.dCur = dsel; st.dF = 0; }
     st.dF = Math.min(1, st.dF + dt * 1.6);
     // ---- the bounce that drives hips and jiggle, per dance ----
-    const legL = L("legs", .85, 1.2), T1 = .34 * legL, T2 = .42 * legL, hs = (T1 + T2) * .97, stride = L("stride", .4, 1.4), strut = k("strut"), par = beatN % 2;
-    const bounceOf = dn => dn === 1 ? popCurve(ph, k("sharp")) * amp : dn === 2 ? Math.abs(Math.sin(Math.PI * Math.min(1, uB))) * amp * .7 : dn === 3 ? Math.abs(Math.sin(Math.PI * Math.min(1, uB))) * amp * .45 : Math.exp(-uB * 8) * amp * .6;
+    const legL = L("legs", .85, 1.2), T1 = .34 * legL, T2 = .42 * legL, hs = (T1 + T2) * .97, stride = L("stride", .4, 1.4), par = beatN % 2;
+    const bounceOf = dn => dn === 1 ? popCurve(ph, k("sharp")) * amp : dn === 2 ? Math.abs(Math.sin(Math.PI * Math.min(1, uB))) * amp * .7 : 0;
     const dropT = lerpA(bounceOf(st.dPrev), bounceOf(st.dCur), easeIO(st.dF)), z = L("rubber", .6, .12), KH = 700;
     spr(st.hip, dropT, 0, KH, 2 * z * Math.sqrt(KH), dt); spr(st.hx, dropT * L("back", .2, 1.4), 0, KH * .8, 2 * z * Math.sqrt(KH * .8), dt);
     spr(st.bt, st.hip.p, 0, SK, SC, dt); spr(st.btx, st.hx.p, 0, SK * .8, SC, dt);
@@ -190,11 +189,7 @@ const LINER = { key: "liner", name: "Neon line dancer", fade: 1, char: "anchored
       1: () => { const q = k("squat"), A = [0, -.06], thS = lerp(.2, .62, q) + drop * .07, K0 = [A[0] + Math.sin(thS) * T2, A[1] - Math.cos(thS) * T2], phi = lerp(.9, .3, q) - drop * .2;
         return { H: [K0[0] - Math.cos(phi) * T1 - push * .05, K0[1] - Math.sin(phi) * T1], A, Af: [-.012, -.06], lam: lerp(.35, 1.05, k("lean")) + drop * .1, fa: 0, ff: 0, arch: arch0 }; },
       2: () => { const u = Math.min(1, uB), kk = Math.sin(Math.PI * Math.min(1, u * 1.25)), front = [lerpA(.02, .3 * stride, kk), -.06 - .09 * kk * stride], plant = [-.04, -.06];
-        return { H: [-.03 + .02 * kk, -(.4 + .05 * Math.abs(Math.sin(Math.PI * u))) * legL], A: par ? plant : front, Af: par ? front : plant, lam: .2 + .06 * Math.sin(t * 3), fa: par ? 0 : -.35 * kk, ff: par ? -.35 * kk : 0, arch: arch0 * .8 }; },
-      3: () => { const ga = (beatN + Math.min(1, uB)) * Math.PI, sx = .15 * stride, sw = Math.abs(Math.sin(ga));
-        return { H: [-.03 * strut * sw, -(hs - .02 - .025 * sw)], A: [sx * Math.sin(ga), -.06 - .05 * Math.max(0, Math.cos(ga))], Af: [sx * Math.sin(ga + Math.PI), -.06 - .05 * Math.max(0, -Math.cos(ga))], lam: -.06 + .03 * strut * Math.sin(ga * 2), fa: .25, ff: .25, arch: arch0 }; },
-      4: () => { const tl = [.02, -.16, .22, .06, -.08, .14, 0], l0 = tl[st.vogPrev % tl.length], l1 = tl[st.vog % tl.length];
-        return { H: [-.03 - .03 * strut * Math.sin(t * 2), -hs * .93 + .03 * Math.sin(t * 2.2) * strut], A: [.13, -.05], Af: [-.06, -.06], lam: lerpA(l0, l1, snap), fa: .9, ff: 0, arch: arch0 }; } };
+        return { H: [-.03 + .02 * kk, -(.4 + .05 * Math.abs(Math.sin(Math.PI * u))) * legL], A: par ? plant : front, Af: par ? front : plant, lam: .2 + .06 * Math.sin(t * 3), fa: par ? 0 : -.35 * kk, ff: par ? -.35 * kk : 0, arch: arch0 * .8 }; } };
     let pose = mixPose(POSE[st.dPrev](), POSE[st.dCur](), easeIO(st.dF));
     // ---- death drop: triggered by the music (or the button), windup → fall → hold → rise ----
     const raw = E.R.raw || 0; st.slow = lerpA(st.slow ?? raw, raw, 1 - Math.exp(-dt / 6)); st.fast = lerpA(st.fast ?? raw, raw, 1 - Math.exp(-dt / .25)); st.sinceDrop += dt;
@@ -217,7 +212,7 @@ const LINER = { key: "liner", name: "Neon line dancer", fade: 1, char: "anchored
       else if (D.t < wind + fall + holdS + rise) { const u = (D.t - wind - fall - holdS) / rise, fl = Object.assign({}, floorP); fl.A = V2.add(fl.H, [Math.cos(-.55), Math.sin(-.55)], (T1 + T2) * .97); fl.fa = -.55; pose = mixPose(fl, pose, easeIO(u)); flung = 1 - u; }
       else { st.drop = null; st.sinceDrop = 0; } }
     // ---- travel across the stage for the walking dances ----
-    const walking = (st.dCur === 2 || st.dCur === 3) && !st.drop, figH = -(pose.H[1] - .66 * Math.cos(pose.lam) - .18); st.fit = lerpA(st.fit ?? 1, Math.min(1, 1.2 / Math.max(.5, figH)), 1 - Math.exp(-dt * 3)); const U = S * .62 * st.fit;
+    const walking = st.dCur === 2 && !st.drop, figH = -(pose.H[1] - .66 * Math.cos(pose.lam) - .18); st.fit = lerpA(st.fit ?? 1, Math.min(1, 1.2 / Math.max(.5, figH)), 1 - Math.exp(-dt * 3)); const U = S * .62 * st.fit;
     if (walking && I("travel") === 1) { st.tx += st.tdir * dt * stride * .32 / gap * (st.dCur === 2 ? .8 : 1); if (Math.abs(st.tx * U) > W * .3) { st.tdir *= -1; st.tx = Math.sign(st.tx) * W * .3 / U; } }
     else st.tx *= Math.exp(-dt * .4);
     const F = (I("facing") ? -1 : 1) * (I("travel") === 1 && walking || Math.abs(st.tx) > .02 ? st.tdir : 1) * flip, ox = n.x + st.tx * U * (I("facing") ? -1 : 1), P = v => [ox + F * v[0] * U, n.y + v[1] * U], hue = n.hue, sp = k("spread");

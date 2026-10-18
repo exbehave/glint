@@ -136,3 +136,5 @@ body.playing .stage { aspect-ratio: auto; width: 100vw; height: 100vh; height: 1
 .cal-pips i.on { background: var(--silver); }
 .cal-btns { justify-content: center; }
 .offset-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.chips.seg { gap: 6px; }
+.chips.seg .chip { padding: 5px 10px; font-size: 12px; }

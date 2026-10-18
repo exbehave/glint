@@ -45,7 +45,7 @@ const KEY = "glint.v3";
 let state = null, sel = 0, seq = 0;
 function newLayer(form) {
   const v = VIS[form];
-  return { id: "L" + Date.now().toString(36) + (seq++), form, char: v.char, hue: v.hue, level: 1, on: true, hy: v.hy ?? .52, seed: Math.random(), shape: Object.assign({}, v.shape), p: Object.assign({}, PDEF, v.p) };
+  return { id: "L" + Date.now().toString(36) + (seq++), form, char: v.char, hue: v.hue, level: 1, on: true, hy: v.hy ?? .52, seed: Math.random(), shape: Object.assign({}, v.shape), links: JSON.parse(JSON.stringify(FORM[form].links || [])), p: Object.assign({}, PDEF, v.p) };
 }
 function fresh() { return { layers: [newLayer("cheshire")], moods: Object.fromEntries(MOODS.map(m => [m.key, { on: false, op: .5, mode: m.mode }])), music: { reaction: 1, punch: 1, decay: 1 } }; }
 function load() { try { const s = JSON.parse(localStorage.getItem(KEY) || "null"); if (s && Array.isArray(s.layers)) s.layers.forEach(l => { if (l.form === "doodle") l.form = "doodle2"; }); if (s && Array.isArray(s.layers) && s.layers.length && s.layers.every(l => VIS[l.form])) { MOODS.forEach(m => { s.moods[m.key] ||= { on: false, op: .5, mode: m.mode }; }); return s; } } catch (_) {} return fresh(); }
@@ -295,7 +295,7 @@ $("#cal-again").addEventListener("click", () => { cal.step = 1; cal.res = []; ca
 
 /* ---------- engine ---------- */
 const RT = new Map();
-function nodeOf(l) { return { id: l.id, form: l.form, char: l.char, hx: .5, hy: l.hy ?? .52, dir: -Math.PI / 2, hue: l.hue, level: l.level, listen: "mix", seed: l.seed, shape: l.shape, p: l.p, o1: { wave: "sine", rate: .6, depth: .16 }, o2: { on: true, wave: "sine", rate: .9, depth: .14, phase: .25 } }; }
+function nodeOf(l) { return { id: l.id, form: l.form, char: l.char, hx: .5, hy: l.hy ?? .52, dir: -Math.PI / 2, hue: l.hue, level: l.level, listen: "mix", seed: l.seed, shape: l.shape, links: l.links || FORM[l.form].links || [], p: l.p, o1: { wave: "sine", rate: .6, depth: .16 }, o2: { on: true, wave: "sine", rate: .9, depth: .14, phase: .25 } }; }
 function runtime(node) {
   let rt = RT.get(node.id); const sig = node.form + "|" + node.char;
   if (!rt || rt.sig !== sig) {
@@ -325,7 +325,7 @@ function frame(now) {
     const p = {}; for (const k in node.p) p[k] = k === "magnetism" ? clamp(node.p[k] + (bias[k] || 0), -1, 1) : clamp(node.p[k] + (bias[k] || 0), 0, 1);
     const kb = FORM[node.form].kickBoost; if (kb) { const kk = clamp(V.kick * r * m.punch, 0, 1); kb.forEach(key => { p[key] += (1 - p[key]) * kk; }); }
     rt.p = p;
-    const R = { kick: V.kick * r * m.punch * 1.4 * (.5 + p.energy), bass: V.bass * r, mid: V.mid * r, treble: V.treble * r, rms: V.rms * r, hat: V.hat * r, idle, breath };
+    const R = { kick: V.kick * r * m.punch * 1.4 * (.5 + p.energy), bass: V.bass * r, mid: V.mid * r, treble: V.treble * r, rms: V.rms * r, hat: V.hat * r, raw: V.active ? V.raw || 0 : null, idle, breath };
     R.energy = (idle * (.3 + .25 * breath) + R.rms * 1.1 + R.kick * .45) * (.35 + 1.3 * p.energy);
     rt.R = R; rt.hue = node.hue;
     rt.clock += dt * (.3 + idle * .25 * breath + R.rms * 1.2 + R.kick * .5) * (.35 + 1.4 * p.tempo);
@@ -343,7 +343,9 @@ function frame(now) {
     else { lx.globalCompositeOperation = "destination-out"; lx.fillStyle = `rgba(0,0,0,${a})`; lx.fillRect(0, 0, rt.layer.width, rt.layer.height); }
     lx.setTransform(DPR, 0, 0, DPR, 0, 0); lx.globalCompositeOperation = "lighter";
     const items = f.shape || [], shp = node.shape || {};
-    const k = key => { const it = items.find(x => x.key === key); return shp[key] != null ? shp[key] : (it && it.def != null ? it.def : .5); };
+    // music links: each frequency band pushes the slider it's linked to toward its maximum
+    const mod = {}; (node.links || []).forEach(ln => { if (!ln.dst || !ln.amt) return; const v = { kick: V.kick, bass: V.bass, mid: V.mid, high: Math.max(V.treble, V.hat), loud: V.rms }[ln.src] || 0; mod[ln.dst] = (mod[ln.dst] || 0) + v * ln.amt * r; });
+    const k = key => { const it = items.find(x => x.key === key), b = shp[key] != null ? shp[key] : (it && it.def != null ? it.def : .5), md = mod[key]; return md ? b + (1 - b) * Math.min(1, md) : b; };
     const L = (key, lo, hi) => lerp(lo, hi, k(key));
     const I = key => { const it = items.find(x => x.key === key) || {}; return Math.round(lerp(it.min ?? 0, it.max ?? 1, k(key))); };
     try { f.draw({ g: lx, n: rt, node, p: rt.p, st: rt.st, R: rt.R, S: S0 * (.5 + rt.p.size), W, H, dt, t: rt.tUse, beat: rt.beat, all, frame: shared, level: node.level, k, L, I }); } catch (err) { console.error(err); }
@@ -381,6 +383,7 @@ function renderLayers() {
   if (state.layers.length < 3) { const add = document.createElement("button"); add.className = "layer-tab add-tab"; add.textContent = "+ Add a visual";
     add.addEventListener("click", () => { const used = state.layers.map(l => l.form), next = VISUALS.map(v => v[0]).find(k => !used.includes(k)) || "graffiti"; state.layers.push(newLayer(next)); sel = state.layers.length - 1; save(); renderAll(); }); nav.append(add); }
 }
+const openGrp = {}, LINK_SRC = [["kick", "Kick drum"], ["bass", "Bass"], ["mid", "Mids and vocals"], ["high", "Highs and hi-hats"], ["loud", "Overall loudness"]];
 function renderLayer() {
   const box = $("#layer-card"), l = state.layers[sel]; box.innerHTML = "";
   if (!l) return;
@@ -394,16 +397,37 @@ function renderLayer() {
   box.append(slider("l-hue", "Color", "", 0, 359, 1, l.hue, v => Math.round(v) + "°", v => { l.hue = v; renderLayers(); }));
   box.append(slider("l-level", "Opacity", "", 0, 1, .01, l.level, pct, v => { l.level = v; }));
   // the visual's own controls
-  // a visual can split its sliders into named groups (sh.grp); the first group starts open
-  const f = FORM[l.form], groups = new Map();
-  const groupFor = name => { if (!groups.has(name)) { const gr = group(name, groups.size ? "" : f.name, groups.size === 0); groups.set(name, gr); box.append(gr[0]); } return groups.get(name)[1]; };
-  (f.shape || []).forEach(sh => { const c1 = groupFor(sh.grp || "Shape");
+  // a visual can split its controls into named groups (sh.grp); open/closed state survives re-renders
+  const f = FORM[l.form], groups = new Map(), items = f.shape || [];
+  const groupFor = name => { if (!groups.has(name)) { const gr = group(name, groups.size ? "" : f.name, openGrp[l.form + name] ?? groups.size === 0); gr[0].addEventListener("toggle", () => { openGrp[l.form + name] = gr[0].open; }); groups.set(name, gr); box.append(gr[0]); } return groups.get(name)[1]; };
+  const isChoice = sh => !!(sh.fmt && !sh.slide);
+  const pick = key => { const it = items.find(x => x.key === key) || {}; return Math.round(lerp(it.min ?? 0, it.max ?? 1, l.shape[key] ?? it.def ?? .5)); };
+  items.forEach(sh => {
+    if (sh.when && !sh.when(pick)) return;
+    const c1 = groupFor(sh.grp || "Shape");
     if (sh.text) { const row = document.createElement("div"); row.className = "ctl"; row.innerHTML = `<div class="ctl-top"><label for="sh-${sh.key}">${esc(sh.label)}</label></div><textarea id="sh-${sh.key}" rows="3"></textarea>`;
       const ta = row.querySelector("textarea"); ta.value = l.shape[sh.key] ?? sh.def; ta.addEventListener("input", () => { l.shape[sh.key] = ta.value; save(); }); c1.append(row); return; }
-    const mn = sh.min ?? 0, mx = sh.max ?? 1, steps = mn === 0 && mx === 1 ? 0 : mx - mn, v0 = l.shape[sh.key] ?? sh.def ?? .5;
+    if (sh.button) { const bt = document.createElement("button"); bt.className = "btn"; bt.type = "button"; bt.textContent = sh.label; bt.style.justifySelf = "start";
+      bt.addEventListener("click", () => { l.shape[sh.key] = Date.now(); }); c1.append(bt); return; }
+    const mn = sh.min ?? 0, mx = sh.max ?? 1, steps = mn === 0 && mx === 1 && !sh.fmt ? 0 : mx - mn, v0 = l.shape[sh.key] ?? sh.def ?? .5;
+    if (isChoice(sh)) { // a handful of named options: buttons, not a slider
+      const row = document.createElement("div"); row.className = "ctl"; row.innerHTML = `<div class="ctl-top"><label>${esc(sh.label)}</label></div><div class="chips seg"></div>`;
+      const cur = Math.round(lerp(mn, mx, v0)), box2 = row.querySelector(".chips");
+      for (let i = mn; i <= mx; i++) { const c = document.createElement("button"); c.className = "chip"; c.type = "button"; c.textContent = sh.fmt(i); c.setAttribute("aria-pressed", i === cur);
+        c.addEventListener("click", () => { l.shape[sh.key] = steps ? (i - mn) / steps : 0; save(); renderLayer(); }); box2.append(c); }
+      c1.append(row); return; }
     const fmt = v => { if (sh.cfmt) return sh.cfmt(v); if (!steps) return pct(v); const n = Math.round(lerp(mn, mx, v)); return sh.fmt ? sh.fmt(n) : String(n); };
     c1.append(slider("sh-" + sh.key, sh.label, "", 0, 1, steps ? 1 / steps : .01, v0, fmt, v => { l.shape[sh.key] = v; }));
   });
+  // music links: pick what each part of the sound pushes
+  const targets = items.filter(sh => !sh.text && !sh.button && !isChoice(sh) && !(sh.min != null && sh.max != null && !(sh.min === 0 && sh.max === 1)));
+  if (targets.length) { if (!l.links) l.links = JSON.parse(JSON.stringify(f.links || []));
+    const [gm, cm] = group("Music links", "what each sound pushes", openGrp[l.form + "Music links"] ?? false); gm.addEventListener("toggle", () => { openGrp[l.form + "Music links"] = gm.open; });
+    LINK_SRC.forEach(([src, name]) => { let ln = l.links.find(x => x.src === src); const row = document.createElement("div"); row.className = "ctl";
+      row.innerHTML = `<div class="ctl-top"><label for="ln-${src}">${esc(name)}</label></div><select class="sel" id="ln-${src}">${['<option value="">Nothing</option>'].concat(targets.map(t2 => `<option value="${t2.key}"${ln && ln.dst === t2.key ? " selected" : ""}>${esc(t2.label)}</option>`)).join("")}</select>`;
+      row.querySelector("select").addEventListener("change", e => { if (!ln) { ln = { src, dst: "", amt: .5 }; l.links.push(ln); } ln.dst = e.target.value; save(); renderLayer(); });
+      cm.append(row); if (ln && ln.dst) cm.append(slider("lna-" + src, "Amount", "", 0, 1, .01, ln.amt, pct, v => { ln.amt = v; })); });
+    box.append(gm); }
   if (!FIXED.has(l.form)) { const [g2, c2] = group("Movement"); const row = document.createElement("div"); row.className = "ctl";
     row.innerHTML = `<select class="sel" id="l-char" aria-label="How it moves">${MOVES.map(k => `<option value="${k}"${k === l.char ? " selected" : ""}>${esc(CHAR[k].name)}</option>`).join("")}</select><div class="ctl-hint">${esc(CHAR[l.char].desc)}</div>`;
     row.querySelector("select").addEventListener("change", e => { l.char = e.target.value; save(); renderLayer(); }); c2.append(row); box.append(g2); }

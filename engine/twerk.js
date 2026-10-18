@@ -86,10 +86,10 @@ function drawBooty(E, m, x0, y0, U, hue, spread, ph, amp) {
   return { spots, vel: hv };
 }
 
-const BOOTY = { key: "booty", name: "Bubble booty", fade: 1, char: "anchored",
+const BOOTY = { key: "booty", name: "Bubble booty", fade: 1, char: "anchored", links: [{ src: "bass", dst: "jiggle", amt: .5 }, { src: "high", dst: "sparkle", amt: .7 }, { src: "loud", dst: "lines", amt: .5 }],
   init: () => ({ m: bootyState() }),
   shape: [
-    { key: "per", label: "Twerks per beat", min: 1, max: 4, def: 1 / 3, grp: "Dance" }, { key: "bounce", label: "Bounce", def: .6, grp: "Dance" }, { key: "jiggle", label: "Jiggle", def: .65, grp: "Dance" },
+    { key: "per", label: "Twerks per beat", min: 1, max: 4, def: 1 / 3, fmt: v => v + "×", grp: "Dance" }, { key: "bounce", label: "Bounce", def: .6, grp: "Dance" }, { key: "jiggle", label: "Jiggle", def: .65, grp: "Dance" },
     { key: "wobble", label: "Wobble time", def: .6, grp: "Dance" }, { key: "alt", label: "Cheek independence", def: .25, grp: "Dance" }, { key: "sharp", label: "Snap", def: .6, grp: "Dance" }, { key: "sway", label: "Sway", def: .35, grp: "Dance" },
     { key: "booty", label: "Booty size", def: .6, grp: "Body" }, { key: "hips", label: "Hip width", def: .5, grp: "Body" }, { key: "legs", label: "Leg length", def: .5, grp: "Body" }, { key: "squat", label: "Squat", def: .55, grp: "Body" }, { key: "lean", label: "Lean forward", def: .5, grp: "Body" },
     { key: "ripples", label: "Ripples", def: .6, grp: "Extras" }, { key: "lines", label: "Motion lines", def: .5, grp: "Extras" }, { key: "sweat", label: "Sweat drops", def: .25, grp: "Extras" }, { key: "sparkle", label: "Sparkles", def: .3, grp: "Extras" }, { key: "spread", label: "Color spread", def: .35, grp: "Extras" }, { key: "glow", label: "Glow", def: .5, grp: "Extras" }],
@@ -97,12 +97,12 @@ const BOOTY = { key: "booty", name: "Bubble booty", fade: 1, char: "anchored",
     const out = drawBooty(E, st.m, n.x, n.y, S * .5, n.hue, k("spread"), ph, twAmp(E, st));
     twExtras(E, st, out.spots, n.hue, out.vel); } };
 
-const CREW = { key: "crew", name: "Backup crew", fade: 1, char: "anchored",
+const CREW = { key: "crew", name: "Backup crew", fade: 1, char: "anchored", links: [{ src: "bass", dst: "jiggle", amt: .5 }, { src: "high", dst: "sparkle", amt: .6 }, { src: "loud", dst: "spread", amt: .4 }],
   init: () => ({ ms: [] }),
   shape: [
     { key: "count", label: "Dancers", min: 2, max: 9, def: 3 / 7, grp: "Crew" }, { key: "spacing", label: "Spacing", def: .55, grp: "Crew" }, { key: "lag", label: "Wave delay", def: .4, grp: "Crew" }, { key: "dir", label: "Wave direction", min: 0, max: 2, def: 0, fmt: v => ["Left to right", "Right to left", "From the middle"][v], grp: "Crew" },
     { key: "hype", label: "Double time when loud", def: .5, grp: "Crew" }, { key: "mix", label: "Mixed heights", def: .35, grp: "Crew" },
-    { key: "per", label: "Twerks per beat", min: 1, max: 4, def: 1 / 3, grp: "Dance" }, { key: "bounce", label: "Bounce", def: .6, grp: "Dance" }, { key: "jiggle", label: "Jiggle", def: .65, grp: "Dance" }, { key: "wobble", label: "Wobble time", def: .6, grp: "Dance" },
+    { key: "per", label: "Twerks per beat", min: 1, max: 4, def: 1 / 3, fmt: v => v + "×", grp: "Dance" }, { key: "bounce", label: "Bounce", def: .6, grp: "Dance" }, { key: "jiggle", label: "Jiggle", def: .65, grp: "Dance" }, { key: "wobble", label: "Wobble time", def: .6, grp: "Dance" },
     { key: "alt", label: "Cheek independence", def: .25, grp: "Dance" }, { key: "sharp", label: "Snap", def: .6, grp: "Dance" }, { key: "sway", label: "Sway", def: .3, grp: "Dance" },
     { key: "booty", label: "Booty size", def: .6, grp: "Body" }, { key: "hips", label: "Hip width", def: .5, grp: "Body" }, { key: "legs", label: "Leg length", def: .5, grp: "Body" }, { key: "squat", label: "Squat", def: .55, grp: "Body" }, { key: "lean", label: "Lean forward", def: .5, grp: "Body" },
     { key: "ripples", label: "Ripples", def: .4, grp: "Extras" }, { key: "lines", label: "Motion lines", def: .3, grp: "Extras" }, { key: "sweat", label: "Sweat drops", def: .15, grp: "Extras" }, { key: "sparkle", label: "Sparkles", def: .15, grp: "Extras" }, { key: "spread", label: "Color spread", def: .6, grp: "Extras" }, { key: "glow", label: "Glow", def: .45, grp: "Extras" }],
@@ -119,7 +119,10 @@ const CREW = { key: "crew", name: "Backup crew", fade: 1, char: "anchored",
 
 // ---- neon line dancer: one continuous curvy outline in profile, back arched, booty out, arms free to dance ----
 // Body type runs from feminine to masculine; every setting keeps a narrow waist with big hips, thighs and booty.
-const ARM_MOVES = ["Mix it up", "Hands on knees", "Hands up", "Wave", "Booty slap", "Air pump", "Hands on hips", "Floor touch", "Hair flip"];
+const DANCES = ["Mix it up", "Twerk", "Duck walk", "Catwalk", "Vogue"];
+const ARM_MOVES = ["Mix it up", "Hands on knees", "Hands up", "Wave", "Booty slap", "Air pump", "Hands on hips", "Floor touch", "Hair flip", "Old way", "New way", "Vogue fem"];
+const ARM_POOL = { 1: [1, 1, 2, 3, 4, 5, 6, 7, 8], 2: [9, 10, 11, 2, 3], 3: [6, 11, 3, 8], 4: [9, 10, 11, 9, 10, 11, 8] }; // what Mix it up picks from, per dance
+const DROP_WHEN = ["Off", "Beat drops", "Loud hits", "Every 8 bars"];
 const BODY_LABEL = v => v < .15 ? "Feminine" : v < .4 ? "Femme-leaning" : v < .6 ? "Androgynous" : v < .85 ? "Masc-leaning" : "Masculine";
 const V2 = { add: (a, b, s = 1) => [a[0] + b[0] * s, a[1] + b[1] * s], mix: (a, b, u) => [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u], norm: v => { const l = Math.hypot(v[0], v[1]) || 1; return [v[0] / l, v[1] / l]; }, sub: (a, b) => [a[0] - b[0], a[1] - b[1]], rot: (v, a) => [v[0] * Math.cos(a) - v[1] * Math.sin(a), v[0] * Math.sin(a) + v[1] * Math.cos(a)] };
 function smoothClosed(g, pts) { const n = pts.length; g.beginPath(); g.moveTo(pts[0][0], pts[0][1]);
@@ -135,41 +138,108 @@ function limbOutline(path, w0, w1) { const L = [], R = [], n = path.length;
   for (let i = 0; i < n; i++) { const a = path[Math.max(0, i - 1)], b = path[Math.min(n - 1, i + 1)], tn = V2.norm(V2.sub(b, a)), nn = [-tn[1], tn[0]], f = i / (n - 1), w = w0 + (w1 - w0) * f + Math.sin(f * Math.PI) * w0 * .25;
     L.push(V2.add(path[i], nn, w)); R.push(V2.add(path[i], nn, -w)); }
   return L.concat(R.reverse()); }
+const lerpA = (a, b, u) => a + (b - a) * u;
+function mixPose(a, b, u) { const o = {}; for (const key in a) o[key] = Array.isArray(a[key]) ? V2.mix(a[key], b[key], u) : lerpA(a[key], b[key], u); return o; }
+// old-way vogue: sharp, geometric lines it snaps between on the beat (near hand, far hand; relative to shoulder)
+const OLDWAY = [[[.02, -.42], [.34, -.02]], [[.2, -.2], [.2, .04]], [[.3, -.24], [-.18, .12]], [[.06, -.24], [.06, -.12]], [[.32, -.02], [.32, .1]], [[-.22, -.3], [.3, -.3]], [[.18, -.36], [-.06, .24]]];
 const LINER = { key: "liner", name: "Neon line dancer", fade: 1, char: "anchored",
-  init: () => ({ hip: sp0(), hx: sp0(), bt: sp0(), btx: sp0(), armCur: 1, armPrev: 1, armF: 1, lastBeat: 0, hands: null }),
+  init: () => ({ hip: sp0(), hx: sp0(), bt: sp0(), btx: sp0(), armCur: 1, armPrev: 1, armF: 1, lastBeat: 0, hands: null, dCur: 1, dPrev: 1, dF: 1, tx: 0, tdir: 1, vog: 0, vogPrev: 0, vogT: 9, drop: null, dropReq: null, breakT: 0, sinceDrop: 99 }),
+  links: [{ src: "bass", dst: "jiggle", amt: .5 }, { src: "mid", dst: "armnrg", amt: .6 }, { src: "high", dst: "sparkle", amt: .7 }],
   shape: [
-    { key: "per", label: "Twerks per beat", min: 1, max: 4, def: 1 / 3, grp: "Dance" }, { key: "bounce", label: "Bounce", def: .65, grp: "Dance" }, { key: "rubber", label: "Rubberiness", def: .6, grp: "Dance" }, { key: "jiggle", label: "Jiggle", def: .6, grp: "Dance" },
-    { key: "wobble", label: "Wobble time", def: .55, grp: "Dance" }, { key: "sharp", label: "Snap", def: .6, grp: "Dance" }, { key: "back", label: "Push back", def: .5, grp: "Dance" }, { key: "nod", label: "Head bob", def: .5, grp: "Dance" },
-    { key: "armstyle", label: "Arm moves", min: 0, max: ARM_MOVES.length - 1, def: 0, fmt: v => ARM_MOVES[v], grp: "Arms" }, { key: "armfreq", label: "How often the arms switch (Mix it up)", def: .5, grp: "Arms" }, { key: "armnrg", label: "Arm energy", def: .6, grp: "Arms" }, { key: "armsync", label: "Arms on the beat", def: .7, grp: "Arms" },
+    { key: "dance", label: "Dance", min: 0, max: DANCES.length - 1, def: 0, fmt: v => DANCES[v], grp: "Dance" },
+    { key: "mixbars", label: "Switch dance every", min: 1, max: 8, def: 3 / 7, fmt: v => v + (v > 1 ? " bars" : " bar"), slide: true, grp: "Dance", when: g => g("dance") === 0 },
+    { key: "per", label: "Twerks per beat", min: 1, max: 4, def: 1 / 3, fmt: v => v + "×", grp: "Dance", when: g => [0, 1].includes(g("dance")) },
+    { key: "bounce", label: "Bounce", def: .65, grp: "Dance" }, { key: "rubber", label: "Rubberiness", def: .6, grp: "Dance" }, { key: "jiggle", label: "Jiggle", def: .6, grp: "Dance" },
+    { key: "wobble", label: "Wobble time", def: .55, grp: "Dance" }, { key: "sharp", label: "Snap", def: .6, grp: "Dance" },
+    { key: "back", label: "Push back", def: .5, grp: "Dance", when: g => [0, 1].includes(g("dance")) },
+    { key: "stride", label: "Kick and stride", def: .6, grp: "Dance", when: g => [0, 2, 3].includes(g("dance")) },
+    { key: "strut", label: "Hip swing", def: .6, grp: "Dance", when: g => [0, 3, 4].includes(g("dance")) },
+    { key: "travel", label: "Where", min: 0, max: 1, def: 0, fmt: v => ["In place", "Across the stage"][v], grp: "Dance", when: g => [0, 2, 3].includes(g("dance")) },
+    { key: "nod", label: "Head bob", def: .5, grp: "Dance" },
+    { key: "armstyle", label: "Arm moves", min: 0, max: ARM_MOVES.length - 1, def: 0, fmt: v => ARM_MOVES[v], grp: "Arms" },
+    { key: "armfreq", label: "Switch moves", def: .5, grp: "Arms", when: g => g("armstyle") === 0 },
+    { key: "posebeat", label: "Strike a new pose every", min: 0, max: 2, def: 0, fmt: v => ["Beat", "2 beats", "Bar"][v], grp: "Arms", when: g => [0, 9].includes(g("armstyle")) },
+    { key: "armnrg", label: "Arm energy", def: .6, grp: "Arms" }, { key: "armsync", label: "Arms on the beat", def: .7, grp: "Arms" },
+    { key: "dropwhen", label: "Death drop", min: 0, max: DROP_WHEN.length - 1, def: 1 / 3, fmt: v => DROP_WHEN[v], grp: "Death drop" },
+    { key: "dropstyle", label: "Style", min: 0, max: 1, def: 0, fmt: v => ["Classic", "Spin, then drop"][v], grp: "Death drop" },
+    { key: "dropsens", label: "Sensitivity", def: .5, grp: "Death drop", when: g => [1, 2].includes(g("dropwhen")) },
+    { key: "drophold", label: "Stay down for", min: 1, max: 8, def: 2 / 7, fmt: v => v + (v > 1 ? " beats" : " beat"), slide: true, grp: "Death drop" },
+    { key: "dropnow", label: "Death drop now", button: true, grp: "Death drop" },
     { key: "body", label: "Body type", def: 0, cfmt: BODY_LABEL, grp: "Body" }, { key: "arch", label: "Back arch", def: .8, grp: "Body" }, { key: "curves", label: "Curves", def: .7, grp: "Body" }, { key: "booty", label: "Booty size", def: .6, grp: "Body" },
     { key: "legs", label: "Leg length", def: .5, grp: "Body" }, { key: "squat", label: "Squat", def: .6, grp: "Body" }, { key: "lean", label: "Lean forward", def: .5, grp: "Body" }, { key: "facing", label: "Facing", min: 0, max: 1, def: 0, fmt: v => ["Right", "Left"][v], grp: "Body" }, { key: "line", label: "Line weight", def: .4, grp: "Body" },
     { key: "ripples", label: "Ripples", def: .4, grp: "Extras" }, { key: "lines", label: "Motion lines", def: .7, grp: "Extras" }, { key: "sweat", label: "Sweat drops", def: .3, grp: "Extras" }, { key: "sparkle", label: "Sparkles", def: .25, grp: "Extras" }, { key: "spread", label: "Color spread", def: .3, grp: "Extras" }, { key: "fill", label: "Fill", def: .25, grp: "Extras" }, { key: "glow", label: "Glow", def: .5, grp: "Extras" }],
-  draw(E) { const { g, n, S, st, dt, t, I, k, L } = E, gap = twBeat(E, st), ph = st.since * I("per") / gap, amp = twAmp(E, st), { K: SK, C: SC } = twSprings(E);
-    const dropT = popCurve(ph, k("sharp")) * amp, z = L("rubber", .6, .12), KH = 700;
+  draw(E) { const { g, n, S, st, dt, t, I, k, L, W } = E, gap = twBeat(E, st), beatN = st.beats || 0, newBeat = beatN !== st.lastBeat, ph = st.since * I("per") / gap, uB = clamp(st.since / gap, 0, 1.5), amp = twAmp(E, st), { K: SK, C: SC } = twSprings(E);
+    // ---- which dance (Mix it up switches every few bars and blends between them) ----
+    const dsel = I("dance");
+    if (dsel === 0) { if (newBeat && beatN % (I("mixbars") * 4) === 0 && beatN > 0) { let nx; do nx = 1 + Math.floor(Math.random() * 4); while (nx === st.dCur); st.dPrev = st.dCur; st.dCur = nx; st.dF = 0; } }
+    else if (dsel !== st.dCur) { st.dPrev = st.dCur; st.dCur = dsel; st.dF = 0; }
+    st.dF = Math.min(1, st.dF + dt * 1.6);
+    // ---- the bounce that drives hips and jiggle, per dance ----
+    const legL = L("legs", .85, 1.2), T1 = .34 * legL, T2 = .42 * legL, hs = (T1 + T2) * .97, stride = L("stride", .4, 1.4), strut = k("strut"), par = beatN % 2;
+    const bounceOf = dn => dn === 1 ? popCurve(ph, k("sharp")) * amp : dn === 2 ? Math.abs(Math.sin(Math.PI * Math.min(1, uB))) * amp * .7 : dn === 3 ? Math.abs(Math.sin(Math.PI * Math.min(1, uB))) * amp * .45 : Math.exp(-uB * 8) * amp * .6;
+    const dropT = lerpA(bounceOf(st.dPrev), bounceOf(st.dCur), easeIO(st.dF)), z = L("rubber", .6, .12), KH = 700;
     spr(st.hip, dropT, 0, KH, 2 * z * Math.sqrt(KH), dt); spr(st.hx, dropT * L("back", .2, 1.4), 0, KH * .8, 2 * z * Math.sqrt(KH * .8), dt);
     spr(st.bt, st.hip.p, 0, SK, SC, dt); spr(st.btx, st.hx.p, 0, SK * .8, SC, dt);
-    const U = S * .62, F = I("facing") ? -1 : 1, P = v => [n.x + F * v[0] * U, n.y + v[1] * U], hue = n.hue, sp = k("spread");
-    const gm = k("body"), fem = 1 - gm, cv = L("curves", .55, 1.35), arch = k("arch"), drop = clamp(st.hip.p, -.5, 1.6), push = clamp(st.hx.p, -.5, 1.8), rel = clamp(st.bt.p - st.hip.p, -1, 1), relx = clamp(st.btx.p - st.hx.p, -1, 1);
-    // skeleton (local units: x forward, y down, feet at 0)
-    const legL = L("legs", .85, 1.2), q = k("squat"), A = [0, -.06];
-    const thS = lerp(.2, .62, q) + drop * .07, K = [A[0] + Math.sin(thS) * .42 * legL, A[1] - Math.cos(thS) * .42 * legL];
-    const phi = lerp(.9, .3, q) - drop * .2, H = [K[0] - Math.cos(phi) * .34 * legL - push * .05, K[1] - Math.sin(phi) * .34 * legL];
-    const lam = lerp(.35, 1.05, k("lean")) + drop * .1, d = [Math.sin(lam), -Math.cos(lam)], fN = [Math.cos(lam), Math.sin(lam)], bN = [-fN[0], -fN[1]];
+    const drop = clamp(st.hip.p, -.5, 1.6), push = clamp(st.hx.p, -.5, 1.8), rel = clamp(st.bt.p - st.hip.p, -1, 1), relx = clamp(st.btx.p - st.hx.p, -1, 1);
+    // vogue poses snap on the beat
+    const every = [1, 2, 4][I("posebeat")]; if (newBeat && beatN % every === 0) { st.vogPrev = st.vog; let nx; do nx = Math.floor(Math.random() * OLDWAY.length); while (nx === st.vog); st.vog = nx; st.vogT = 0; }
+    st.vogT += dt; const snap = easeOut(Math.min(1, st.vogT / lerpA(.25, .08, k("sharp"))));
+    // ---- body poses: hip, ankles, torso angle, foot angles, arch ----
+    const arch0 = k("arch");
+    const POSE = {
+      1: () => { const q = k("squat"), A = [0, -.06], thS = lerp(.2, .62, q) + drop * .07, K0 = [A[0] + Math.sin(thS) * T2, A[1] - Math.cos(thS) * T2], phi = lerp(.9, .3, q) - drop * .2;
+        return { H: [K0[0] - Math.cos(phi) * T1 - push * .05, K0[1] - Math.sin(phi) * T1], A, Af: [-.012, -.06], lam: lerp(.35, 1.05, k("lean")) + drop * .1, fa: 0, ff: 0, arch: arch0 }; },
+      2: () => { const u = Math.min(1, uB), kk = Math.sin(Math.PI * Math.min(1, u * 1.25)), front = [lerpA(.02, .3 * stride, kk), -.06 - .09 * kk * stride], plant = [-.04, -.06];
+        return { H: [-.03 + .02 * kk, -(.4 + .05 * Math.abs(Math.sin(Math.PI * u))) * legL], A: par ? plant : front, Af: par ? front : plant, lam: .2 + .06 * Math.sin(t * 3), fa: par ? 0 : -.35 * kk, ff: par ? -.35 * kk : 0, arch: arch0 * .8 }; },
+      3: () => { const ga = (beatN + Math.min(1, uB)) * Math.PI, sx = .15 * stride, sw = Math.abs(Math.sin(ga));
+        return { H: [-.03 * strut * sw, -(hs - .02 - .025 * sw)], A: [sx * Math.sin(ga), -.06 - .05 * Math.max(0, Math.cos(ga))], Af: [sx * Math.sin(ga + Math.PI), -.06 - .05 * Math.max(0, -Math.cos(ga))], lam: -.06 + .03 * strut * Math.sin(ga * 2), fa: .25, ff: .25, arch: arch0 }; },
+      4: () => { const tl = [.02, -.16, .22, .06, -.08, .14, 0], l0 = tl[st.vogPrev % tl.length], l1 = tl[st.vog % tl.length];
+        return { H: [-.03 - .03 * strut * Math.sin(t * 2), -hs * .93 + .03 * Math.sin(t * 2.2) * strut], A: [.13, -.05], Af: [-.06, -.06], lam: lerpA(l0, l1, snap), fa: .9, ff: 0, arch: arch0 }; } };
+    let pose = mixPose(POSE[st.dPrev](), POSE[st.dCur](), easeIO(st.dF));
+    // ---- death drop: triggered by the music (or the button), windup → fall → hold → rise ----
+    const raw = E.R.raw || 0; st.slow = lerpA(st.slow ?? raw, raw, 1 - Math.exp(-dt / 6)); st.fast = lerpA(st.fast ?? raw, raw, 1 - Math.exp(-dt / .25)); st.sinceDrop += dt;
+    const sens = L("dropsens", .75, 1.35), dw = I("dropwhen"), holdS = I("drophold") * gap, busy = !!st.drop;
+    if (st.fast < st.slow * .62 * sens) st.breakT += dt; else st.breakT = Math.max(0, st.breakT - dt * .4);
+    let fire = false; const req = E.node.shape && E.node.shape.dropnow;
+    if (req && req !== st.dropReq) { if (st.dropReq !== null || Date.now() - req < 3000) fire = true; } st.dropReq = req || st.dropReq || 0;
+    if (!busy && st.sinceDrop > 4 && E.beat && E.R.raw != null) {
+      if (dw === 1 && st.breakT > .8 && st.fast > st.slow * (1.12 / sens)) fire = true;
+      if (dw === 2 && st.fast > st.slow * (1.5 / sens)) fire = true;
+      if (dw === 3 && beatN % 32 === 0) fire = true; }
+    if (fire && !busy) { st.drop = { t: 0, spin: I("dropstyle") === 1 }; st.breakT = 0; }
+    let flung = 0, flip = 1;
+    if (st.drop) { const D = st.drop, wind = D.spin ? .55 : .26, fall = .3, rise = .7; D.t += dt;
+      const kickP = { H: [0, -hs * .98], A: [.48 * legL, -hs * 1.15], Af: [-.03, -.06], lam: -.18, fa: -.7, ff: 0, arch: arch0 };
+      const floorP = { H: [-.02, -.1], A: V2.add([-.02, -.1], [Math.cos(-1.05), Math.sin(-1.05)], (T1 + T2) * .97), Af: [-.06, -.05], lam: -Math.PI / 2 - .1, fa: -1.05, ff: .2, arch: .2 };
+      if (D.t < wind) { const u = D.t / wind; pose = mixPose(pose, kickP, easeOut(u)); if (D.spin) flip = Math.cos(u * TAU * 1.0) >= 0 ? 1 : -1; flung = u * .5; }
+      else if (D.t < wind + fall) { const u = (D.t - wind) / fall; pose = mixPose(kickP, floorP, u * u); flung = .5 + .5 * u; }
+      else if (D.t < wind + fall + holdS) { const u = (D.t - wind - fall) / holdS; pose = mixPose(floorP, floorP, 0); pose.A = V2.add(pose.H, [Math.cos(-1.05 + .5 * u), Math.sin(-1.05 + .5 * u)], (T1 + T2) * .97); pose.fa = -1.05 + .5 * u; flung = 1; }
+      else if (D.t < wind + fall + holdS + rise) { const u = (D.t - wind - fall - holdS) / rise, fl = Object.assign({}, floorP); fl.A = V2.add(fl.H, [Math.cos(-.55), Math.sin(-.55)], (T1 + T2) * .97); fl.fa = -.55; pose = mixPose(fl, pose, easeIO(u)); flung = 1 - u; }
+      else { st.drop = null; st.sinceDrop = 0; } }
+    // ---- travel across the stage for the walking dances ----
+    const walking = (st.dCur === 2 || st.dCur === 3) && !st.drop, figH = -(pose.H[1] - .66 * Math.cos(pose.lam) - .18); st.fit = lerpA(st.fit ?? 1, Math.min(1, 1.2 / Math.max(.5, figH)), 1 - Math.exp(-dt * 3)); const U = S * .62 * st.fit;
+    if (walking && I("travel") === 1) { st.tx += st.tdir * dt * stride * .32 / gap * (st.dCur === 2 ? .8 : 1); if (Math.abs(st.tx * U) > W * .3) { st.tdir *= -1; st.tx = Math.sign(st.tx) * W * .3 / U; } }
+    else st.tx *= Math.exp(-dt * .4);
+    const F = (I("facing") ? -1 : 1) * (I("travel") === 1 && walking || Math.abs(st.tx) > .02 ? st.tdir : 1) * flip, ox = n.x + st.tx * U * (I("facing") ? -1 : 1), P = v => [ox + F * v[0] * U, n.y + v[1] * U], hue = n.hue, sp = k("spread");
+    // ---- skeleton from the pose ----
+    const { H, A, Af, lam } = pose, arch = pose.arch, kneeOf = (ank) => joint(H, ank, T1, T2, -1), K = kneeOf(A), Kf = kneeOf(Af);
+    const gm = k("body"), fem = 1 - gm, cv = L("curves", .55, 1.35);
+    const d = [Math.sin(lam), -Math.cos(lam)], fN = [Math.cos(lam), Math.sin(lam)], bN = [-fN[0], -fN[1]];
     const Wst = V2.add(H, d, .24), C = V2.add(H, d, .46), N = V2.add(H, d, .63);
     const tt = V2.norm(V2.sub(K, H)), nU = [tt[1], -tt[0]], sh = V2.norm(V2.sub(A, K)), sF = [-sh[1], sh[0]];
-    // proportions: narrow waist always; hips, thighs and booty big; masculine end gets shoulders, chest and thicker limbs
     const thighW = (.07 + .025 * fem) * cv, calfW = .042 + .012 * gm, waistW = lerp(.046, .07, gm) / Math.sqrt(cv), chestD = lerp(.07, .11, gm), bust = Math.pow(fem, 1.5) * .09 * cv, delt = lerp(.015, .07, gm);
     const bR = L("booty", .085, .165) * lerp(1.18, .86, gm) * Math.sqrt(cv);
-    // the booty, rotated up and out by the back arch
-    const tilt = arch * .45 + drop * .1 * arch, bDir = V2.rot([-1, .15], tilt), th = Math.atan2(bDir[1], bDir[0]);
-    const Bc = V2.add(V2.add(H, bDir, bR * (.3 + .2 * arch) * (1 + relx * .15)), [0, bR * .25 + rel * .07]);
+    // booty direction follows the pelvis (between torso and thigh), tipped up and out by the arch
+    const bDir = V2.rot(V2.norm(V2.sub(bN, tt)), -.66 + arch * .45 + drop * .1 * arch), th = Math.atan2(bDir[1], bDir[0]);
+    const Bc = V2.add(V2.add(H, bDir, bR * (.3 + .2 * arch) * (1 + relx * .15)), V2.rot([0, bR * .25 + rel * .07], 0));
     const butt = [1.05, .55, .1, -.38, -.85, -1.3].map(o => { const a = th + o, sq = 1 + rel * .18 * Math.sin(o * 2); return V2.add(Bc, [Math.cos(a), Math.sin(a)], bR * (o < -1 ? .92 : 1.05) * sq); });
-    // head, nodding to the beat
-    const nod = Math.sin(ph * TAU) * k("nod") * .25, hd = V2.rot(d, nod), hr = .08 + .006 * gm, Hc = V2.add(V2.add(N, hd, hr * 1.25), V2.rot(fN, nod), .015);
+    const nod = st.drop ? 0 : Math.sin(ph * TAU) * k("nod") * .25, hd = V2.rot(d, nod), hr = .08 + .006 * gm, Hc = V2.add(V2.add(N, hd, hr * 1.25), V2.rot(fN, nod), .015);
     const aB = Math.atan2(bN[1], bN[0]), aD = Math.atan2(hd[1], hd[0]); let dl = aD - aB; while (dl > Math.PI) dl -= TAU; while (dl < -Math.PI) dl += TAU; const sgn = Math.sign(dl) || 1;
     const head = []; for (let i = 0; i <= 8; i++) { const a = aB - sgn * .25 + sgn * (Math.PI + .7) * i / 8; head.push(V2.add(Hc, [Math.cos(a), Math.sin(a)], hr)); }
+    const foot = (ank, fa) => { const f = [Math.cos(fa), Math.sin(fa)], fn = [-f[1], f[0]]; return { toe: V2.add(V2.add(ank, f, .16), fn, .06), heelB: V2.add(V2.add(ank, f, -.045), fn, .06), heel: V2.add(V2.add(ank, f, -.05), fn, .025), front: V2.add(V2.add(ank, f, .05), fn, .025) }; };
+    const ft = foot(A, pose.fa);
     const out = [
-      [A[0] + .16, 0], [A[0] - .045, 0], [A[0] - .05, -.035],
+      ft.toe, ft.heelB, ft.heel,
       V2.add(V2.mix(K, A, .4), sF, -calfW * 1.3), V2.add(V2.add(K, nU, -.035), tt, -.02),
       V2.add(V2.mix(H, K, .6), nU, -thighW * .85), V2.add(V2.add(H, tt, .12), nU, -thighW * 1.05),
       ...butt.slice().reverse(),
@@ -185,44 +255,52 @@ const LINER = { key: "liner", name: "Neon line dancer", fade: 1, char: "anchored
       V2.add(V2.mix(H, Wst, .5), fN, waistW * 1.55),
       V2.add(V2.add(H, tt, .3), nU, thighW * .8),
       V2.add(V2.mix(H, K, .55), nU, thighW * 1.02),
-      V2.add(K, [.045, -.015]),
+      V2.add(K, V2.rot([.045, -.015], Math.atan2(tt[1], tt[0]) - Math.atan2(.4, .9))),
       V2.add(V2.mix(K, A, .5), sF, .034),
-      [A[0] + .05, -.035]];
-    // arms: pick a move, blend toward it, and let each hand follow on a soft spring
-    const style = I("armstyle"), nrg = L("armnrg", .3, 1.6), sync = k("armsync"), beatN = st.beats || 0;
-    if (style === 0) { if (beatN !== st.lastBeat && beatN % 4 === 0 && Math.random() < k("armfreq")) { let nx; do nx = 1 + Math.floor(Math.random() * (ARM_MOVES.length - 1)); while (nx === st.armCur && ARM_MOVES.length > 2); st.armPrev = st.armCur; st.armCur = nx; st.armF = 0; } }
+      ft.front];
+    // far leg, drawn behind: hip → knee → ankle, then its foot
+    const ff = foot(Af, pose.ff), farLeg = limbOutline(bend(H, Kf, [0, 0], 5).concat(bend(Kf, Af, [0, 0], 5).slice(1)), thighW * .8, calfW * .8);
+    // ---- arms ----
+    const style = I("armstyle"), nrg = L("armnrg", .3, 1.6), sync = k("armsync"), pool = ARM_POOL[st.dCur] || ARM_POOL[1];
+    if (style === 0) { if ((newBeat && beatN % 4 === 0 && Math.random() < k("armfreq")) || (st.dF < .05 && !pool.includes(st.armCur))) { let nx, tries = 0; do nx = pool[Math.floor(Math.random() * pool.length)]; while (nx === st.armCur && tries++ < 9); st.armPrev = st.armCur; st.armCur = nx; st.armF = 0; } }
     else if (style !== st.armCur) { st.armPrev = st.armCur; st.armCur = style; st.armF = 0; }
     st.lastBeat = beatN; st.armF = Math.min(1, st.armF + dt * 3);
     const pulse = lerp(Math.sin(t * 4 * nrg) * .5 + .5, 1 - popCurve(ph, .7), sync), sw = lerp(Math.sin(t * 5 * nrg), Math.sin(ph * Math.PI), sync);
-    const kneeHand = V2.add(K, [-.005, -.045]), Sh = V2.add(V2.add(C, d, .05), bN, .015), bBack = butt[2];
+    const kneeHand = V2.add(K, [-.005, -.045]), Sh = V2.add(V2.add(C, d, .05), bN, .015), bBack = butt[2], va = t * 2.2 * nrg;
     const MOVE = [null,
       () => [kneeHand, V2.add(kneeHand, [.025, -.01])],
       () => [V2.add(Hc, [.06 + .07 * sw * nrg, -.3 - .05 * pulse]), V2.add(Hc, [-.04 - .07 * sw * nrg, -.29 - .05 * (1 - pulse)])],
       () => [V2.add(Hc, [.12 + .1 * sw * nrg, -.26]), kneeHand],
-      () => { const u = frac(ph), s = Math.exp(-u * 6 * nrg) * sync + (1 - sync) * (.5 + .5 * Math.sin(t * 6)); return [V2.mix(V2.add(Sh, [-.12, .12]), V2.add(bBack, [.02, -.02]), s), kneeHand]; },
+      () => { const u = frac(ph), s2 = Math.exp(-u * 6 * nrg) * sync + (1 - sync) * (.5 + .5 * Math.sin(t * 6)); return [V2.mix(V2.add(Sh, [-.12, .12]), V2.add(bBack, [.02, -.02]), s2), kneeHand]; },
       () => [V2.add(Sh, [.28, -.12 - .15 * pulse * nrg]), kneeHand],
       () => { const hp = V2.add(V2.add(Wst, d, -.02), bN, waistW * 1.15); return [V2.add(hp, [.01, .01]), V2.add(hp, [.03, -.01])]; },
       () => [[A[0] + .32 + .04 * sw * nrg, -.015], [A[0] + .26 - .04 * sw * nrg, -.015]],
-      () => { const a = -Math.PI * .1 - Math.PI * .9 * (sync ? 1 - Math.exp(-frac(ph) * 5) : .5 + .5 * Math.sin(t * 3 * nrg)); return [V2.add(Hc, [Math.cos(a) * .16, Math.sin(a) * .16]), kneeHand]; }];
-    const tgA = MOVE[st.armPrev](), tgB = MOVE[st.armCur](), ef = easeIO(st.armF), tgt = [0, 1].map(i => V2.mix(tgA[i], tgB[i], ef));
+      () => { const a = -Math.PI * .1 - Math.PI * .9 * (sync ? 1 - Math.exp(-frac(ph) * 5) : .5 + .5 * Math.sin(t * 3 * nrg)); return [V2.add(Hc, [Math.cos(a) * .16, Math.sin(a) * .16]), kneeHand]; },
+      () => { const p0 = OLDWAY[st.vogPrev], p1 = OLDWAY[st.vog]; return [V2.add(Sh, V2.mix(p0[0], p1[0], snap)), V2.add(Sh, V2.mix(p0[1], p1[1], snap))]; },
+      () => { const kn = (beatN % 8) >= 6; return kn ? [V2.add(Hc, [-.09, -.02]), V2.add(Hc, [-.07, .05])] : [V2.add(Hc, [.05 + .17 * Math.cos(va), -.04 + .17 * Math.sin(va)]), V2.add(Hc, [.03 + .15 * Math.cos(va + 2.6), .02 + .11 * Math.sin(va + 2.6)])]; },
+      () => [V2.add(Hc, [.16 + .07 * Math.sin(va * 1.6), .01 + .13 * Math.sin(va * .8)]), V2.add(Hc, [.12 + .07 * Math.sin(va * 1.6 + 1.7), .07 + .11 * Math.sin(va * .8 + 1.7)])]];
+    let tgt = (() => { const a = MOVE[st.armPrev](), b = MOVE[st.armCur](), ef = easeIO(st.armF); return [0, 1].map(i => V2.mix(a[i], b[i], ef)); })();
+    if (flung > 0) { const back = [V2.add(N, d, .55), V2.add(V2.add(N, d, .5), fN, .12)]; tgt = tgt.map((p, i) => V2.mix(p, back[i], flung)); }
     if (!st.hands) st.hands = tgt.map(p => p.slice());
-    const fol = 1 - Math.exp(-dt * lerp(8, 18, sync)); st.hands = st.hands.map((h, i) => V2.mix(h, tgt[i], fol));
+    const fol = 1 - Math.exp(-dt * lerp(8, 22, Math.max(sync, flung, st.armCur === 9 ? 1 : 0))); st.hands = st.hands.map((h, i) => V2.mix(h, tgt[i], fol));
     const upper = .22, fore = .23, armW = lerp(.02, .03, gm);
-    const armPoly = (hand, side) => { const reach = Math.min(Math.hypot(hand[0] - Sh[0], hand[1] - Sh[1]), upper + fore - .005), dir = V2.norm(V2.sub(hand, Sh)), hh = V2.add(Sh, dir, reach), el = joint(Sh, hh, upper, fore, side);
+    const armPoly = hand => { const reach = Math.min(Math.hypot(hand[0] - Sh[0], hand[1] - Sh[1]), upper + fore - .005), dir = V2.norm(V2.sub(hand, Sh)), hh = V2.add(Sh, dir, reach), el = joint(Sh, hh, upper, fore, -1);
       return { poly: limbOutline(bend(Sh, el, [0, 0], 5).concat(bend(el, hh, [0, 0], 5).slice(1)), armW, armW * .62), hand: hh }; };
-    const far = armPoly(st.hands[1], -1), near = armPoly(st.hands[0], -1), gl = L("glow", .3, 1.6), w = U * L("line", .006, .022), fill = k("fill") * .35;
-    // draw: far arm (dimmer, behind), body, near arm
+    const far = armPoly(st.hands[1]), near = armPoly(st.hands[0]), gl = L("glow", .3, 1.6), w = U * L("line", .006, .022), fill = k("fill") * .35;
+    // ---- draw: far arm and far leg behind, then the body, then the near arm ----
     neonOutline(g, far.poly.map(P), hue + sp * 90, w * .8, .5, fill); sprite(g, hue + sp * 90, ...P(far.hand), U * .03, .5 * gl);
+    const fa2 = clamp(Math.hypot(Kf[0] - K[0], Kf[1] - K[1]) * 8, 0, 1) * .45; if (fa2 > .02) { neonOutline(g, farLeg.map(P), hue + sp * 40, w * .8, fa2, fill); neonOutline(g, [ff.front, ff.toe, ff.heelB, ff.heel].map(P), hue + sp * 40, w * .8, fa2, fill); }
     sprite(g, hue, ...P(Bc), U * bR * 2.4, .25 * gl);
     neonOutline(g, out.map(P), hue + sp * 20, w, 1, fill);
     neonOutline(g, near.poly.map(P), hue + sp * 90, w * .9, 1, fill); sprite(g, hue + sp * 90, ...P(near.hand), U * .035, .8 * gl);
+    if (st.drop && st.drop.t > .5 && st.drop.t < .75) { const c = P(H); for (let i = 0; i < 2; i++) { g.lineWidth = 2; g.strokeStyle = hsl(hue, 100, 85, .7 - i * .3); g.beginPath(); g.ellipse(c[0], n.y, U * (.25 + i * .15) * (st.drop.t - .45) * 6, U * .03, 0, 0, TAU); g.stroke(); } }
     const bb = P(bBack); twExtras(E, st, [[bb[0], bb[1], bR * U]], hue, st.hip.v); } };
 
 // ---- jelly bean: a squishy bean that squats and springs; its back end jiggles like gelatin ----
-const JELLY = { key: "jelly", name: "Jelly bean", fade: 1, char: "anchored",
+const JELLY = { key: "jelly", name: "Jelly bean", fade: 1, char: "anchored", links: [{ src: "bass", dst: "jiggle", amt: .5 }, { src: "mid", dst: "ripk", amt: .6 }, { src: "high", dst: "bubbles", amt: .7 }],
   init: () => ({ sq: sp0(), jig: sp0(), tilt: sp0(), wave: 0 }),
   shape: [
-    { key: "per", label: "Twerks per beat", min: 1, max: 4, def: 1 / 3, grp: "Dance" }, { key: "bounce", label: "Squish", def: .6, grp: "Dance" }, { key: "jiggle", label: "Jiggle", def: .7, grp: "Dance" }, { key: "wobble", label: "Wobble time", def: .7, grp: "Dance" },
+    { key: "per", label: "Twerks per beat", min: 1, max: 4, def: 1 / 3, fmt: v => v + "×", grp: "Dance" }, { key: "bounce", label: "Squish", def: .6, grp: "Dance" }, { key: "jiggle", label: "Jiggle", def: .7, grp: "Dance" }, { key: "wobble", label: "Wobble time", def: .7, grp: "Dance" },
     { key: "sharp", label: "Snap", def: .5, grp: "Dance" }, { key: "tiltk", label: "Tip forward", def: .5, grp: "Dance" }, { key: "ripk", label: "Ripple waves", def: .6, grp: "Dance" },
     { key: "facing", label: "Facing", min: 0, max: 1, def: 0, fmt: v => ["Right", "Left"][v], grp: "Body" }, { key: "plump", label: "Plumpness", def: .5, grp: "Body" }, { key: "booty", label: "Booty bump", def: .6, grp: "Body" }, { key: "legs", label: "Leg length", def: .4, grp: "Body" }, { key: "arms", label: "Tiny arms", def: .5, grp: "Body" }, { key: "bubbles", label: "Bubbles inside", def: .5, grp: "Body" },
     { key: "ripples", label: "Ripples", def: .3, grp: "Extras" }, { key: "lines", label: "Motion lines", def: .4, grp: "Extras" }, { key: "sweat", label: "Sweat drops", def: .2, grp: "Extras" }, { key: "sparkle", label: "Sparkles", def: .35, grp: "Extras" }, { key: "spread", label: "Color spread", def: .3, grp: "Extras" }, { key: "glow", label: "Glow", def: .55, grp: "Extras" }],

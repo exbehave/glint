@@ -55,8 +55,8 @@ const agc = { bass: .2, mid: .2, treble: .2, rms: .1 }, prevB = { bass: 0, mid: 
 function ensureCtx() {
   if (au.ctx) return au.ctx;
   const ctx = new (window.AudioContext || window.webkitAudioContext)(), an = ctx.createAnalyser(); an.fftSize = 2048; an.smoothingTimeConstant = .5;
-  const input = ctx.createGain(), out = ctx.createGain(); input.connect(an); an.connect(out); out.connect(ctx.destination);
-  Object.assign(au, { ctx, an, input, out, freq: new Uint8Array(an.frequencyBinCount), time: new Uint8Array(an.fftSize) });
+  const input = ctx.createGain(), out = ctx.createGain(), delay = ctx.createDelay(1); input.connect(an); an.connect(delay); delay.connect(out); out.connect(ctx.destination);
+  Object.assign(au, { ctx, an, input, out, delay, freq: new Uint8Array(an.frequencyBinCount), time: new Uint8Array(an.fftSize) });
   return ctx;
 }
 function stopAll(msg) {
@@ -211,6 +211,30 @@ function updateAudio(dt) {
   return hits;
 }
 
+/* ---------- sync offset: line the visuals up with what you hear ----------
+   Later (+): Glint holds its reading of the music back before the visuals use it. Works for every source.
+   Earlier (-): Glint delays the sound it plays, so the visuals land first. Only possible for sound Glint
+   plays itself (loaded songs, the demo beat); live sound can't be shown before it's heard. */
+const OKEY = "glint.offset"; let offsetMs = 0; try { offsetMs = clamp(+localStorage.getItem(OKEY) || 0, -500, 500); } catch (_) {}
+const V = Object.assign({}, A), offQ = [];
+const ownsSound = () => au.mode === "file" || au.mode === "demo";
+function applyOffset() { if (au.delay && au.ctx) au.delay.delayTime.setTargetAtTime(ownsSound() ? Math.max(0, -offsetMs) / 1000 : 0, au.ctx.currentTime, .03); offsetHint(); }
+function offsetFeed(hits) {
+  const later = Math.max(0, offsetMs), now = performance.now();
+  if (!later) { offQ.length = 0; Object.assign(V, A); return hits; }
+  offQ.push({ t: now, a: Object.assign({}, A), h: hits });
+  const out = { kick: false, mid: false, hat: false }; let pick = null;
+  while (offQ.length && offQ[0].t <= now - later) { const e = offQ.shift(); pick = e; if (e.h.kick) out.kick = true; if (e.h.mid) out.mid = true; if (e.h.hat) out.hat = true; }
+  if (pick) Object.assign(V, pick.a);
+  return out;
+}
+function offsetHint() {
+  const el = document.getElementById("offset-note"); if (!el) return;
+  el.textContent = offsetMs < 0 && !ownsSound() && au.mode !== "none"
+    ? "Live sound can't be shown before Glint hears it, so Earlier only works for loaded songs and the demo beat."
+    : "Visuals lagging behind the music? Drag left. Running ahead (common with Bluetooth headphones)? Drag right.";
+}
+
 /* ---------- engine ---------- */
 const RT = new Map();
 function nodeOf(l) { return { id: l.id, form: l.form, char: l.char, hx: .5, hy: l.hy ?? .52, dir: -Math.PI / 2, hue: l.hue, level: l.level, listen: "mix", seed: l.seed, shape: l.shape, p: l.p, o1: { wave: "sine", rate: .6, depth: .16 }, o2: { on: true, wave: "sine", rate: .9, depth: .14, phase: .25 } }; }
@@ -236,20 +260,20 @@ let gclock = 0, gtime = 0, last = performance.now();
 function frame(now) {
   requestAnimationFrame(frame);
   const dt = Math.min(.05, (now - last) / 1000); last = now; gtime += dt;
-  const hits = updateAudio(dt), m = state.music, r = m.reaction, breath = .5 + .5 * Math.sin(gtime * .9), idle = 1 - r * .7, S0 = Math.min(W, H), bias = moodBias();
-  gclock += dt * (.3 + idle * .25 * breath + A.rms * r * 1.2);
+  const hits = offsetFeed(updateAudio(dt)), m = state.music, r = m.reaction, breath = .5 + .5 * Math.sin(gtime * .9), idle = 1 - r * .7, S0 = Math.min(W, H), bias = moodBias();
+  gclock += dt * (.3 + idle * .25 * breath + V.rms * r * 1.2);
   const all = state.layers.filter(l => l.on).map(l => { const node = nodeOf(l); return { node, rt: runtime(node) }; });
   all.forEach(({ node, rt }) => {
     const p = {}; for (const k in node.p) p[k] = k === "magnetism" ? clamp(node.p[k] + (bias[k] || 0), -1, 1) : clamp(node.p[k] + (bias[k] || 0), 0, 1);
-    const kb = FORM[node.form].kickBoost; if (kb) { const kk = clamp(A.kick * r * m.punch, 0, 1); kb.forEach(key => { p[key] += (1 - p[key]) * kk; }); }
+    const kb = FORM[node.form].kickBoost; if (kb) { const kk = clamp(V.kick * r * m.punch, 0, 1); kb.forEach(key => { p[key] += (1 - p[key]) * kk; }); }
     rt.p = p;
-    const R = { kick: A.kick * r * m.punch * 1.4 * (.5 + p.energy), bass: A.bass * r, mid: A.mid * r, treble: A.treble * r, rms: A.rms * r, hat: A.hat * r, idle, breath };
+    const R = { kick: V.kick * r * m.punch * 1.4 * (.5 + p.energy), bass: V.bass * r, mid: V.mid * r, treble: V.treble * r, rms: V.rms * r, hat: V.hat * r, idle, breath };
     R.energy = (idle * (.3 + .25 * breath) + R.rms * 1.1 + R.kick * .45) * (.35 + 1.3 * p.energy);
     rt.R = R; rt.hue = node.hue;
     rt.clock += dt * (.3 + idle * .25 * breath + R.rms * 1.2 + R.kick * .5) * (.35 + 1.4 * p.tempo);
     rt.tUse = lerp(rt.clock + node.seed * 13, gclock, p.social);
-    let beat = A.active ? (hits.kick && r > .05) : false;
-    if (!A.active) { rt.idleGap -= dt * (.6 + .8 * p.tempo); if (rt.idleGap <= 0) { beat = true; rt.idleGap = 1.2 + Math.random() * 1.2; } }
+    let beat = V.active ? (hits.kick && r > .05) : false;
+    if (!V.active) { rt.idleGap -= dt * (.6 + .8 * p.tempo); if (rt.idleGap <= 0) { beat = true; rt.idleGap = 1.2 + Math.random() * 1.2; } }
     rt.beat = beat;
   });
   all.forEach(({ node, rt }) => travel(node, rt, rt.p, { dt, S0, tc: rt.tUse * .6, all, beat: rt.beat, gt: gtime }));
@@ -273,13 +297,13 @@ function frame(now) {
   if (shared.lava.length) drawLava(shared.lava);
   Bx.globalAlpha = 1;
   F.setTransform(1, 0, 0, 1, 0, 0); F.globalCompositeOperation = "source-over"; F.globalAlpha = 1; F.clearRect(0, 0, cv.width, cv.height); F.drawImage(Bc, 0, 0);
-  const M = { t: gtime, dt, energy: idle * (.3 + .25 * breath) + A.rms * r * 1.1, kick: A.kick * r * m.punch, bass: A.bass * r, hit: hits.kick && r > .05, hat: hits.hat && r > .05, chaos: clamp(.15 + (bias.chaos || 0), 0, 1) };
-  if (!A.active && Math.random() < dt * .8) M.hit = true;
+  const M = { t: gtime, dt, energy: idle * (.3 + .25 * breath) + V.rms * r * 1.1, kick: V.kick * r * m.punch, bass: V.bass * r, hit: hits.kick && r > .05, hat: hits.hat && r > .05, chaos: clamp(.15 + (bias.chaos || 0), 0, 1) };
+  if (!V.active && Math.random() < dt * .8) M.hit = true;
   MOODS.forEach(md => { const s = state.moods[md.key]; if (!s.on || s.op <= 0) return; s._st ||= {};
     F.save(); F.globalCompositeOperation = s.mode; F.globalAlpha = s.op; try { md.draw(F, Bc, s._st, M); } catch (err) { console.error(err); } F.restore(); });
   if (fadeA > 0) { F.save(); F.globalCompositeOperation = "source-over"; F.globalAlpha = fadeA; F.drawImage(fadeC, 0, 0, cv.width, cv.height); F.restore(); fadeA = Math.max(0, fadeA - dt / 1.6); }
-  $("#beat").style.opacity = .18 + A.kick * .82;
-  const live = au.mode === "mic" || au.mode === "screen" || au.mode === "device"; $("#meter").hidden = !live; if (live) $("#lvl").style.width = Math.min(100, (A.raw || 0) * 400) + "%";
+  $("#beat").style.opacity = .18 + V.kick * .82;
+  const live = au.mode === "mic" || au.mode === "screen" || au.mode === "device"; $("#meter").hidden = !live; if (live) $("#lvl").style.width = Math.min(100, (V.raw || 0) * 400) + "%";
 }
 
 /* ---------- UI ---------- */
@@ -340,13 +364,18 @@ function renderMoods() {
       sel2.innerHTML = BLENDS.map(([k, n]) => `<option value="${k}"${k === s.mode ? " selected" : ""}>${n}</option>`).join(""); sel2.addEventListener("change", e => { s.mode = e.target.value; save(); }); ctl.append(sel2); } });
 }
 function musicUI(text) {
-  $("#now").textContent = text;
+  $("#now").textContent = text; if (typeof applyOffset === "function") applyOffset();
   transportUI();
   $("#m-demo").setAttribute("aria-pressed", au.mode === "demo"); $("#m-off").setAttribute("aria-pressed", au.mode === "none"); $("#m-file-l").setAttribute("aria-pressed", au.mode === "file"); $("#m-mic").setAttribute("aria-pressed", au.mode === "mic"); if (CAN_SHARE) { $("#m-screen").setAttribute("aria-pressed", au.mode === "screen"); $("#m-dev").setAttribute("aria-pressed", au.mode === "device"); }
 }
 function renderAll() { sel = clamp(sel, 0, state.layers.length - 1); renderLayers(); renderLayer(); }
 function rebuildMusic() {
   const box = $("#music-ctl"), m = state.music; box.innerHTML = "";
+  const off = slider("offset", "Sync offset", "", -500, 500, 10, offsetMs, v => v === 0 ? "0 ms" : v < 0 ? "−" + Math.abs(v) + " ms · earlier" : "+" + v + " ms · later", v => { offsetMs = v; try { localStorage.setItem(OKEY, String(v)); } catch (_) {} applyOffset(); });
+  const note = document.createElement("div"); note.className = "ctl-hint"; note.id = "offset-note"; off.append(note);
+  const zero = document.createElement("button"); zero.className = "btn"; zero.type = "button"; zero.textContent = "Reset to 0"; zero.style.justifySelf = "start";
+  zero.addEventListener("click", () => { offsetMs = 0; try { localStorage.setItem(OKEY, "0"); } catch (_) {} rebuildMusic(); applyOffset(); }); off.append(zero);
+  box.append(off); setTimeout(offsetHint, 0);
   box.append(slider("reaction", "Reaction", "0% = idle motion only", 0, 1, .01, m.reaction, pct, v => { m.reaction = v; }),
     slider("punch", "Punch", "How hard beats hit", 0, 1, .01, m.punch, pct, v => { m.punch = v; }),
     slider("decay", "Decay", "How long each hit rings", 0, 1, .01, m.decay, pct, v => { m.decay = v; }));

@@ -121,3 +121,18 @@ body.playing .stage { aspect-ratio: auto; width: 100vw; height: 100vh; height: 1
 .sync-form { display: grid; gap: 8px; }
 .sync-form .name-in { width: 100%; }
 @media (max-width: 860px) { .top .row .btn { padding: 7px 10px; } }
+
+/* Tap to sync: covers the stage so the design can't give away the beat */
+.cal { position: absolute; inset: 0; z-index: 5; background: var(--well); display: grid; place-content: center; justify-items: center; gap: 12px; padding: 20px; text-align: center; touch-action: manipulation; user-select: none; -webkit-user-select: none; cursor: pointer; }
+.cal-x { position: absolute; right: 10px; top: 8px; background: none; border: 0; color: var(--muted); font-size: 22px; line-height: 1; padding: 6px 10px; }
+.cal-step { font-size: 11px; letter-spacing: .2em; text-transform: uppercase; color: var(--dim); }
+.cal-say { font-size: 14px; color: var(--fg); max-width: 30ch; line-height: 1.4; }
+.cal-dot { width: 54px; height: 54px; border-radius: 50%; border: 1px solid var(--line-hi); background: transparent; }
+.cal-dot.flash { background: var(--silver); box-shadow: 0 0 28px rgba(242,242,246,.55); }
+.cal-dot.fade { transition: background .25s, box-shadow .25s; }
+.cal-dot.tap { border-color: var(--silver); }
+.cal-pips { display: flex; gap: 6px; }
+.cal-pips i { width: 6px; height: 6px; border-radius: 50%; background: var(--line-hi); }
+.cal-pips i.on { background: var(--silver); }
+.cal-btns { justify-content: center; }
+.offset-btns { display: flex; gap: 8px; flex-wrap: wrap; }

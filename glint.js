@@ -51,6 +51,7 @@ state = load();
 /* ---------- audio ---------- */
 const A = { bass: 0, mid: 0, treble: 0, rms: 0, kick: 0, midHit: 0, hat: 0, active: false };
 const au = { ctx: null, an: null, input: null, out: null, mode: "none", el: null, elSrc: null, mic: null, micSrc: null, demo: null, freq: null, time: null };
+let cal = null; // tap-to-sync session (see below)
 const agc = { bass: .2, mid: .2, treble: .2, rms: .1 }, prevB = { bass: 0, mid: 0, treble: 0 }, since = { bass: 1, mid: 1, treble: 1 };
 function ensureCtx() {
   if (au.ctx) return au.ctx;
@@ -64,6 +65,7 @@ function stopAll(msg) {
   if (au.el) { au.el.pause(); try { au.elSrc.disconnect(); } catch (_) {} URL.revokeObjectURL(au.el.src); au.el = null; }
   if (au.mic) { au.mic.getTracks().forEach(t => t.stop()); try { au.micSrc.disconnect(); } catch (_) {} au.mic = null; }
   if (au.devTimer) { clearTimeout(au.devTimer); au.devTimer = 0; }
+  if (cal) { clearInterval(cal.timer); try { cal.bus.disconnect(); } catch (_) {} cal = null; $("#cal").hidden = true; au.out.gain.setValueAtTime(1, au.ctx.currentTime); }
   au.mode = "none"; musicUI(msg || "Silence · idle motion only");
 }
 function startDemo() {
@@ -235,6 +237,58 @@ function offsetHint() {
     : "Visuals lagging behind the music? Drag left. Running ahead (common with Bluetooth headphones)? Drag right.";
 }
 
+/* ---------- tap to sync: measure the offset instead of guessing ----------
+   Step 1: tap to thumps you can hear (screen dark) → when the sound reaches you.
+   Step 2: sound off, tap to flashes → when a beat Glint detects reaches your eyes. The flash is driven by the same beat
+   detector as the visuals, so its delay matches theirs. Offset = step 1 − step 2; your own tapping habit cancels out. */
+const CAL_N = 12, CAL_SKIP = 2, CAL_P = .6;
+function calStart() {
+  stopAll(); if (document.activeElement) document.activeElement.blur(); const ctx = ensureCtx(); ctx.resume();
+  const bus = ctx.createGain(); bus.gain.value = .7; bus.connect(au.input);
+  cal = { step: 1, taps: [], res: [], bus, t0: ctx.currentTime + .4, n: 0, timer: 0, flashT: 0 };
+  const thump = t => { const o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.setValueAtTime(160, t); o.frequency.exponentialRampToValueAtTime(45, t + .1); g.gain.setValueAtTime(1, t); g.gain.exponentialRampToValueAtTime(.0008, t + .3); o.connect(g).connect(bus); o.start(t); o.stop(t + .32); };
+  cal.timer = setInterval(() => { while (cal && cal.t0 + cal.n * CAL_P < ctx.currentTime + .15) { thump(cal.t0 + cal.n * CAL_P); cal.n++; } }, 25);
+  au.mode = "cal"; musicUI("Tap to sync"); applyOffset();
+  $("#cal").hidden = false; calStep();
+}
+function calStep() {
+  const one = cal.step === 1; cal.taps = [];
+  au.out.gain.setValueAtTime(one ? 1 : 0, au.ctx.currentTime);
+  $("#cal-step").textContent = cal.step === 3 ? "Done" : `Step ${cal.step} of 2`;
+  $("#cal-say").textContent = one ? "Tap anywhere here on each thump you hear. Closing your eyes helps." : "Now the sound is off. Tap on each flash.";
+  $("#cal-btns").hidden = true; $("#cal-dot").hidden = false; calPips();
+}
+function calPips() { const need = CAL_N - CAL_SKIP, have = Math.max(0, cal.taps.length - CAL_SKIP); $("#cal-pips").innerHTML = Array.from({ length: need }, (_, i) => `<i class="${i < have ? "on" : ""}"></i>`).join(""); }
+function calTap(e) {
+  if (!cal || cal.step > 2 || e.target.closest("button")) return; e.preventDefault();
+  const ctx = au.ctx, t = ctx.currentTime - Math.max(0, performance.now() - e.timeStamp) / 1000 - cal.t0;
+  if (t < 0) return;
+  const d = $("#cal-dot"); d.classList.add("tap"); setTimeout(() => d.classList.remove("tap"), 120);
+  cal.taps.push((t / CAL_P - Math.round(t / CAL_P)) * CAL_P); calPips();
+  if (cal.taps.length < CAL_N) return;
+  const xs = cal.taps.slice(CAL_SKIP).sort((a, b) => a - b), med = xs[xs.length >> 1], spread = xs.map(x => Math.abs(x - med)).sort((a, b) => a - b)[xs.length >> 1];
+  if (spread > .07) { $("#cal-say").textContent = "Those taps were a bit uneven. Let's go again: " + (cal.step === 1 ? "tap on each thump." : "tap on each flash."); cal.taps = []; calPips(); return; }
+  cal.res[cal.step - 1] = med;
+  if (cal.step === 1) { cal.step = 2; calStep(); return; }
+  cal.step = 3; au.out.gain.setValueAtTime(0, ctx.currentTime);
+  cal.ms = clamp(Math.round((cal.res[0] - cal.res[1]) * 100) * 10, -500, 500);
+  $("#cal-step").textContent = "Done"; $("#cal-dot").hidden = true; $("#cal-pips").innerHTML = "";
+  $("#cal-say").textContent = cal.ms === 0 ? "You're in sync: 0 ms." : `Your sync offset: ${cal.ms > 0 ? "+" + cal.ms + " ms (visuals later)" : "−" + Math.abs(cal.ms) + " ms (visuals earlier)"}.`;
+  $("#cal-btns").hidden = false;
+}
+function calFrame(raw) { if (!cal || cal.step !== 2) return; const d = $("#cal-dot");
+  if (raw.kick) { d.classList.remove("fade"); d.classList.add("flash"); cal.flashT = performance.now(); }
+  else if (cal.flashT && performance.now() - cal.flashT > 90) { d.classList.add("fade"); d.classList.remove("flash"); cal.flashT = 0; } }
+function calEnd(keep) {
+  if (!cal) return; if (keep && cal.ms != null) { offsetMs = cal.ms; try { localStorage.setItem(OKEY, String(offsetMs)); } catch (_) {} }
+  $("#cal-dot").classList.remove("flash", "fade"); stopAll(); rebuildMusic(); applyOffset();
+}
+$("#cal").addEventListener("pointerdown", calTap);
+document.addEventListener("keydown", e => { if (cal && cal.step <= 2 && (e.code === "Space" || e.code === "Enter") && !e.repeat) calTap(e); if (cal && e.key === "Escape") calEnd(false); });
+$("#cal-x").addEventListener("click", () => calEnd(false));
+$("#cal-keep").addEventListener("click", () => calEnd(true));
+$("#cal-again").addEventListener("click", () => { cal.step = 1; cal.res = []; cal.ms = null; calStep(); });
+
 /* ---------- engine ---------- */
 const RT = new Map();
 function nodeOf(l) { return { id: l.id, form: l.form, char: l.char, hx: .5, hy: l.hy ?? .52, dir: -Math.PI / 2, hue: l.hue, level: l.level, listen: "mix", seed: l.seed, shape: l.shape, p: l.p, o1: { wave: "sine", rate: .6, depth: .16 }, o2: { on: true, wave: "sine", rate: .9, depth: .14, phase: .25 } }; }
@@ -260,7 +314,7 @@ let gclock = 0, gtime = 0, last = performance.now();
 function frame(now) {
   requestAnimationFrame(frame);
   const dt = Math.min(.05, (now - last) / 1000); last = now; gtime += dt;
-  const hits = offsetFeed(updateAudio(dt)), m = state.music, r = m.reaction, breath = .5 + .5 * Math.sin(gtime * .9), idle = 1 - r * .7, S0 = Math.min(W, H), bias = moodBias();
+  const rawHits = updateAudio(dt); calFrame(rawHits); const hits = offsetFeed(rawHits), m = state.music, r = m.reaction, breath = .5 + .5 * Math.sin(gtime * .9), idle = 1 - r * .7, S0 = Math.min(W, H), bias = moodBias();
   gclock += dt * (.3 + idle * .25 * breath + V.rms * r * 1.2);
   const all = state.layers.filter(l => l.on).map(l => { const node = nodeOf(l); return { node, rt: runtime(node) }; });
   all.forEach(({ node, rt }) => {
@@ -374,7 +428,9 @@ function rebuildMusic() {
   const off = slider("offset", "Sync offset", "", -500, 500, 10, offsetMs, v => v === 0 ? "0 ms" : v < 0 ? "−" + Math.abs(v) + " ms · earlier" : "+" + v + " ms · later", v => { offsetMs = v; try { localStorage.setItem(OKEY, String(v)); } catch (_) {} applyOffset(); });
   const note = document.createElement("div"); note.className = "ctl-hint"; note.id = "offset-note"; off.append(note);
   const zero = document.createElement("button"); zero.className = "btn"; zero.type = "button"; zero.textContent = "Reset to 0"; zero.style.justifySelf = "start";
-  zero.addEventListener("click", () => { offsetMs = 0; try { localStorage.setItem(OKEY, "0"); } catch (_) {} rebuildMusic(); applyOffset(); }); off.append(zero);
+  zero.addEventListener("click", () => { offsetMs = 0; try { localStorage.setItem(OKEY, "0"); } catch (_) {} rebuildMusic(); applyOffset(); });
+  const tap = document.createElement("button"); tap.className = "btn"; tap.type = "button"; tap.textContent = "Tap to sync"; tap.addEventListener("click", calStart);
+  const btns = document.createElement("div"); btns.className = "offset-btns"; btns.append(tap, zero); off.append(btns);
   box.append(off); setTimeout(offsetHint, 0);
   box.append(slider("reaction", "Reaction", "0% = idle motion only", 0, 1, .01, m.reaction, pct, v => { m.reaction = v; }),
     slider("punch", "Punch", "How hard beats hit", 0, 1, .01, m.punch, pct, v => { m.punch = v; }),

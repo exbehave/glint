@@ -20,7 +20,11 @@ const VISUALS = [
   ["tubeman", { char: "anchored", hue: 300, hy: .94, p: Object.assign({}, COMMON, { roam: .14 }), shape: { flop: .13, height: .23 } }],
   ["tornado2", fromCasting("tornado2")],
   ["vine2", fromCasting("vine2")],
-  ["firework", fromCasting("firework")]
+  ["firework", fromCasting("firework")],
+  ["booty", { char: "anchored", hue: 320, hy: .9, p: { roam: .08, energy: .8, tempo: .6 }, shape: {} }],
+  ["liner", { char: "anchored", hue: 185, hy: .9, p: { roam: .08, energy: .8, tempo: .6 }, shape: {} }],
+  ["jelly", { char: "anchored", hue: 95, hy: .88, p: { roam: .1, energy: .8, tempo: .6 }, shape: {} }],
+  ["crew", { char: "anchored", hue: 300, hy: .9, p: { roam: .03, energy: .8, tempo: .6 }, shape: {} }]
 ];
 const VIS = Object.fromEntries(VISUALS);
 // these place their own parts on the canvas, so a movement choice would do nothing
@@ -390,15 +394,16 @@ function renderLayer() {
   box.append(slider("l-hue", "Color", "", 0, 359, 1, l.hue, v => Math.round(v) + "°", v => { l.hue = v; renderLayers(); }));
   box.append(slider("l-level", "Opacity", "", 0, 1, .01, l.level, pct, v => { l.level = v; }));
   // the visual's own controls
-  const f = FORM[l.form], [g1, c1] = group("Shape", f.name);
-  (f.shape || []).forEach(sh => {
+  // a visual can split its sliders into named groups (sh.grp); the first group starts open
+  const f = FORM[l.form], groups = new Map();
+  const groupFor = name => { if (!groups.has(name)) { const gr = group(name, groups.size ? "" : f.name, groups.size === 0); groups.set(name, gr); box.append(gr[0]); } return groups.get(name)[1]; };
+  (f.shape || []).forEach(sh => { const c1 = groupFor(sh.grp || "Shape");
     if (sh.text) { const row = document.createElement("div"); row.className = "ctl"; row.innerHTML = `<div class="ctl-top"><label for="sh-${sh.key}">${esc(sh.label)}</label></div><textarea id="sh-${sh.key}" rows="3"></textarea>`;
       const ta = row.querySelector("textarea"); ta.value = l.shape[sh.key] ?? sh.def; ta.addEventListener("input", () => { l.shape[sh.key] = ta.value; save(); }); c1.append(row); return; }
     const mn = sh.min ?? 0, mx = sh.max ?? 1, steps = mn === 0 && mx === 1 ? 0 : mx - mn, v0 = l.shape[sh.key] ?? sh.def ?? .5;
     const fmt = v => { if (sh.cfmt) return sh.cfmt(v); if (!steps) return pct(v); const n = Math.round(lerp(mn, mx, v)); return sh.fmt ? sh.fmt(n) : String(n); };
     c1.append(slider("sh-" + sh.key, sh.label, "", 0, 1, steps ? 1 / steps : .01, v0, fmt, v => { l.shape[sh.key] = v; }));
   });
-  box.append(g1);
   if (!FIXED.has(l.form)) { const [g2, c2] = group("Movement"); const row = document.createElement("div"); row.className = "ctl";
     row.innerHTML = `<select class="sel" id="l-char" aria-label="How it moves">${MOVES.map(k => `<option value="${k}"${k === l.char ? " selected" : ""}>${esc(CHAR[k].name)}</option>`).join("")}</select><div class="ctl-hint">${esc(CHAR[l.char].desc)}</div>`;
     row.querySelector("select").addEventListener("change", e => { l.char = e.target.value; save(); renderLayer(); }); c2.append(row); box.append(g2); }

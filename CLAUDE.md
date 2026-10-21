@@ -96,6 +96,7 @@ Kennedy asked to overhaul the whole interface: combine up to three visuals, with
 - **Theater** — the member version. Quiet name: the app just says "Glint" to members; "Theater version" only appears in an about screen, the way Adobe Reader is just "Adobe" unless it's Pro.
 - **The Lineup** — the published set everyone sees. Posting a design "to the Lineup" is the act of publishing (post / release / put it on — no fixed verb).
 - **Persona** — one entry on the Lineup: a saved design with all its visuals, settings and automations, plus a thumbnail. (Rejected: act, number, set, look, scene — too far from the idea of a personality.)
+- **Trait** — one visual inside a persona (Cheshire, Smooch, Graffiti…); a persona stacks up to three traits. The code still calls them visuals/layers/forms. (Rejected: character, taken by the movement styles.)
 - **Lens** — a stackable global effect over the whole picture (formerly "personalities"/moods: Hypnotic, Aggressive, Dreamy, Glitch, Electric, Fluid). The code still says `moods`; rename the UI, not the storage, until a migration is worth it. Kennedy wants 3–4× as many lenses, all stackable; keep Glitch as is; rethink Hypnotic, Dreamy (the white-out is disliked) and Fluid. Blend modes stay but Kennedy rarely uses them. Bring a slate of lens concepts to pick from before building any.
 
 ## Share + Remote (decided Oct 20, 2026) — next build

@@ -471,7 +471,7 @@ function renderLayers() {
   const nav = $("#layers"); nav.innerHTML = "";
   state.layers.forEach((l, i) => { const b = document.createElement("button"); b.className = "layer-tab" + (l.on ? "" : " off"); b.setAttribute("aria-pressed", i === sel);
     b.style.setProperty("--c", layerDot(l)); b.innerHTML = `<i></i>${esc(FORM[l.form].name)}`; b.addEventListener("click", () => { sel = i; renderAll(); }); nav.append(b); });
-  if (state.layers.length < 3) { const add = document.createElement("button"); add.className = "layer-tab add-tab"; add.textContent = "+ Add a visual";
+  if (state.layers.length < 3) { const add = document.createElement("button"); add.className = "layer-tab add-tab"; add.textContent = "+ Add a trait";
     add.addEventListener("click", () => { const used = state.layers.map(l => l.form), next = VISUALS.map(v => v[0]).find(k => !used.includes(k)) || "graffiti"; state.layers.push(newLayer(next)); sel = state.layers.length - 1; save(); renderAll(); }); nav.append(add); }
 }
 const openGrp = {}, LINK_SRC = [["kick", "Kick drum"], ["bass", "Bass"], ["mid", "Mids and vocals"], ["high", "Highs and hi-hats"], ["loud", "Overall loudness"]];
@@ -479,7 +479,7 @@ function renderLayer() {
   const box = $("#layer-card"), l = state.layers[sel]; box.innerHTML = ""; LIVE.clear();
   if (!l) return;
   const head = document.createElement("div"); head.className = "row spread";
-  head.innerHTML = `<h3 style="margin:0">Visual ${sel + 1} of ${state.layers.length}</h3><div class="row"><button class="btn" id="l-hide">${l.on ? "Hide" : "Show"}</button><button class="btn" id="l-reset">Reset</button>${state.layers.length > 1 ? '<button class="btn danger" id="l-del">Remove</button>' : ""}</div>`;
+  head.innerHTML = `<h3 style="margin:0">Trait ${sel + 1} of ${state.layers.length}</h3><div class="row"><button class="btn" id="l-hide">${l.on ? "Hide" : "Show"}</button><button class="btn" id="l-reset">Reset</button>${state.layers.length > 1 ? '<button class="btn danger" id="l-del">Remove</button>' : ""}</div>`;
   box.append(head);
   const chips = document.createElement("div"); chips.className = "chips";
   VISUALS.forEach(([key]) => { const c = document.createElement("button"); c.className = "chip"; c.textContent = FORM[key].name; c.setAttribute("aria-pressed", key === l.form);

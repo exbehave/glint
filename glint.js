@@ -717,9 +717,10 @@ function pushSoon() {
 }
 if (sb) {
   syncUI();
-  sb.auth.getSession().then(({ data }) => { user = data && data.session ? data.session.user : null; syncUI(); if (user) syncNow(); });
-  sb.auth.onAuthStateChange((ev, session) => { const was = user && user.id; user = session ? session.user : null; syncUI(); if (user && user.id !== was) syncNow(); });
-  document.addEventListener("visibilitychange", () => { if (!document.hidden && user && Date.now() - lastPull > 10000) syncNow(); });
+  const onUser = async () => { await loadRole(); await pullLineup(); };
+  sb.auth.getSession().then(({ data }) => { user = data && data.session ? data.session.user : null; syncUI(); if (user) syncNow(); onUser(); });
+  sb.auth.onAuthStateChange((ev, session) => { const was = user && user.id; user = session ? session.user : null; syncUI(); if (user && user.id !== was) syncNow(); if ((user && user.id) !== was) onUser(); });
+  document.addEventListener("visibilitychange", () => { if (!document.hidden && user && Date.now() - lastPull > 10000) { syncNow(); pullLineup(); } });
   $("#sync-toggle").addEventListener("click", async () => {
     if (user) { await sb.auth.signOut(); user = null; syncUI("Signed out. Designs stay saved on this device."); return; }
     const f = $("#sync-form"); f.hidden = !f.hidden; if (!f.hidden) $("#sync-email").focus();
@@ -735,6 +736,45 @@ if (sb) {
     $("#sync-pass").value = "";
   });
 }
+/* ---------- the Lineup: published personas, shared with every member ----------
+   Table glint_lineup (name, design, thumb, position). Everyone signed in can read it; only an admin (glint_roles) can post or remove.
+   A persona is a saved design plus a thumbnail captured from the stage at posting time. */
+let role = null, lineup = [], lineupArmed = null, lineupMsgT = 0;
+function lineupMsg(t) { $("#lineup-msg").textContent = t; clearTimeout(lineupMsgT); lineupMsgT = setTimeout(() => { $("#lineup-msg").textContent = ""; }, 3000); }
+function thumbnail() { const c = mk(320, 200), g = c.getContext("2d"); g.fillStyle = "#000"; g.fillRect(0, 0, 320, 200); const s = Math.max(320 / cv.width, 200 / cv.height), w = cv.width * s, h = cv.height * s; g.drawImage(cv, (320 - w) / 2, (200 - h) / 2, w, h); return c.toDataURL("image/jpeg", .72); }
+async function loadRole() { role = null; if (!sb || !user) return; try { const { data } = await sb.from("glint_roles").select("role").eq("user_id", user.id).maybeSingle(); role = data ? data.role : "member"; } catch (_) { role = "member"; } $("#post-design").hidden = role !== "admin"; }
+async function pullLineup() {
+  if (!sb || !user) { lineup = []; renderLineup(); return; }
+  try { const { data, error } = await sb.from("glint_lineup").select("id,name,design,thumb,position,posted_at").order("position").order("posted_at", { ascending: false }); if (error) throw error; lineup = data || []; }
+  catch (_) { lineupMsg("Couldn't load the Lineup right now."); }
+  renderLineup();
+}
+function renderLineup() {
+  const card = $("#lineup-card"), box = $("#lineup-list"); card.hidden = !user; box.innerHTML = "";
+  $("#lineup-sub").textContent = lineup.length ? `${lineup.length} persona${lineup.length === 1 ? "" : "s"}` : "what's showing";
+  if (!lineup.length) { box.innerHTML = `<span class="desc">${role === "admin" ? "Nothing posted yet. Name a combo and tap Post to the Lineup." : "Nothing on the Lineup yet."}</span>`; return; }
+  lineup.forEach(p => { const w = document.createElement("div"); w.className = "persona";
+    w.innerHTML = `<button class="load" aria-label="Load ${esc(p.name)}">${p.thumb ? `<img src="${p.thumb}" alt="">` : '<i></i>'}<span>${esc(p.name)}</span></button>${role === "admin" ? `<button class="x${lineupArmed === p.id ? " armed" : ""}" aria-label="Remove ${esc(p.name)} from the Lineup">${lineupArmed === p.id ? "Remove?" : "×"}</button>` : ""}`;
+    w.querySelector(".load").addEventListener("click", () => { if (!applyDesign(p)) { lineupMsg("That persona's visuals aren't available anymore."); return; } $("#design-name").value = p.name; save(); lineupMsg(`Loaded "${p.name}".`); });
+    const x = w.querySelector(".x"); if (x) x.addEventListener("click", async () => {
+      if (lineupArmed !== p.id) { lineupArmed = p.id; renderLineup(); setTimeout(() => { if (lineupArmed === p.id) { lineupArmed = null; renderLineup(); } }, 3000); return; }
+      lineupArmed = null; const { error } = await sb.from("glint_lineup").delete().eq("id", p.id); if (error) { lineupMsg("Couldn't remove it: " + error.message); return; }
+      lineup = lineup.filter(q => q.id !== p.id); renderLineup(); lineupMsg(`Took "${p.name}" off the Lineup.`); });
+    box.append(w); });
+}
+$("#post-design").addEventListener("click", async () => {
+  const name = $("#design-name").value.trim(); if (!name) { designMsg("Give it a name first."); $("#design-name").focus(); return; }
+  if (!sb || !user || role !== "admin") { designMsg("Sign in as the admin to post."); return; }
+  $("#save-form").requestSubmit(); // save it under that name too
+  const existing = lineup.find(p => p.name.toLowerCase() === name.toLowerCase()), row = { name, design: snapshot(), thumb: thumbnail(), posted_by: user.id, posted_at: new Date().toISOString() };
+  const q = existing ? sb.from("glint_lineup").update(row).eq("id", existing.id) : sb.from("glint_lineup").insert(row);
+  const { error } = await q; if (error) { lineupMsg("Couldn't post it: " + error.message); return; }
+  await pullLineup(); lineupMsg(existing ? `Updated "${name}" on the Lineup.` : `"${name}" is on the Lineup.`);
+});
+$("#lineup-play").addEventListener("click", () => {
+  if (lineup.length < 2) { lineupMsg("Post at least two personas to play the Lineup."); return; }
+  cyc = { list: lineup, i: -1, pre: snapshot(), timer: 0 }; cycleStep(1); restartTimer(); setPlaying(true);
+});
 document.addEventListener("fullscreenchange", () => { if (!document.fullscreenElement && document.body.classList.contains("playing")) setPlaying(false); });
 
 musicUI("Silence · idle motion only");

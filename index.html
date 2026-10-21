@@ -49,6 +49,7 @@
         <form class="row" id="save-form">
           <input class="name-in" id="design-name" type="text" placeholder="Name this combo" maxlength="40" aria-label="Design name">
           <button class="btn" type="submit" id="save-design">Save</button>
+          <button class="btn" type="button" id="post-design" hidden title="Save it and put it on the Lineup for everyone">Post to the Lineup</button>
         </form>
         <div class="chips" id="design-list"></div>
         <div class="now" id="design-msg" aria-live="polite"></div>
@@ -62,6 +63,12 @@
             <p class="desc">Same account as In the Loop.</p>
           </form>
         </div>
+      </section>
+      <section class="card" id="lineup-card" hidden>
+        <h3>The Lineup <span id="lineup-sub">what's showing</span></h3>
+        <div class="lineup" id="lineup-list"></div>
+        <div class="row"><button class="btn" id="lineup-play" type="button">Play the Lineup</button></div>
+        <div class="now" id="lineup-msg" aria-live="polite"></div>
       </section>
       <section class="card" id="layer-card"></section>
 

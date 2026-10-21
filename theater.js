@@ -52,38 +52,3 @@ $("#lineup-list").addEventListener("click", e => {
 }, true);
 $("#lineup-sub").textContent = "what's showing";
 renderLineup();
-
-/* ---------- remote session: a join code the phone enters; commands arrive over Supabase Realtime ----------
-   Channel "glint-room-<CODE>". The phone broadcasts { cmd, ... }; the Theater answers "state" broadcasts (what's on, the slideshow settings)
-   so the phone can mirror them. No rows are written; the channel is the whole session. */
-let room = null, roomCode = null;
-const ROOM_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-function roomState() { return { nowId: TH.nowId || null, playing: document.body.classList.contains("playing"), cycling: !!cyc, shuffle: TH.shuffle, favsOnly: TH.favsOnly, fade: TH.fade, secs: TH.secs, favs: [...TH.favs], lineup: lineup.map(p => ({ id: p.id, name: p.name, thumb: p.thumb, parent_id: p.parent_id || null })) }; }
-function roomSend() { if (room) room.send({ type: "broadcast", event: "state", payload: roomState() }); }
-function roomHandle(c) {
-  const p = c.id && lineup.find(q => q.id === c.id);
-  switch (c.cmd) {
-    case "play": if (p) thPlayOne(p); break;
-    case "playAll": thPlayAll(); break;
-    case "next": if (cyc) { cycleStep(1); restartTimer(); } else thPlayAll(); break;
-    case "prev": if (cyc) { cycleStep(-1); restartTimer(); } break;
-    case "stop": setPlaying(false); break;
-    case "fullscreen": setPlaying(true); break;
-    case "shuffle": TH.shuffle = !!c.on; thSave(); renderTheater(); if (cyc) { cyc.list = thList(); } break;
-    case "favsOnly": TH.favsOnly = !!c.on; thSave(); renderTheater(); if (cyc) { cyc.list = thList(); cyc.i = Math.min(cyc.i, cyc.list.length - 1); } break;
-    case "fade": TH.fade = c.fade === "cut" ? "cut" : "cross"; thSave(); renderTheater(); break;
-    case "secs": TH.secs = clamp(+c.secs || 18, 5, 90); cycleSecs = TH.secs; thSave(); renderTheater(); if (cyc) restartTimer(); break;
-    case "fav": if (c.id) { c.on ? TH.favs.add(c.id) : TH.favs.delete(c.id); thSave(); renderLineup(); } break;
-    case "hello": break;
-  }
-  roomSend();
-}
-function openRoom() {
-  if (!sb || !user) return; if (room) { try { sb.removeChannel(room); } catch (_) {} }
-  roomCode = Array.from({ length: 4 }, () => ROOM_CHARS[Math.floor(Math.random() * ROOM_CHARS.length)]).join("");
-  room = sb.channel("glint-room-" + roomCode, { config: { broadcast: { self: false } } });
-  room.on("broadcast", { event: "cmd" }, ({ payload }) => { try { roomHandle(payload || {}); } catch (err) { console.error(err); } });
-  room.subscribe(status => { const el = $("#remote-code"); el.hidden = status !== "SUBSCRIBED"; el.innerHTML = `Remote code <b>${roomCode}</b>`; if (status === "SUBSCRIBED") roomSend(); });
-}
-const _setPlaying = setPlaying; setPlaying = function (on) { _setPlaying(on); roomSend(); };
-if (sb) { sb.auth.onAuthStateChange((ev, session) => { if (session && !room) setTimeout(openRoom, 800); }); sb.auth.getSession().then(({ data }) => { if (data && data.session) setTimeout(openRoom, 800); }); }

@@ -29,6 +29,12 @@ body { padding-bottom: env(safe-area-inset-bottom, 0); }
 .fav[aria-pressed="true"] { color: #f0d27a; border-color: #f0d27a; }
 .link-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; color: var(--dim); }
 .now-line { font-family: var(--font-data); font-size: 12px; color: var(--muted); }
+.sync-form { display: grid; gap: 8px; }
+.a-layer { display: grid; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); }
+.a-layer h4 { margin: 0; font-size: 13px; font-weight: 400; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); display: flex; justify-content: space-between; }
+.a-layer .grp { display: grid; gap: 10px; }
+.a-layer details summary { cursor: pointer; font-size: 12px; color: var(--dim); letter-spacing: .1em; text-transform: uppercase; }
+.ctl.auto > input[type=range] { opacity: .5; }
 </style>
 </head>
 <body>
@@ -39,9 +45,20 @@ body { padding-bottom: env(safe-area-inset-bottom, 0); }
   </header>
   <div class="main" style="grid-template-columns:1fr">
     <div class="rack">
+      <section class="card join" id="auth-card">
+        <h3>Your Glint <span class="now-line" id="auth-sub"></span></h3>
+        <p class="desc" id="auth-help">Sign in and this phone finds the computer you're signed in on. Open Glint there first.</p>
+        <form class="sync-form" id="auth-form">
+          <input class="name-in" id="auth-email" type="email" placeholder="Email" autocomplete="username" aria-label="Email">
+          <input class="name-in" id="auth-pass" type="password" placeholder="Password" autocomplete="current-password" aria-label="Password">
+          <button class="btn" type="submit" id="auth-go">Sign in</button>
+        </form>
+        <div class="row"><button class="btn" id="auth-find" type="button" hidden>Find my computer</button><button class="btn" id="auth-out" type="button" hidden>Sign out</button></div>
+        <div class="now" id="auth-msg" aria-live="polite"></div>
+      </section>
       <section class="card join" id="join-card">
-        <h3>Join a Theater</h3>
-        <p class="desc">On the computer that's playing, the four-letter code is in the top bar of the Theater. Type it here.</p>
+        <h3>Or join with a code</h3>
+        <p class="desc">For a computer you're not signed in on: the four-letter code is in its top bar.</p>
         <input class="code-in" id="code" type="text" maxlength="4" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="ABCD" aria-label="Remote code">
         <button class="btn play-btn" id="join" type="button">Connect</button>
         <div class="now" id="join-msg" aria-live="polite"></div>
@@ -65,6 +82,16 @@ body { padding-bottom: env(safe-area-inset-bottom, 0); }
       <section class="card" id="list-card" hidden>
         <h3>The Lineup <span id="r-sub"></span></h3>
         <div class="lineup" id="r-list"></div>
+      </section>
+      <section class="card" id="admin-card" hidden>
+        <h3>On screen now <span class="now-line">live from your Studio</span></h3>
+        <div id="a-layers"></div>
+        <div class="row" style="margin-top:6px"><input class="name-in" id="a-name" type="text" placeholder="Name it" maxlength="40" aria-label="Persona name"><button class="btn" id="a-post" type="button">Post to the Lineup</button></div>
+      </section>
+      <section class="card" id="lens-card" hidden>
+        <h3>Lenses</h3>
+        <div class="chips" id="a-lenses"></div>
+        <div class="ctls" id="a-lens-ctl"></div>
       </section>
     </div>
   </div>

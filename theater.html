@@ -16,6 +16,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500&family=IBM+Plex+Mono:wght@400&display=swap">
+<script>
+// Phones get the remote instead: the computer plays, the phone drives (Kennedy's decision, Oct 21, 2026). ?here=1 opts out.
+if (matchMedia("(pointer: coarse)").matches && Math.min(screen.width, screen.height) < 700 && !/[?&]here=1/.test(location.search)) location.replace("remote.html?from=" + (location.pathname.includes("theater") ? "theater" : "studio"));
+</script>
 <link rel="stylesheet" href="glint.css">
 <link rel="stylesheet" href="theater.css">
 </head>
@@ -135,5 +139,6 @@
 <script src="engine/lenses2.js"></script>
 <script src="glint.js"></script>
 <script src="theater.js"></script>
+<script src="room.js"></script>
 </body>
 </html>

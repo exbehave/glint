@@ -179,3 +179,5 @@ input[type=range].hue::-webkit-slider-thumb { margin-top: -6px; }
 .mood .x { position: static; width: 20px; height: 20px; margin-left: 2px; font-size: 12px; align-self: center; }
 .mood .x.armed { width: auto; padding: 0 6px; font-size: 11px; }
 #post-as { align-items: center; gap: 8px; } #post-as .sel { width: auto; flex: 1; }
+.remote-code { font-family: var(--font-data); font-size: 12px; color: var(--muted); letter-spacing: .14em; padding: 6px 10px; border: 1px dashed var(--line-hi); border-radius: 8px; }
+.remote-code b { color: var(--silver); font-size: 14px; letter-spacing: .22em; margin-left: 6px; }

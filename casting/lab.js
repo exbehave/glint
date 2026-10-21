@@ -32,14 +32,18 @@ const TRACER = { key: "tracer", name: "Plain trail", fade: 1, init: () => ({ h: 
 const formOf = key => key === "tracer" ? TRACER : FORM[key];
 
 /* ---------- state ---------- */
-const lab = { mode: "reworks", idx: { reworks: 0, forms: 0, chars: 0 }, partner: false, music: { reaction: 1, punch: 1, decay: 1 } };
+const lab = { mode: "reworks", idx: { reworks: 0, forms: 0, chars: 0, lenses: 0 }, partner: false, music: { reaction: 1, punch: 1, decay: 1 } };
+const LENS_SCENES = ["cheshire", "lips", "storm", "graffiti", "synapse", "firework", "tornado2", "vine2"]; // reworks to look at through a lens
+const base = mk(1, 1), baseX = base.getContext("2d"); // the composed picture, before any lens
 const tweaks = {};     // per item, kept while you move around the list
 const reviews = {};    // saved feedback, from the store
-const itemsFor = m => m === "reworks" ? REWORKS.map(r => ({ kind: "rework", key: r.form.key, name: r.form.name, desc: r.desc, from: r.from, r })) : m === "forms" ? FORMS.map(f => ({ kind: "form", key: f.key, name: f.name })) : CHARS.map(c => ({ kind: "char", key: c.key, name: c.name, desc: c.desc }));
+const itemsFor = m => m === "lenses" ? LENSES.map(l => ({ kind: "lens", key: l.key, name: l.name, desc: l.desc, l })) : m === "reworks" ? REWORKS.map(r => ({ kind: "rework", key: r.form.key, name: r.form.name, desc: r.desc, from: r.from, r })) : m === "forms" ? FORMS.map(f => ({ kind: "form", key: f.key, name: f.name })) : CHARS.map(c => ({ kind: "char", key: c.key, name: c.name, desc: c.desc }));
 const cur = () => itemsFor(lab.mode)[lab.idx[lab.mode]];
 const docId = it => it.kind + "-" + it.key;
 
+function reworkTweak(r) { return { form: r.form.key, char: r.char, hue: r.hue, hy: r.hy, shape: {}, p: Object.assign({}, PDEF, r.p), o1: { wave: "sine", rate: .6, depth: .16 }, o2: { on: true, wave: "sine", rate: .9, depth: .14, phase: .25 } }; }
 function freshTweak(it) {
+  if (it.kind === "lens") return { scene: "cheshire", op: .75, mode: it.l.mode, lk: {} };
   if (it.kind === "rework") { const r = it.r; return { form: r.form.key, char: r.char, hue: r.hue, hy: r.hy, shape: {}, p: Object.assign({}, PDEF, r.p), o1: { wave: "sine", rate: .6, depth: .16 }, o2: { on: true, wave: "sine", rate: .9, depth: .14, phase: .25 } }; }
   if (it.kind === "form") { const f = FORM[it.key]; return { form: it.key, char: f.keepChar || f.char, hue: f.keepHue ?? 300, shape: {}, p: Object.assign({}, PDEF, COMMON, f.def || {}, f.keepP || {}), o1: { wave: "sine", rate: .6, depth: .16 }, o2: { on: true, wave: "sine", rate: .9, depth: .14, phase: .25 } }; }
   return { form: "tracer", char: it.key, hue: 190, shape: MOCAP_DEF[it.key] ? { length: .85 } : {}, mc: MOCAP_DEF[it.key] ? Object.assign({}, MOCAP_DEF[it.key]) : undefined, p: Object.assign({}, PDEF, COMMON, MOCAP_DEF[it.key] ? { roam: .4 } : {}), o1: { wave: "sine", rate: .6, depth: .16 }, o2: { on: true, wave: "sine", rate: .9, depth: .14, phase: .25 } };
@@ -49,7 +53,9 @@ const tw = () => { const it = cur(), id = docId(it); return tweaks[id] ||= fresh
 /* ---------- nodes ---------- */
 const RT = new Map();
 function subjectNode() {
-  const t = tw(), hy = t.hy ?? LOW_HOME[t.form] ?? .52, hx = lab.partner && hy < .7 ? .38 : .5;
+  const it = cur(); let t = tw();
+  if (it.kind === "lens") { const r = REWORKS.find(x => x.form.key === t.scene) || REWORKS[0]; t = t.sceneT && t.sceneT.form === r.form.key ? t.sceneT : (t.sceneT = reworkTweak(r)); }
+  const hy = t.hy ?? LOW_HOME[t.form] ?? .52, hx = lab.partner && hy < .7 ? .38 : .5;
   return { id: "subject", form: t.form, char: t.char, hx, hy, dir: t.dir ?? -Math.PI / 2, hue: t.hue, level: 1, listen: "mix", seed: .62, shape: t.shape, p: t.p, o1: t.o1, o2: t.o2, mc: t.mc };
 }
 function partnerNode() { return { id: "partner", form: "tracer", char: "wander", hx: .7, hy: .4, dir: -Math.PI / 2, hue: 45, level: .55, listen: "mix", seed: .21, shape: { length: .3 }, p: Object.assign({}, PDEF, { roam: .35, size: .35 }) }; }
@@ -179,6 +185,13 @@ function frame(now) {
   all.forEach(({ node, rt }) => { if (node.form === "lava") return; Bx.globalAlpha = node.level; Bx.drawImage(rt.layer, 0, 0); });
   if (shared.lava.length) drawLava(shared.lava);
   Bx.globalAlpha = 1; Bx.globalCompositeOperation = "source-over";
+  // lens audition: copy the picture aside, then draw the lens over it with its blend mode and opacity
+  const it0 = cur(); if (it0.kind === "lens") { const t = tw(); if (base.width !== cv.width || base.height !== cv.height) { base.width = cv.width; base.height = cv.height; }
+    baseX.setTransform(1, 0, 0, 1, 0, 0); baseX.globalCompositeOperation = "source-over"; baseX.globalAlpha = 1; baseX.clearRect(0, 0, base.width, base.height); baseX.drawImage(cv, 0, 0);
+    const sh = it0.l.shape || [], M = { t: gtime, dt, energy: idle * (.3 + .25 * breath) + A.rms * r * 1.1, loud: A.rms * r, kick: A.kick * r * m.punch, bass: A.bass * r, hit: hits.kick && r > .05, hat: hits.hat && r > .05, chaos: .15,
+      k: key => { const d = sh.find(x => x.key === key); return t.lk[key] ?? (d && d.def != null ? d.def : .5); } };
+    if (!A.active && Math.random() < dt * .8) M.hit = true;
+    t.st ||= {}; Bx.save(); Bx.globalCompositeOperation = t.mode; Bx.globalAlpha = t.op; try { it0.l.draw(Bx, base, t.st, M); } catch (err) { console.error(err); } Bx.restore(); }
   const beatEl = $("#beat"); beatEl.style.opacity = .18 + A.kick * .82;
 }
 
@@ -216,7 +229,7 @@ function renderHead() {
   const it = cur(), list = itemsFor(lab.mode), t = tw();
   $("#item-name").textContent = it.name;
   $("#item-count").textContent = `${lab.idx[lab.mode] + 1} / ${list.length}`;
-  $("#item-desc").textContent = it.kind === "rework" ? it.desc + " From your notes on " + it.from + "." : it.kind === "char" ? it.desc : `Moves as ${CHAR[t.char].name}${t.char === FORM[it.key].char ? " (its default)" : ""}.`;
+  $("#item-desc").textContent = it.kind === "lens" ? it.desc : it.kind === "rework" ? it.desc + " From your notes on " + it.from + "." : it.kind === "char" ? it.desc : `Moves as ${CHAR[t.char].name}${t.char === FORM[it.key].char ? " (its default)" : ""}.`;
 }
 function mocapSection(box, t) {
   if (!MOCAP_DEF[t.char]) return;
@@ -232,6 +245,20 @@ function mocapSection(box, t) {
 function renderControls() {
   const box = $("#controls"); box.innerHTML = ""; const it = cur(), t = tw(), f = formOf(t.form);
   // the thing under test comes first
+  if (it.kind === "lens") {
+    const [s, c] = section("Lens", "this effect's own settings");
+    c.append(slider("lens-op", "Opacity", "", 0, 1, .01, t.op, pct, v => { t.op = v; }));
+    c.append(selectRow("lens-mode", "Blend", LENS_BLENDS, t.mode, v => { t.mode = v; }));
+    (it.l.shape || []).forEach(sh => { const mn = sh.min ?? 0, mx = sh.max ?? 1, steps = mn === 0 && mx === 1 ? 0 : mx - mn, v0 = t.lk[sh.key] ?? sh.def ?? .5;
+      if (sh.fmt && steps) { c.append(selectRow("lk-" + sh.key, sh.label, Array.from({ length: steps + 1 }, (_, i) => [String(i / steps), sh.fmt(i)]), String(Math.round(v0 * steps) / steps), v => { t.lk[sh.key] = parseFloat(v); })); return; }
+      c.append(slider("lk-" + sh.key, sh.label, "", 0, 1, .01, v0, pct, v => { t.lk[sh.key] = v; })); });
+    box.append(s);
+    const [s2, c2] = section("Scene", "what you're looking at through it");
+    c2.append(selectRow("lens-scene", "Trait", LENS_SCENES.filter(k => REWORKS.some(r => r.form.key === k)).map(k => [k, REWORKS.find(r => r.form.key === k).form.name]), t.scene, v => { t.scene = v; t.sceneT = null; restart(); }));
+    box.append(s2);
+    $("#hue-swatch").style.background = "transparent";
+    return;
+  }
   if (it.kind === "form" || it.kind === "rework") {
     const [s, c] = section("Shape", it.kind === "rework" ? "this take" : "unique to this form");
     (f.shape || []).forEach(sh => { if (sh.text) { const row = document.createElement("div"); row.className = "ctl"; row.innerHTML = `<div class="ctl-top"><label for="sh-${sh.key}">${esc(sh.label)}</label></div><textarea id="sh-${sh.key}" class="words" rows="2"></textarea>`; const ta = row.querySelector("textarea"); ta.value = t.shape[sh.key] ?? sh.def; ta.addEventListener("input", () => { t.shape[sh.key] = ta.value; }); c.append(row); return; }
@@ -277,7 +304,7 @@ function renderReview() {
   $("#load-saved").hidden = !rv.settings;
 }
 function renderAll() {
-  $("#tab-reworks").setAttribute("aria-pressed", lab.mode === "reworks"); $("#tab-forms").setAttribute("aria-pressed", lab.mode === "forms"); $("#tab-chars").setAttribute("aria-pressed", lab.mode === "chars");
+  $("#tab-lenses").setAttribute("aria-pressed", lab.mode === "lenses"); $("#tab-reworks").setAttribute("aria-pressed", lab.mode === "reworks"); $("#tab-forms").setAttribute("aria-pressed", lab.mode === "forms"); $("#tab-chars").setAttribute("aria-pressed", lab.mode === "chars");
   const it = cur();
   $("#partner").checked = lab.partner;
   $("#partner-note").textContent = it.kind === "char" && NEEDS_PARTNER.has(it.key) ? "This character reacts to other nodes, so a partner is on." : "A dim second node to react to.";
@@ -297,6 +324,7 @@ function syncMusicUI(text) {
 $("#tab-forms").addEventListener("click", () => setMode("forms"));
 $("#tab-reworks").addEventListener("click", () => setMode("reworks"));
 $("#tab-chars").addEventListener("click", () => setMode("chars"));
+$("#tab-lenses").addEventListener("click", () => setMode("lenses"));
 $("#prev").addEventListener("click", () => go(lab.idx[lab.mode] - 1));
 $("#next").addEventListener("click", () => go(lab.idx[lab.mode] + 1));
 $("#reset").addEventListener("click", () => { delete tweaks[docId(cur())]; restart(); renderAll(); });
@@ -334,7 +362,7 @@ document.querySelectorAll("#verdict button").forEach(b => b.addEventListener("cl
   pendingVerdict = b.dataset.v; dirty = true;
   document.querySelectorAll("#verdict button").forEach(x => x.setAttribute("aria-pressed", x === b)); $("#saved-at").textContent = "Unsaved changes";
 }));
-function snapshotSettings() { const t = tw(); return JSON.parse(JSON.stringify({ form: t.form, char: t.char, hue: Math.round(t.hue), shape: t.shape, motion: t.p, partner: lab.partner, music: { source: au.mode, ...lab.music }, path: t.char === "custom" ? { a: t.o1, b: t.o2 } : undefined, performance: MOCAP_DEF[t.char] ? t.mc : undefined })); }
+function snapshotSettings() { const t = tw(); if (cur().kind === "lens") return JSON.parse(JSON.stringify({ lens: cur().key, scene: t.scene, opacity: Math.round(t.op * 100), blend: t.mode, settings: t.lk, music: { source: au.mode, ...lab.music } })); return JSON.parse(JSON.stringify({ form: t.form, char: t.char, hue: Math.round(t.hue), shape: t.shape, motion: t.p, partner: lab.partner, music: { source: au.mode, ...lab.music }, path: t.char === "custom" ? { a: t.o1, b: t.o2 } : undefined, performance: MOCAP_DEF[t.char] ? t.mc : undefined })); }
 $("#save").addEventListener("click", async () => {
   if (!db) return; const it = cur(), id = docId(it), prev = reviews[id] || {};
   const body = { kind: it.kind, key: it.key, name: it.name, verdict: pendingVerdict ?? prev.verdict ?? null, notes: $("#notes").value.trim(), settings: snapshotSettings(), updatedAt: new Date().toISOString() };
@@ -345,6 +373,7 @@ $("#save").addEventListener("click", async () => {
 });
 $("#load-saved").addEventListener("click", () => {
   const rv = reviews[docId(cur())]; if (!rv || !rv.settings) return; const s = rv.settings, t = tw();
+  if (cur().kind === "lens") { Object.assign(t, { scene: s.scene || t.scene, op: (s.opacity ?? 75) / 100, mode: s.blend || t.mode, lk: Object.assign({}, s.settings) }); t.sceneT = null; restart(); renderAll(); return; }
   Object.assign(t, { form: s.form, char: s.char, hue: s.hue, shape: Object.assign({}, s.shape), p: Object.assign({}, PDEF, s.motion) });
   if (s.path) { t.o1 = Object.assign({}, s.path.a); t.o2 = Object.assign({}, s.path.b); }
   if (s.performance) t.mc = Object.assign({}, s.performance);
@@ -358,7 +387,7 @@ $("#save-general").addEventListener("click", async () => {
 });
 function remember() { dirty = false; pendingVerdict = null; try { localStorage.setItem("casting.pos2", JSON.stringify({ mode: lab.mode, idx: lab.idx })); } catch (_) {} }
 
-try { const pos = JSON.parse(localStorage.getItem("casting.pos2") || "null"); if (pos && pos.idx) { lab.mode = ["reworks", "forms", "chars"].includes(pos.mode) ? pos.mode : "reworks"; lab.idx.reworks = clamp(pos.idx.reworks | 0, 0, REWORKS.length - 1); lab.idx.forms = clamp(pos.idx.forms | 0, 0, FORMS.length - 1); lab.idx.chars = clamp(pos.idx.chars | 0, 0, CHARS.length - 1); } } catch (_) {}
+try { const pos = JSON.parse(localStorage.getItem("casting.pos2") || "null"); if (pos && pos.idx) { lab.mode = ["reworks", "forms", "chars", "lenses"].includes(pos.mode) ? pos.mode : "reworks"; lab.idx.lenses = clamp(pos.idx.lenses | 0, 0, LENSES.length - 1); lab.idx.reworks = clamp(pos.idx.reworks | 0, 0, REWORKS.length - 1); lab.idx.forms = clamp(pos.idx.forms | 0, 0, FORMS.length - 1); lab.idx.chars = clamp(pos.idx.chars | 0, 0, CHARS.length - 1); } } catch (_) {}
 syncMusicUI("Silence · idle motion only");
 go(lab.idx[lab.mode]);
 resize(); requestAnimationFrame(frame);

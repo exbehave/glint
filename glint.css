@@ -148,3 +148,14 @@ input[type=range].hue::-webkit-slider-thumb { margin-top: -6px; }
 .sw-live { height: 14px; border-radius: 7px; }
 .x-btn { background: none; border: 0; color: var(--muted); font-size: 18px; line-height: 1; padding: 0 4px 0 10px; }
 .x-btn:hover { color: var(--silver); }
+/* automation: the wave button beside a slider, the Low–High band on its track, and the panel beneath it */
+.ctl-r { display: flex; align-items: center; gap: 8px; }
+.auto-btn { width: 24px; height: 20px; padding: 0; border-radius: 6px; border: 1px solid var(--line); background: transparent; color: var(--dim); font-size: 14px; line-height: 1; }
+.auto-btn:hover { color: var(--muted); border-color: var(--line-hi); }
+.auto-btn[aria-pressed="true"] { color: var(--silver); border-color: var(--line-hi); background: var(--panel-hi); }
+.ctl.auto > input[type=range] { pointer-events: none; }
+.ctl.auto > input[type=range]::-webkit-slider-runnable-track { background: linear-gradient(90deg, #2a2a30 var(--lo), rgba(242, 242, 246, .42) var(--lo), rgba(242, 242, 246, .42) var(--hi), #2a2a30 var(--hi)); }
+.ctl.auto > input[type=range]::-moz-range-track { background: linear-gradient(90deg, #2a2a30 var(--lo), rgba(242, 242, 246, .42) var(--lo), rgba(242, 242, 246, .42) var(--hi), #2a2a30 var(--hi)); }
+.auto-panel { display: grid; gap: 10px; margin-top: 4px; padding: 10px 10px 12px; border: 1px solid var(--line); border-left: 2px solid var(--line-hi); border-radius: 8px; background: rgba(0, 0, 0, .25); }
+.auto-line { display: grid; gap: 6px; }
+.auto-line > span { font-size: 12px; color: var(--muted); }

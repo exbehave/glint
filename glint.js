@@ -323,7 +323,37 @@ const swatchCSS = stops => stops.length > 1 ? `linear-gradient(90deg, ${stops.ma
 function layerDot(l) { const c = l.color; if (!c || c.mode === "one") return `hsl(${l.hue} 95% 60%)`; if (c.mode === "rainbow") return "conic-gradient(hsl(0 95% 60%), hsl(60 95% 60%), hsl(120 95% 60%), hsl(180 95% 60%), hsl(240 95% 60%), hsl(300 95% 60%), hsl(360 95% 60%))"; return swatchCSS(c.stops); }
 /* ---------- engine ---------- */
 const RT = new Map();
-function nodeOf(l) { return { id: l.id, form: l.form, char: l.char, hx: .5, hy: l.hy ?? .52, dir: -Math.PI / 2, hue: hueNow(l), level: l.level, listen: "mix", seed: l.seed, shape: l.shape, links: l.links || FORM[l.form].links || [], p: l.p, o1: { wave: "sine", rate: .6, depth: .16 }, o2: { on: true, wave: "sine", rate: .9, depth: .14, phase: .25 } }; }
+function nodeOf(l) { return { id: l.id, form: l.form, char: l.char, hx: .5, hy: l.hy ?? .52, dir: -Math.PI / 2, hue: hueNow(l), level: l.level, listen: "mix", seed: l.seed, shape: l.shape, links: l.links || FORM[l.form].links || [], p: l.p, auto: l.auto, o1: { wave: "sine", rate: .6, depth: .16 }, o2: { on: true, wave: "sine", rate: .9, depth: .14, phase: .25 } }; }
+/* ---------- automation: a slider that moves itself over time ----------
+   l.auto[key] = { pat, sync, beats, secs, lo, hi } where key is "sh.<shape key>", "p.<motion key>" or "level".
+   pat: sine (smooth back and forth) · tri (straight back and forth) · square (snap between the two) · sawup (rise, jump back) ·
+        sawdown (fall, jump back) · drift (wandering) · ramp (rise from Low to High once, then hold).
+   sync: true = the period is AUTO_BEATS[beats] beats of the song (TEMPO learns the beat gap from kicks); false = secs seconds. */
+const AUTO_PAT = [["sine", "Smooth"], ["tri", "Bounce"], ["square", "Snap"], ["sawup", "Rise"], ["sawdown", "Fall"], ["drift", "Drift"], ["ramp", "Ramp once"]];
+const AUTO_BEATS = [1, 2, 4, 8, 16, 32, 64];
+const TEMPO = { gap: .5, since: 9 };
+function tempoLearn(dt, hits) {
+  TEMPO.since += dt;
+  if (au.mode === "demo") { TEMPO.gap = 60 / 122; return; }
+  if (!V.active) { TEMPO.gap = .5; return; }
+  if (hits.kick) { if (TEMPO.since > .22 && TEMPO.since < 2.2) TEMPO.gap = lerp(TEMPO.gap, TEMPO.since, .4); TEMPO.since = 0; }
+}
+const autoPeriod = a => Math.max(.05, a.sync ? AUTO_BEATS[clamp(a.beats | 0, 0, AUTO_BEATS.length - 1)] * TEMPO.gap : (a.secs || 6));
+function autoStep(rt, key, a, dt, seed) {
+  const st = rt.auto || (rt.auto = {}); let s = st[key]; if (!s || s.pat !== a.pat) s = st[key] = { pat: a.pat, ph: 0 };
+  s.ph += dt / autoPeriod(a);
+  const ph = s.ph, c = ph - Math.floor(ph); let u;
+  switch (a.pat) {
+    case "tri": u = c < .5 ? c * 2 : 2 - c * 2; break;
+    case "square": u = c < .5 ? 0 : 1; break;
+    case "sawup": u = c; break;
+    case "sawdown": u = 1 - c; break;
+    case "drift": u = clamp(.5 + .32 * Math.sin(ph * 6.2832) + .2 * Math.sin(ph * 10.166 + seed * 7) + .12 * Math.sin(ph * 16.45 + seed * 3), 0, 1); break;
+    case "ramp": u = Math.min(1, ph); break;
+    default: u = .5 - .5 * Math.cos(c * 6.2832);
+  }
+  return s.v = lerp(a.lo, a.hi, u);
+}
 function runtime(node) {
   let rt = RT.get(node.id); const sig = node.form + "|" + node.char;
   if (!rt || rt.sig !== sig) {
@@ -346,11 +376,14 @@ let gclock = 0, gtime = 0, last = performance.now();
 function frame(now) {
   requestAnimationFrame(frame);
   const dt = Math.min(.05, (now - last) / 1000); last = now; gtime += dt;
-  const rawHits = updateAudio(dt); calFrame(rawHits); const hits = offsetFeed(rawHits); updateColors(dt, hits); const m = state.music, r = m.reaction, breath = .5 + .5 * Math.sin(gtime * .9), idle = 1 - r * .7, S0 = Math.min(W, H), bias = moodBias();
+  const rawHits = updateAudio(dt); calFrame(rawHits); const hits = offsetFeed(rawHits); tempoLearn(dt, hits); updateColors(dt, hits); const m = state.music, r = m.reaction, breath = .5 + .5 * Math.sin(gtime * .9), idle = 1 - r * .7, S0 = Math.min(W, H), bias = moodBias();
   gclock += dt * (.3 + idle * .25 * breath + V.rms * r * 1.2);
   const all = state.layers.filter(l => l.on).map(l => { const node = nodeOf(l); return { node, rt: runtime(node) }; });
   all.forEach(({ node, rt }) => {
-    const p = {}; for (const k in node.p) p[k] = k === "magnetism" ? clamp(node.p[k] + (bias[k] || 0), -1, 1) : clamp(node.p[k] + (bias[k] || 0), 0, 1);
+    // automation: every automated slider gets this frame's value once, before anything reads it
+    const au2 = node.auto || {}, av = rt.av = {}; for (const key in au2) av[key] = autoStep(rt, key, au2[key], dt, node.seed);
+    const p = {}; for (const k in node.p) { const base = av["p." + k] ?? node.p[k]; p[k] = k === "magnetism" ? clamp(base + (bias[k] || 0), -1, 1) : clamp(base + (bias[k] || 0), 0, 1); }
+    rt.lv = av.level ?? node.level;
     const kb = FORM[node.form].kickBoost; if (kb) { const kk = clamp(V.kick * r * m.punch, 0, 1); kb.forEach(key => { p[key] += (1 - p[key]) * kk; }); }
     rt.p = p;
     const R = { kick: V.kick * r * m.punch * 1.4 * (.5 + p.energy), bass: V.bass * r, mid: V.mid * r, treble: V.treble * r, rms: V.rms * r, hat: V.hat * r, raw: V.active ? V.raw || 0 : null, idle, breath };
@@ -373,7 +406,8 @@ function frame(now) {
     const items = f.shape || [], shp = node.shape || {};
     // music links: each frequency band pushes the slider it's linked to toward its maximum
     const mod = {}; (node.links || []).forEach(ln => { if (!ln.dst || !ln.amt) return; const v = { kick: V.kick, bass: V.bass, mid: V.mid, high: Math.max(V.treble, V.hat), loud: V.rms }[ln.src] || 0; mod[ln.dst] = (mod[ln.dst] || 0) + v * ln.amt * r; });
-    const k = key => { const it = items.find(x => x.key === key), b = shp[key] != null ? shp[key] : (it && it.def != null ? it.def : .5), md = mod[key]; return md ? b + (1 - b) * Math.min(1, md) : b; };
+    const av = rt.av || {};
+    const k = key => { const it = items.find(x => x.key === key), b = av["sh." + key] ?? (shp[key] != null ? shp[key] : (it && it.def != null ? it.def : .5)), md = mod[key]; return md ? b + (1 - b) * Math.min(1, md) : b; };
     const L = (key, lo, hi) => lerp(lo, hi, k(key));
     const I = key => { const it = items.find(x => x.key === key) || {}; return Math.round(lerp(it.min ?? 0, it.max ?? 1, k(key))); };
     try { f.draw({ g: lx, n: rt, node, p: rt.p, st: rt.st, R: rt.R, S: S0 * (.5 + rt.p.size), W, H, dt, t: rt.tUse, beat: rt.beat, all, frame: shared, level: node.level, k, L, I }); } catch (err) { console.error(err); }
@@ -381,7 +415,7 @@ function frame(now) {
   });
   Bx.setTransform(1, 0, 0, 1, 0, 0); Bx.globalAlpha = 1; Bx.globalCompositeOperation = "source-over"; Bx.clearRect(0, 0, Bc.width, Bc.height);
   Bx.globalCompositeOperation = "lighter";
-  all.forEach(({ node, rt }) => { Bx.globalAlpha = node.level; Bx.drawImage(rt.layer, 0, 0); });
+  all.forEach(({ node, rt }) => { Bx.globalAlpha = rt.lv ?? node.level; Bx.drawImage(rt.layer, 0, 0); });
   if (shared.lava.length) drawLava(shared.lava);
   Bx.globalAlpha = 1;
   F.setTransform(1, 0, 0, 1, 0, 0); F.globalCompositeOperation = "source-over"; F.globalAlpha = 1; F.clearRect(0, 0, cv.width, cv.height); F.drawImage(Bc, 0, 0);
@@ -390,18 +424,47 @@ function frame(now) {
   MOODS.forEach(md => { const s = state.moods[md.key]; if (!s.on || s.op <= 0) return; s._st ||= {};
     F.save(); F.globalCompositeOperation = s.mode; F.globalAlpha = s.op; try { md.draw(F, Bc, s._st, M); } catch (err) { console.error(err); } F.restore(); });
   if (fadeA > 0) { F.save(); F.globalCompositeOperation = "source-over"; F.globalAlpha = fadeA; F.drawImage(fadeC, 0, 0, cv.width, cv.height); F.restore(); fadeA = Math.max(0, fadeA - dt / 1.6); }
+  // automated sliders on the selected visual's card glide along with their values
+  if (LIVE.size) { const l = state.layers[sel], rt = l && RT.get(l.id); if (rt && rt.av) LIVE.forEach((fn, key) => { if (rt.av[key] != null) fn(rt.av[key]); }); }
   $("#beat").style.opacity = .18 + V.kick * .82;
   const live = au.mode === "mic" || au.mode === "screen" || au.mode === "device"; $("#meter").hidden = !live; if (live) $("#lvl").style.width = Math.min(100, (V.raw || 0) * 400) + "%";
 }
 
 /* ---------- UI ---------- */
 const pct = v => Math.round(v * 100) + "%";
-function slider(id, label, hint, min, max, step, val, fmt, onInput) {
+const LIVE = new Map(), openAuto = new Set();
+/* auto = { l, key }: this slider can be automated (see autoStep). The wave button opens a panel under the slider;
+   while automation is on, the handle glides on its own between Low and High and the track shows that band. */
+function slider(id, label, hint, min, max, step, val, fmt, onInput, auto) {
   const row = document.createElement("div"); row.className = "ctl";
-  row.innerHTML = `<div class="ctl-top"><label for="${id}">${esc(label)}</label><output>${fmt(val)}</output></div><input type="range" id="${id}" min="${min}" max="${max}" step="${step}" value="${val}">${hint ? `<div class="ctl-hint">${esc(hint)}</div>` : ""}`;
-  const inp = row.querySelector("input"), out = row.querySelector("output"), paint = () => inp.style.setProperty("--p", ((inp.value - min) / (max - min) * 100) + "%"); paint();
+  row.innerHTML = `<div class="ctl-top"><label for="${id}">${esc(label)}</label><div class="ctl-r"><output>${fmt(val)}</output>${auto ? `<button type="button" class="auto-btn" title="Move this slider automatically" aria-label="Automate ${esc(label)}">∿</button>` : ""}</div></div><input type="range" id="${id}" min="${min}" max="${max}" step="${step}" value="${val}">${hint ? `<div class="ctl-hint">${esc(hint)}</div>` : ""}`;
+  const inp = row.querySelector("input"), out = row.querySelector("output"), pc = v => ((v - min) / (max - min) * 100) + "%", paint = () => inp.style.setProperty("--p", pc(inp.value)); paint();
   inp.addEventListener("input", () => { const v = parseFloat(inp.value); out.textContent = fmt(v); paint(); onInput(v); save(); });
+  if (!auto) return row;
+  const btn = row.querySelector(".auto-btn"), get = () => auto.l.auto && auto.l.auto[auto.key];
+  const paintAuto = () => { const a = get(); row.classList.toggle("auto", !!a); btn.setAttribute("aria-pressed", !!a);
+    if (a) { inp.style.setProperty("--lo", pc(Math.min(a.lo, a.hi))); inp.style.setProperty("--hi", pc(Math.max(a.lo, a.hi))); } };
+  const panel = () => { const old = row.querySelector(".auto-panel"); if (old) old.remove(); const a = get(); if (!a || !openAuto.has(auto.key)) return; row.append(autoPanel(a, auto, fmt, paintAuto, () => panel())); };
+  btn.addEventListener("click", () => { if (!get()) { const v = parseFloat(inp.value); (auto.l.auto ||= {})[auto.key] = { pat: "sine", sync: true, beats: 3, secs: 6, lo: clamp(v - .3, min, max), hi: clamp(v + .3, min, max) }; openAuto.add(auto.key); save(); }
+    else openAuto.has(auto.key) ? openAuto.delete(auto.key) : openAuto.add(auto.key); paintAuto(); panel(); });
+  LIVE.set(auto.key, v => { if (!get()) return; inp.value = v; out.textContent = fmt(v); paint(); });
+  paintAuto(); panel();
   return row;
+}
+function autoPanel(a, auto, fmt, paintAuto, rerender) {
+  const p = document.createElement("div"); p.className = "auto-panel";
+  const chips = (list, cur, on) => { const d = document.createElement("div"); d.className = "chips seg"; list.forEach(([v, n]) => { const c = document.createElement("button"); c.type = "button"; c.className = "chip"; c.textContent = n; c.setAttribute("aria-pressed", v === cur); c.addEventListener("click", () => { on(v); save(); rerender(); }); d.append(c); }); return d; };
+  const line = (label, el) => { const d = document.createElement("div"); d.className = "auto-line"; d.innerHTML = `<span>${esc(label)}</span>`; d.append(el); return d; };
+  p.append(line("Pattern", chips(AUTO_PAT, a.pat, v => { a.pat = v; })));
+  p.append(line("Timing", chips([[true, "To the beat"], [false, "Seconds"]], a.sync, v => { a.sync = v; })));
+  if (a.sync) p.append(line("Every", chips(AUTO_BEATS.map((b, i) => [i, b === 1 ? "1 beat" : b + " beats"]), a.beats, v => { a.beats = v; })));
+  else p.append(slider("au-s-" + auto.key, "Every", "", .5, 60, .5, a.secs, v => v + " s", v => { a.secs = v; }));
+  p.append(slider("au-lo-" + auto.key, "Low", "", 0, 1, .01, a.lo, fmt, v => { a.lo = v; paintAuto(); }));
+  p.append(slider("au-hi-" + auto.key, "High", "", 0, 1, .01, a.hi, fmt, v => { a.hi = v; paintAuto(); }));
+  const off = document.createElement("button"); off.type = "button"; off.className = "btn"; off.textContent = "Turn off"; off.style.justifySelf = "start";
+  off.addEventListener("click", () => { delete auto.l.auto[auto.key]; openAuto.delete(auto.key); const rt = RT.get(auto.l.id); if (rt && rt.auto) delete rt.auto[auto.key]; save(); renderLayer(); });
+  p.append(off);
+  return p;
 }
 function group(title, sub, open = true) { const d = document.createElement("details"); d.className = "grp"; d.open = open; d.innerHTML = `<summary><h3>${esc(title)}${sub ? `<span>${esc(sub)}</span>` : ""}</h3></summary><div class="ctls"></div>`; return [d, d.querySelector(".ctls")]; }
 function renderLayers() {
@@ -413,7 +476,7 @@ function renderLayers() {
 }
 const openGrp = {}, LINK_SRC = [["kick", "Kick drum"], ["bass", "Bass"], ["mid", "Mids and vocals"], ["high", "Highs and hi-hats"], ["loud", "Overall loudness"]];
 function renderLayer() {
-  const box = $("#layer-card"), l = state.layers[sel]; box.innerHTML = "";
+  const box = $("#layer-card"), l = state.layers[sel]; box.innerHTML = ""; LIVE.clear();
   if (!l) return;
   const head = document.createElement("div"); head.className = "row spread";
   head.innerHTML = `<h3 style="margin:0">Visual ${sel + 1} of ${state.layers.length}</h3><div class="row"><button class="btn" id="l-hide">${l.on ? "Hide" : "Show"}</button><button class="btn" id="l-reset">Reset</button>${state.layers.length > 1 ? '<button class="btn danger" id="l-del">Remove</button>' : ""}</div>`;
@@ -423,7 +486,7 @@ function renderLayer() {
     c.addEventListener("click", () => { if (key === l.form) return; Object.assign(l, newLayer(key), { id: l.id, on: l.on }); save(); renderAll(); }); chips.append(c); });
   box.append(chips);
   renderColor(box, l);
-  box.append(slider("l-level", "Opacity", "", 0, 1, .01, l.level, pct, v => { l.level = v; }));
+  box.append(slider("l-level", "Opacity", "", 0, 1, .01, l.level, pct, v => { l.level = v; }, { l, key: "level" }));
   // the visual's own controls
   // a visual can split its controls into named groups (sh.grp); open/closed state survives re-renders
   const f = FORM[l.form], groups = new Map(), items = f.shape || [];
@@ -445,7 +508,7 @@ function renderLayer() {
         c.addEventListener("click", () => { l.shape[sh.key] = steps ? (i - mn) / steps : 0; save(); renderLayer(); }); box2.append(c); }
       c1.append(row); return; }
     const fmt = v => { if (sh.cfmt) return sh.cfmt(v); if (!steps) return pct(v); const n = Math.round(lerp(mn, mx, v)); return sh.fmt ? sh.fmt(n) : String(n); };
-    c1.append(slider("sh-" + sh.key, sh.label, "", 0, 1, steps ? 1 / steps : .01, v0, fmt, v => { l.shape[sh.key] = v; }));
+    c1.append(slider("sh-" + sh.key, sh.label, "", 0, 1, steps ? 1 / steps : .01, v0, fmt, v => { l.shape[sh.key] = v; }, { l, key: "sh." + sh.key }));
   });
   // music links: pick what each part of the sound pushes
   const targets = items.filter(sh => !sh.text && !sh.button && !isChoice(sh) && !(sh.min != null && sh.max != null && !(sh.min === 0 && sh.max === 1)));
@@ -460,7 +523,7 @@ function renderLayer() {
     row.innerHTML = `<select class="sel" id="l-char" aria-label="How it moves">${MOVES.map(k => `<option value="${k}"${k === l.char ? " selected" : ""}>${esc(CHAR[k].name)}</option>`).join("")}</select><div class="ctl-hint">${esc(CHAR[l.char].desc)}</div>`;
     row.querySelector("select").addEventListener("change", e => { l.char = e.target.value; save(); renderLayer(); }); c2.append(row); box.append(g2); }
   const [g3, c3] = group("Motion", "", false);
-  MOTION.forEach(kn => c3.append(slider("p-" + kn.key, kn.label, kn.hint, 0, 1, .01, l.p[kn.key], pct, v => { l.p[kn.key] = v; })));
+  MOTION.forEach(kn => c3.append(slider("p-" + kn.key, kn.label, kn.hint, 0, 1, .01, l.p[kn.key], pct, v => { l.p[kn.key] = v; }, { l, key: "p." + kn.key })));
   box.append(g3);
   $("#l-hide").addEventListener("click", () => { l.on = !l.on; save(); renderAll(); });
   $("#l-reset").addEventListener("click", () => { Object.assign(l, newLayer(l.form), { id: l.id, on: l.on }); RT.delete(l.id); save(); renderAll(); });

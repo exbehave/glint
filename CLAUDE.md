@@ -103,6 +103,8 @@ Kennedy wants to share Glint with a handful of people and control it from a phon
 
 Build order: (1) knob automation + save/publish presets in the current app; (2) roles and the member player; (3) remote with pairing; (4) Casting rounds for new forms.
 
+- **Automation, built Oct 20, 2026** (Kennedy chose the per-slider button over a separate fold): a ∿ button beside Opacity, every Shape slider and every Motion slider. Tap it to automate that slider; a panel opens under it: Pattern (Smooth · Bounce · Snap · Rise · Fall · Drift · Ramp once), Timing (To the beat: 1–64 beats, or Seconds 0.5–60), Low, High, Turn off. While on, the handle glides on its own between Low and High and the track shows that band (dragging is off; edit Low/High instead). Stored on the layer as `l.auto["sh.<key>" | "p.<key>" | "level"] = { pat, sync, beats, secs, lo, hi }`, so it saves with designs and syncs. Engine: `autoStep` in glint.js computes each automated value once per frame into `rt.av`; `k()` reads shape values from it, the p loop reads motion knobs, `rt.lv` is opacity; Music links still push on top. `TEMPO` learns the beat gap from kicks (demo = 122 BPM; no music = 120). `LIVE` maps keys to slider updaters so the card shows the motion. Phase resets when the pattern changes; Ramp once starts over on reload. Beat sync on real songs is untested so far.
+
 ## Personalities
 - Starting set: Hypnotic, Aggressive, Dreamy, Glitch, Electric, Fluid. Multiple can be active at once.
 - Each has its own **opacity** (0–100%) and its own **blend mode** (independent).

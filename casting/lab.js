@@ -38,7 +38,9 @@ const base = mk(1, 1), baseX = base.getContext("2d"); // the composed picture, b
 const tweaks = {};     // per item, kept while you move around the list
 const reviews = {};    // saved feedback, from the store
 const itemsFor = m => m === "traits" ? NEW_TRAITS.map(r => ({ kind: "trait", key: r.form.key, name: r.form.name, desc: r.desc, r })) : m === "lenses" ? LENSES.map(l => ({ kind: "lens", key: l.key, name: l.name, desc: l.desc, l })) : m === "reworks" ? REWORKS.map(r => ({ kind: "rework", key: r.form.key, name: r.form.name, desc: r.desc, from: r.from, r })) : m === "forms" ? FORMS.map(f => ({ kind: "form", key: f.key, name: f.name })) : CHARS.map(c => ({ kind: "char", key: c.key, name: c.name, desc: c.desc }));
-const cur = () => itemsFor(lab.mode)[lab.idx[lab.mode]];
+const itemsForRaw = itemsFor;
+const itemsForShown = m => { const all = itemsForRaw(m), live = all.filter(it => !(reviews[it.kind + "-" + it.key] && reviews[it.kind + "-" + it.key].verdict === "cut")); return live.length ? live : all; };
+const cur = () => itemsForShown(lab.mode)[lab.idx[lab.mode]];
 const docId = it => it.kind + "-" + it.key;
 
 function reworkTweak(r) { return { form: r.form.key, char: r.char, hue: r.hue, hy: r.hy, shape: {}, p: Object.assign({}, PDEF, r.p), o1: { wave: "sine", rate: .6, depth: .16 }, o2: { on: true, wave: "sine", rate: .9, depth: .14, phase: .25 } }; }
@@ -215,18 +217,18 @@ function section(title, sub) { const s = document.createElement("section"); s.cl
 
 function renderStrip() {
   const strip = $("#strip"); strip.innerHTML = "";
-  itemsFor(lab.mode).forEach((it, i) => {
+  itemsForShown(lab.mode).forEach((it, i) => {
     const b = document.createElement("button"), rv = reviews[docId(it)];
     b.className = "pick"; b.setAttribute("aria-pressed", i === lab.idx[lab.mode]); b.dataset.v = rv && rv.verdict || "";
     b.innerHTML = `<i></i>${esc(it.name)}`;
     b.addEventListener("click", () => go(i)); strip.append(b);
   });
   const on = strip.querySelector('[aria-pressed="true"]'); if (on) on.scrollIntoView({ block: "nearest", inline: "center" });
-  const list = itemsFor(lab.mode), done = list.filter(it => reviews[docId(it)] && reviews[docId(it)].verdict).length;
+  const list = itemsForShown(lab.mode), done = list.filter(it => reviews[docId(it)] && reviews[docId(it)].verdict).length;
   $("#progress").textContent = `${done} of ${list.length} reviewed`;
 }
 function renderHead() {
-  const it = cur(), list = itemsFor(lab.mode), t = tw();
+  const it = cur(), list = itemsForShown(lab.mode), t = tw();
   $("#item-name").textContent = it.name;
   $("#item-count").textContent = `${lab.idx[lab.mode] + 1} / ${list.length}`;
   $("#item-desc").textContent = it.kind === "lens" || it.kind === "trait" ? it.desc : it.kind === "rework" ? it.desc + " From your notes on " + it.from + "." : it.kind === "char" ? it.desc : `Moves as ${CHAR[t.char].name}${t.char === FORM[it.key].char ? " (its default)" : ""}.`;
@@ -297,10 +299,10 @@ function renderControls() {
 }
 function renderReview() {
   const it = cur(), rv = reviews[docId(it)] || {};
-  document.querySelectorAll("#verdict button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === rv.verdict));
+  document.querySelectorAll("#verdict button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === rv.verdict || (b.dataset.v === "hire" && rv.verdict === "keep")));
   $("#notes").value = rv.notes || "";
   $("#review-for").textContent = it.name;
-  $("#saved-at").textContent = rv.updatedAt ? "Saved " + new Date(rv.updatedAt).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) + (rv.settings ? " with its settings" : "") : (db ? "Not reviewed yet" : "");
+  $("#saved-at").textContent = rv.updatedAt ? "Saved " + new Date(rv.updatedAt).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) + (rv.settings ? " with these settings" : "") : (db ? "Tap a verdict to save it with the current settings" : "");
   $("#load-saved").hidden = !rv.settings;
 }
 function renderAll() {
@@ -311,7 +313,7 @@ function renderAll() {
   renderStrip(); renderHead(); renderControls(); renderReview();
 }
 function go(i) {
-  const n = itemsFor(lab.mode).length; lab.idx[lab.mode] = (i + n) % n;
+  const n = itemsForShown(lab.mode).length; lab.idx[lab.mode] = (i + n) % n;
   const it = cur(); lab.partner = it.kind === "char" ? NEEDS_PARTNER.has(it.key) : (it.key === "lightning" || it.key === "cradle" ? lab.partner : false);
   restart(); renderAll(); remember();
 }
@@ -354,24 +356,24 @@ async function connectStore() {
     snap.docs.forEach(d => { reviews[d.id] = d.data(); });
     snap.docChanges().forEach(ch => { if (ch.type === "removed") delete reviews[ch.doc.id]; });
     renderStrip(); if (!dirty) renderReview(); else $("#saved-at").textContent = "Unsaved changes";
-    const g = reviews.general; if (g && document.activeElement !== $("#general")) $("#general").value = g.notes || "";
+
   }, err => setStatus("Lost the connection to saved notes (" + err.code + "). Reload the page.", true));
 }
-function disableReview() { ["#save", "#notes", "#general", "#save-general"].forEach(s => $(s).disabled = true); document.querySelectorAll("#verdict button").forEach(b => b.disabled = true); }
-$("#notes").addEventListener("input", () => { dirty = true; $("#saved-at").textContent = "Unsaved changes"; });
+function disableReview() { ["#notes"].forEach(s => $(s).disabled = true); document.querySelectorAll("#verdict button").forEach(b => b.disabled = true); }
+
 document.querySelectorAll("#verdict button").forEach(b => b.addEventListener("click", () => {
-  pendingVerdict = b.dataset.v; dirty = true;
-  document.querySelectorAll("#verdict button").forEach(x => x.setAttribute("aria-pressed", x === b)); $("#saved-at").textContent = "Unsaved changes";
+  pendingVerdict = b.dataset.v; document.querySelectorAll("#verdict button").forEach(x => x.setAttribute("aria-pressed", x === b));
+  if (b.dataset.v === "rework") $("#notes").focus(); saveReview();
 }));
+let notesT = 0; $("#notes").addEventListener("input", () => { dirty = true; $("#saved-at").textContent = "Saving…"; clearTimeout(notesT); notesT = setTimeout(saveReview, 900); });
 function snapshotSettings() { const t = tw(); if (cur().kind === "lens") return JSON.parse(JSON.stringify({ lens: cur().key, scene: t.scene, opacity: Math.round(t.op * 100), blend: t.mode, settings: t.lk, music: { source: au.mode, ...lab.music } })); return JSON.parse(JSON.stringify({ form: t.form, char: t.char, hue: Math.round(t.hue), shape: t.shape, motion: t.p, partner: lab.partner, music: { source: au.mode, ...lab.music }, path: t.char === "custom" ? { a: t.o1, b: t.o2 } : undefined, performance: MOCAP_DEF[t.char] ? t.mc : undefined })); }
-$("#save").addEventListener("click", async () => {
+// one tap is the whole review: the verdict, the note so far, and every slider position go to the store together
+async function saveReview() {
   if (!db) return; const it = cur(), id = docId(it), prev = reviews[id] || {};
   const body = { kind: it.kind, key: it.key, name: it.name, verdict: pendingVerdict ?? prev.verdict ?? null, notes: $("#notes").value.trim(), settings: snapshotSettings(), updatedAt: new Date().toISOString() };
-  const btn = $("#save"); btn.disabled = true; btn.textContent = "Saving…";
-  try { await db.collection("reviews").doc(id).set(body); reviews[id] = body; dirty = false; pendingVerdict = null; renderReview(); renderStrip(); btn.textContent = "Saved"; setTimeout(() => btn.textContent = "Save notes", 1400); }
-  catch (e) { $("#saved-at").textContent = e.code === "invalid_argument" ? "Only you can save notes here." : "Didn't save (" + e.code + "). Try again."; btn.textContent = "Save notes"; }
-  btn.disabled = false;
-});
+  try { await db.collection("reviews").doc(id).set(body); reviews[id] = body; dirty = false; pendingVerdict = null; renderReview(); renderStrip(); }
+  catch (e) { $("#saved-at").textContent = e.code === "invalid_argument" ? "Only you can save notes here." : "Didn't save (" + e.code + "). Try again."; }
+}
 $("#load-saved").addEventListener("click", () => {
   const rv = reviews[docId(cur())]; if (!rv || !rv.settings) return; const s = rv.settings, t = tw();
   if (cur().kind === "lens") { Object.assign(t, { scene: s.scene || t.scene, op: (s.opacity ?? 75) / 100, mode: s.blend || t.mode, lk: Object.assign({}, s.settings) }); t.sceneT = null; restart(); renderAll(); return; }
@@ -380,12 +382,7 @@ $("#load-saved").addEventListener("click", () => {
   if (s.performance) t.mc = Object.assign({}, s.performance);
   lab.partner = !!s.partner; restart(); renderAll();
 });
-$("#save-general").addEventListener("click", async () => {
-  if (!db) return; const btn = $("#save-general"); btn.disabled = true;
-  try { await db.collection("reviews").doc("general").set({ kind: "general", notes: $("#general").value.trim(), updatedAt: new Date().toISOString() }); btn.textContent = "Saved"; setTimeout(() => btn.textContent = "Save ideas", 1400); }
-  catch (e) { btn.textContent = "Didn't save, try again"; }
-  btn.disabled = false;
-});
+
 function remember() { dirty = false; pendingVerdict = null; try { localStorage.setItem("casting.pos2", JSON.stringify({ mode: lab.mode, idx: lab.idx })); } catch (_) {} }
 
 try { const pos = JSON.parse(localStorage.getItem("casting.pos2") || "null"); if (pos && pos.idx) { lab.mode = ["reworks", "forms", "chars", "lenses", "traits"].includes(pos.mode) ? pos.mode : "reworks"; lab.idx.lenses = clamp(pos.idx.lenses | 0, 0, LENSES.length - 1); lab.idx.traits = clamp(pos.idx.traits | 0, 0, NEW_TRAITS.length - 1); lab.idx.reworks = clamp(pos.idx.reworks | 0, 0, REWORKS.length - 1); lab.idx.forms = clamp(pos.idx.forms | 0, 0, FORMS.length - 1); lab.idx.chars = clamp(pos.idx.chars | 0, 0, CHARS.length - 1); } } catch (_) {}

@@ -24,11 +24,12 @@ const VISUALS = [
   ["booty", { char: "anchored", hue: 320, hy: .9, p: { roam: .08, energy: .8, tempo: .6 }, shape: {} }],
   ["liner", { char: "anchored", hue: 185, hy: .9, p: { roam: .08, energy: .8, tempo: .6 }, shape: {} }],
   ["jelly", { char: "anchored", hue: 95, hy: .88, p: { roam: .1, energy: .8, tempo: .6 }, shape: {} }],
+  ["mobius", { char: "anchored", hue: 300, hy: .5, p: { roam: .02, size: .6, trails: .45 }, shape: {}, color: { mode: "rainbow", speed: .12, by: "time", flow: "glide" } }],
   ["crew", { char: "anchored", hue: 300, hy: .9, p: { roam: .03, energy: .8, tempo: .6 }, shape: {} }]
 ];
 const VIS = Object.fromEntries(VISUALS);
 // these place their own parts on the canvas, so a movement choice would do nothing
-const FIXED = new Set(["graffiti", "storm", "cheshire", "synapse", "lips", "firework"]);
+const FIXED = new Set(["graffiti", "storm", "cheshire", "synapse", "lips", "firework", "mobius"]);
 const MOTION = [
   { key: "energy", label: "Energy", hint: "How big and busy it gets" },
   { key: "tempo", label: "Tempo", hint: "How fast its clock runs" },
@@ -48,6 +49,7 @@ const DEFK = "glint.defaults"; let myDefs = {}; try { myDefs = JSON.parse(localS
 function newLayer(form) {
   const v = VIS[form], d = myDefs[form];
   const l = { id: "L" + Date.now().toString(36) + (seq++), form, char: v.char, hue: v.hue, level: 1, on: true, hy: v.hy ?? .52, seed: Math.random(), shape: Object.assign({}, v.shape), links: JSON.parse(JSON.stringify(FORM[form].links || [])), p: Object.assign({}, PDEF, v.p) };
+  if (v.color) l.color = Object.assign({ mode: "one", speed: .35, by: "time", pal: "loop", stops: PRESET_PALS[0].stops.slice(), flow: "glide" }, JSON.parse(JSON.stringify(v.color)));
   if (d) Object.assign(l, JSON.parse(JSON.stringify(d)), { id: l.id, seed: l.seed, on: true });
   return l;
 }

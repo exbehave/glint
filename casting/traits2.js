@@ -137,17 +137,30 @@ const WALK = { key: "walk", name: "Silhouette walk", fade: .45, init: () => ({ x
     g.beginPath(); g.moveTo(hip[0], hip[1]); g.lineTo(sh[0], sh[1]); g.stroke(); g.fillStyle = hsl(n.hue, 95, 70, .95); g.beginPath(); g.arc(head[0], head[1], h * .06, 0, TAU); g.fill();
     if (k("shadow") > .05) { g.fillStyle = hsl(n.hue, 60, 40, .3 * k("shadow")); g.beginPath(); g.ellipse(x, y + h * .02, h * .18, h * .035, 0, 0, TAU); g.fill(); } sprite(g, n.hue, head[0], head[1], h * .14, .4 + .3 * R.kick); } };
 
-/* ---- Marionette: a jointed figure jerked by strings on hits ---- */
-const MARIO = { key: "marionette", name: "Marionette", fade: .45, init: () => ({ j: null }),
-  shape: [{ key: "size", label: "Size", def: .5 }, { key: "jerk", label: "Jerk", def: .7 }, { key: "sag", label: "Sag", def: .5 }, { key: "strings", label: "Strings", def: .6 }],
+/* ---- Marionette: a jointed figure jerked by strings on hits (rework Oct 21: a face, long flowing hair, a floppier head) ---- */
+const MARIO = { key: "marionette", name: "Marionette", fade: .45, init: () => ({ j: null, hair: null }),
+  shape: [{ key: "size", label: "Size", def: .5 }, { key: "jerk", label: "Jerk", def: .7 }, { key: "sag", label: "Sag", def: .5 }, { key: "floppy", label: "Floppy head", def: .7 }, { key: "hair", label: "Hair length", def: .7 }, { key: "strings", label: "Strings", def: .6 }],
   draw(E) { const { g, n, R, S, st, dt, L, k } = E, h = S * L("size", .3, .6), top = n.y - h * .55, names = ["head", "lh", "rh", "lf", "rf"], rest = { head: [0, -h * .9], lh: [-h * .3, -h * .5], rh: [h * .3, -h * .5], lf: [-h * .12, 0], rf: [h * .12, 0] };
     if (!st.j) { st.j = {}; names.forEach(nm => { st.j[nm] = { x: rest[nm][0], y: rest[nm][1], vx: 0, vy: 0 }; }); }
-    const sag = L("sag", .02, .2) * h; names.forEach((nm, i) => { const j = st.j[nm], tx = rest[nm][0], ty = rest[nm][1] + (nm === "head" ? 0 : sag); if (E.beat) { j.vy -= h * (3 + 5 * k("jerk")) * (i === 0 ? .4 : Math.random()); j.vx += (Math.random() - .5) * h * 4 * k("jerk"); }
-      j.vx += (tx - j.x) * 30 * dt; j.vy += (ty - j.y) * 30 * dt + h * 2 * dt; j.vx *= Math.exp(-4 * dt); j.vy *= Math.exp(-4 * dt); j.x += j.vx * dt; j.y += j.vy * dt; });
-    const P = nm => [n.x + st.j[nm].x, n.y + h * .45 + st.j[nm].y], head = P("head"), lh = P("lh"), rh = P("rh"), lf = P("lf"), rf = P("rf"), hip = [n.x + (lf[0] + rf[0] - 2 * n.x) * .3, n.y + h * .45 - h * .4 + sag * .5], sh = [n.x + (head[0] - n.x) * .5, head[1] + h * .14];
+    const sag = L("sag", .02, .2) * h, flop = k("floppy"); names.forEach((nm, i) => { const j = st.j[nm], tx = rest[nm][0], ty = rest[nm][1] + (nm === "head" ? sag * .3 : sag), stiff = nm === "head" ? lerp(30, 7, flop) : 30, damp = nm === "head" ? lerp(4, 1.6, flop) : 4;
+      if (E.beat) { j.vy -= h * (3 + 5 * k("jerk")) * (i === 0 ? .7 : Math.random()); j.vx += (Math.random() - .5) * h * (i === 0 ? 6 : 4) * k("jerk"); }
+      j.vx += (tx - j.x) * stiff * dt; j.vy += (ty - j.y) * stiff * dt + h * 2 * dt; j.vx *= Math.exp(-damp * dt); j.vy *= Math.exp(-damp * dt); j.x += j.vx * dt; j.y += j.vy * dt; });
+    const P = nm => [n.x + st.j[nm].x, n.y + h * .45 + st.j[nm].y], head = P("head"), lh = P("lh"), rh = P("rh"), lf = P("lf"), rf = P("rf"), hip = [n.x + (lf[0] + rf[0] - 2 * n.x) * .3, n.y + h * .45 - h * .4 + sag * .5], sh = [n.x + (head[0] - n.x) * .35, n.y + h * .45 - h * .72 + sag * .4];
+    // the head hangs off the neck: its tilt follows where it has swung to
+    const tilt = Math.atan2(head[0] - sh[0], -(head[1] - sh[1])) * .9, hr = h * .075;
     if (k("strings") > .05) { g.lineWidth = 1; g.strokeStyle = `rgba(255,255,255,${.35 * k("strings")})`; [head, lh, rh, lf, rf].forEach(([x, y], i) => { g.beginPath(); g.moveTo(n.x + (i === 0 ? 0 : [-h * .3, h * .3, -h * .12, h * .12][i - 1]), top); g.lineTo(x, y); g.stroke(); }); g.lineWidth = S * .008; g.strokeStyle = hsl(n.hue + 40, 60, 60, .6); g.beginPath(); g.moveTo(n.x - h * .35, top); g.lineTo(n.x + h * .35, top); g.stroke(); }
     g.lineCap = g.lineJoin = "round"; g.lineWidth = S * .016; g.strokeStyle = hsl(n.hue, 95, 70, .95); const seg = (a, b) => { g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); };
-    seg(sh, hip); seg(sh, lh); seg(sh, rh); seg(hip, lf); seg(hip, rf); g.fillStyle = hsl(n.hue, 95, 70, .95); g.beginPath(); g.arc(head[0], head[1], h * .07, 0, TAU); g.fill(); [lh, rh, lf, rf].forEach(([x, y]) => { g.beginPath(); g.arc(x, y, h * .03, 0, TAU); g.fill(); }); sprite(g, n.hue, head[0], head[1], h * .15, .4 + .4 * R.kick); } };
+    seg(sh, hip); seg(sh, lh); seg(sh, rh); seg(hip, lf); seg(hip, rf); [lh, rh, lf, rf].forEach(([x, y]) => { g.fillStyle = hsl(n.hue, 95, 70, .95); g.beginPath(); g.arc(x, y, h * .03, 0, TAU); g.fill(); });
+    // hair: strands rooted around the crown, each a short chain that trails the head's motion
+    const hl = L("hair", .1, .7) * h, HN = 14; if (!st.hair || st.hair.length !== HN) st.hair = Array.from({ length: HN }, (_, i) => ({ a: -Math.PI * .95 + i / (HN - 1) * Math.PI * .9, seg: Array.from({ length: 9 }, () => [head[0], head[1]]), ph: Math.random() * 7 }));
+    st.hair.forEach((hs, i) => { const ra = hs.a + tilt, rx = head[0] + Math.cos(ra) * hr * .95, ry = head[1] + Math.sin(ra) * hr * .95; hs.seg[0] = [rx, ry]; const len = hl / 8 * (.6 + .4 * Math.abs(Math.cos(hs.a)));
+      for (let j = 1; j < hs.seg.length; j++) { const p = hs.seg[j], q = hs.seg[j - 1], tx = q[0] + Math.sin(E.t * 2.2 + hs.ph + j * .6) * h * .012 * (1 + 2 * R.kick) + (st.j.head.vx * dt * -.3), ty = q[1] + len; p[0] = lerp(p[0], tx, dt * (22 - j * 1.5)); p[1] = lerp(p[1], ty, dt * (22 - j * 1.5)); const dx = p[0] - q[0], dy = p[1] - q[1], d = Math.hypot(dx, dy) || 1; if (d > len * 1.25) { p[0] = q[0] + dx / d * len * 1.25; p[1] = q[1] + dy / d * len * 1.25; } }
+      g.lineWidth = S * .005; g.strokeStyle = hsl(n.hue + 25, 85, 68, .75); strokePath(g, hs.seg); });
+    // the face: an oval with a jaw, two eyes and a small mouth, tilted with the head
+    g.save(); g.translate(head[0], head[1]); g.rotate(tilt); g.lineWidth = S * .007; g.strokeStyle = hsl(n.hue, 95, 72, .95); g.fillStyle = hsl(n.hue, 60, 14, .85);
+    g.beginPath(); g.moveTo(-hr, -hr * .3); g.bezierCurveTo(-hr * 1.05, -hr * 1.3, hr * 1.05, -hr * 1.3, hr, -hr * .3); g.bezierCurveTo(hr * .95, hr * .5, hr * .45, hr * 1.25, 0, hr * 1.3); g.bezierCurveTo(-hr * .45, hr * 1.25, -hr * .95, hr * .5, -hr, -hr * .3); g.closePath(); g.fill(); g.stroke();
+    g.fillStyle = hsl(n.hue + 60, 90, 80, .95); [-1, 1].forEach(sx => { g.beginPath(); g.ellipse(sx * hr * .38, -hr * .15, hr * .13, hr * .18, 0, 0, TAU); g.fill(); }); g.lineWidth = S * .004; g.strokeStyle = hsl(n.hue + 60, 90, 80, .9); g.beginPath(); g.arc(0, hr * .55, hr * .3, .2, Math.PI - .2); g.stroke();
+    g.restore(); sprite(g, n.hue, head[0], head[1], hr * 2.2, .35 + .4 * R.kick); } };
 
 /* ---- Marquee: words sliding across in a theater-sign loop ---- */
 const MARQUEE = { key: "marquee", name: "Marquee", fade: .5, init: () => ({ x: 0 }),
@@ -182,7 +195,7 @@ NEW_TRAITS.push(
   { form: MOBIUS, char: "anchored", hue: 300, hy: .5, p: { roam: .02, size: .6, trails: .45 }, desc: "A twisted band turning through itself, brighter on the near side, with rungs across it." },
   { form: HANDS, char: "anchored", hue: 340, hy: .5, p: { roam: .02, size: .6, trails: .45 }, desc: "A pair of outlined hands that clap, snap, or frame the shot on the beat. Mix it up switches moves every few seconds." },
   { form: WALK, char: "anchored", hue: 180, hy: .55, p: { roam: .02, size: .6, trails: .4 }, desc: "A stick figure walking across the stage and back, pace set by the tempo. (A placeholder body; the real one needs motion capture.)" },
-  { form: MARIO, char: "anchored", hue: 60, hy: .5, p: { roam: .02, size: .6, trails: .4 }, desc: "A jointed figure on strings, yanked up on every hit and sagging back down." },
+  { form: MARIO, char: "anchored", hue: 60, hy: .5, p: { roam: .02, size: .6, trails: .4 }, desc: "A jointed figure on strings, yanked up on every hit and sagging back down. Rework: a face with a jaw and eyes, long flowing hair that trails the head, and a floppier neck (slider)." },
   { form: MARQUEE, char: "anchored", hue: 40, hy: .5, p: { roam: .02, size: .6, trails: .5 }, desc: "Your words sliding across between two rows of chasing bulbs, like a theater sign." },
   { form: STAMP, char: "anchored", hue: 0, hy: .5, p: { roam: .02, size: .6, trails: .35 }, desc: "A word slammed onto the screen on big hits, cycling through your list, then fading." }
 );

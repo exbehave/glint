@@ -41,7 +41,7 @@ button { cursor: pointer; }
 .strip { display: flex; gap: 6px; overflow-x: auto; padding-block: 12px; scrollbar-width: thin; }
 .pick { flex: none; display: inline-flex; align-items: center; gap: 7px; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; color: var(--muted); white-space: nowrap; }
 .pick i { width: 7px; height: 7px; border-radius: 50%; border: 1px solid var(--dim); }
-.pick[data-v="keep"] i { background: var(--keep); border-color: var(--keep); }
+.pick[data-v="hire"] i, .pick[data-v="keep"] i { background: var(--keep); border-color: var(--keep); }
 .pick[data-v="rework"] i { background: var(--rework); border-color: var(--rework); }
 .pick[data-v="cut"] i { background: var(--cut); border-color: var(--cut); }
 .pick[aria-pressed="true"] { color: var(--silver); border-color: var(--line-hi); background: var(--panel-hi); }
@@ -93,7 +93,7 @@ input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 
 .verdict { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 .verdict button { background: var(--panel-hi); border: 1px solid var(--line-hi); border-radius: 8px; padding: 8px 6px; color: var(--muted); display: inline-flex; gap: 7px; align-items: center; justify-content: center; }
 .verdict button i { width: 8px; height: 8px; border-radius: 50%; }
-.verdict [data-v="keep"] i { background: var(--keep); } .verdict [data-v="rework"] i { background: var(--rework); } .verdict [data-v="cut"] i { background: var(--cut); }
+.verdict [data-v="hire"] i, .verdict [data-v="keep"] i { background: var(--keep); } .verdict [data-v="rework"] i { background: var(--rework); } .verdict [data-v="cut"] i { background: var(--cut); }
 .verdict button[aria-pressed="true"] { color: var(--silver); border-color: var(--silver); }
 textarea.words { min-height: 0; font-size: 13px; }
 textarea { width: 100%; min-height: 110px; resize: vertical; background: var(--well); border: 1px solid var(--line-hi); border-radius: 8px; padding: 10px; line-height: 1.45; font-size: 14px; }
@@ -166,28 +166,20 @@ textarea { width: 100%; min-height: 110px; resize: vertical; background: var(--w
       <div class="card">
         <h3>Your verdict <span id="review-for"></span></h3>
         <div class="verdict" id="verdict" role="group" aria-label="Verdict">
-          <button data-v="keep" aria-pressed="false"><i></i>Keep</button>
+          <button data-v="hire" aria-pressed="false"><i></i>Hire</button>
           <button data-v="rework" aria-pressed="false"><i></i>Rework</button>
           <button data-v="cut" aria-pressed="false"><i></i>Cut</button>
         </div>
-        <label for="notes" class="meta">What works, what doesn't, what you'd change</label>
+        <label for="notes" class="meta">For a rework: what to change (saves as you type)</label>
         <textarea id="notes" placeholder="e.g. Love the taper, but it reads as a snake at high energy. Try a softer glow and slower whip on the beat."></textarea>
         <div class="row">
           <span class="meta" id="saved-at"></span>
-          <div class="row">
-            <button class="btn" id="load-saved" hidden>Load saved settings</button>
-            <button class="primary" id="save">Save notes</button>
-          </div>
+          <button class="btn" id="load-saved" hidden>Load saved settings</button>
         </div>
-        <div class="meta">Saving also records every slider position, so I see exactly what you were looking at.</div>
+        <div class="meta">Hire sends it to the Studio with the sliders as they are now (it lands there on the next build). Cut removes it from the bench. Untouched ones stay here for later. <span class="status" id="store-status"></span></div>
       </div>
 
-      <div class="card">
-        <h3>New ideas</h3>
-        <label for="general" class="meta">Characters or forms you'd like to see, and anything about Glint overall</label>
-        <textarea id="general"></textarea>
-        <div class="row"><span class="status" id="store-status">Connecting…</span><button class="btn" id="save-general">Save ideas</button></div>
-      </div>
+</div>
     </aside>
   </div>
   <p class="meta" style="margin-top:24px">Motion capture: CMU Graphics Lab Motion Capture Database, mocap.cs.cmu.edu (created with funding from NSF EIA-0196217). BVH conversion by B. Hahne.</p>

@@ -21,13 +21,13 @@
 <div class="wrap">
   <header class="top">
     <div class="mark">GLINT</div>
-    <div class="row"><button class="btn icon-btn" id="undo" type="button" title="Undo (⌘Z)" aria-label="Undo" disabled>↶</button><button class="btn icon-btn" id="redo" type="button" title="Redo (⇧⌘Z)" aria-label="Redo" disabled>↷</button><button class="btn" id="cycle">Cycle my designs</button><button class="btn play-btn" id="play">Play full screen</button></div>
+    <div class="row"><button class="btn icon-btn" id="undo" type="button" title="Undo (⌘Z)" aria-label="Undo" disabled>↶</button><button class="btn icon-btn" id="redo" type="button" title="Redo (⇧⌘Z)" aria-label="Redo" disabled>↷</button><button class="btn" id="cycle">Cycle my personas</button><button class="btn play-btn" id="play">Play full screen</button></div>
   </header>
 
   <div class="main">
     <div class="stage-col">
       <div class="stage" id="stage-box">
-        <canvas id="stage" aria-label="Your design"></canvas>
+        <canvas id="stage" aria-label="Your persona"></canvas>
         <div class="beat" id="beat"></div>
         <button class="exit-play" id="exit-play" hidden>Tap to show controls</button>
         <div class="cycle-name" id="cycle-name" aria-live="polite"></div>
@@ -45,9 +45,9 @@
 
     <aside class="rack">
       <section class="card" id="designs-card">
-        <h3>My designs <span id="designs-where">saved on this device</span></h3>
+        <h3>My personas <span id="designs-where">saved on this device</span></h3>
         <form class="row" id="save-form">
-          <input class="name-in" id="design-name" type="text" placeholder="Name this combo" maxlength="40" aria-label="Design name">
+          <input class="name-in" id="design-name" type="text" placeholder="Name this persona" maxlength="40" aria-label="Persona name">
           <button class="btn" type="submit" id="save-design">Save</button>
           <button class="btn" type="button" id="post-design" hidden title="Save it and put it on the Lineup for everyone">Post to the Lineup</button>
         </form>
@@ -102,7 +102,7 @@
       </section>
 
       <section class="card">
-        <h3>Personalities <span>over the whole design</span></h3>
+        <h3>Lenses <span>over the whole picture</span></h3>
         <div class="chips" id="moods"></div>
         <div class="ctls" id="mood-ctl"></div>
       </section>

@@ -645,11 +645,11 @@ function commitDesigns(list) { if (!putDesigns(list)) return false; if (typeof p
 function designMsg(t) { $("#design-msg").textContent = t; clearTimeout(msgT); msgT = setTimeout(() => { $("#design-msg").textContent = ""; }, 3000); }
 function renderDesigns() {
   const box = $("#design-list"), list = getDesigns(); box.innerHTML = "";
-  if (!list.length) { box.innerHTML = '<span class="desc">Nothing saved yet. Name your current combo and tap Save.</span>'; return; }
+  if (!list.length) { box.innerHTML = '<span class="desc">Nothing saved yet. Name this persona and tap Save.</span>'; return; }
   list.forEach(d => { const w = document.createElement("span"); w.className = "design";
     w.innerHTML = `<button class="load">${esc(d.name)}</button><button class="x${armed === d.name ? " armed" : ""}" aria-label="Delete ${esc(d.name)}">${armed === d.name ? "Delete?" : "×"}</button>`;
     w.querySelector(".load").addEventListener("click", () => {
-      if (!applyDesign(d)) { designMsg("That design's visuals aren't available anymore."); return; }
+      if (!applyDesign(d)) { designMsg("That persona's traits aren't available anymore."); return; }
       $("#design-name").value = d.name; save(); designMsg(`Loaded "${d.name}".`); });
     w.querySelector(".x").addEventListener("click", () => {
       if (armed !== d.name) { armed = d.name; renderDesigns(); setTimeout(() => { if (armed === d.name) { armed = null; renderDesigns(); } }, 3000); return; }
@@ -691,7 +691,7 @@ function cycleStep(dir) {
 function restartTimer() { clearInterval(cyc.timer); cyc.timer = setInterval(() => cycleStep(1), cycleSecs * 1000); }
 function startCycle() {
   const list = getDesigns();
-  if (list.length < 2) { designMsg("Save at least two designs to cycle through them."); $("#designs-card").scrollIntoView({ block: "nearest", behavior: "smooth" }); return; }
+  if (list.length < 2) { designMsg("Save at least two personas to cycle through them."); $("#designs-card").scrollIntoView({ block: "nearest", behavior: "smooth" }); return; }
   cyc = { list, i: -1, pre: snapshot(), timer: 0 };
   cycleStep(1); restartTimer(); setPlaying(true);
 }
@@ -701,7 +701,7 @@ function stopCycle() {
 }
 $("#cycle").addEventListener("click", startCycle);
 document.addEventListener("keydown", e => { if (!cyc) return; if (e.key === "ArrowRight") { cycleStep(1); restartTimer(); } if (e.key === "ArrowLeft") { cycleStep(-1); restartTimer(); } });
-$("#cycle-ctl").append(slider("cycle-secs", "Cycle every", "Full-screen cycling through your saved designs", 5, 60, 1, cycleSecs, v => Math.round(v) + " s", v => { cycleSecs = v; try { localStorage.setItem(CKEY, String(v)); } catch (_) {} if (cyc) restartTimer(); }));
+$("#cycle-ctl").append(slider("cycle-secs", "Cycle every", "Full-screen cycling through your saved personas", 5, 60, 1, cycleSecs, v => Math.round(v) + " s", v => { cycleSecs = v; try { localStorage.setItem(CKEY, String(v)); } catch (_) {} if (cyc) restartTimer(); }));
 
 /* ---------- cloud sync: saved designs follow your account (same sign-in as In the Loop) ---------- */
 const SUPA_URL = "https://lwbbkwftkxjmrpyalrwu.supabase.co", SUPA_KEY = "sb_publishable_j4FskQJtwZnxNBZXH61QJQ_U62I-eaY";
@@ -732,7 +732,7 @@ async function syncNow() {
     putDesigns(merged);
     if (!cloud || JSON.stringify(cloud) !== JSON.stringify(merged)) await pushCloud(merged);
     lsSet(MERGED, user.id); lsSet(DIRTY, null); lastPull = Date.now(); renderDesigns(); syncUI();
-  } catch (_) { syncUI("Couldn't reach the cloud. Designs are still saved here."); }
+  } catch (_) { syncUI("Couldn't reach the cloud. Personas are still saved here."); }
   syncing = false;
 }
 const DEF_ROW = "glint:defaults"; let defsT = 0;
@@ -749,7 +749,7 @@ if (sb) {
   sb.auth.onAuthStateChange((ev, session) => { const was = user && user.id; user = session ? session.user : null; syncUI(); if (user && user.id !== was) syncNow(); if ((user && user.id) !== was) onUser(); });
   document.addEventListener("visibilitychange", () => { if (!document.hidden && user && Date.now() - lastPull > 10000) { syncNow(); pullLineup(); } });
   $("#sync-toggle").addEventListener("click", async () => {
-    if (user) { await sb.auth.signOut(); user = null; syncUI("Signed out. Designs stay saved on this device."); return; }
+    if (user) { await sb.auth.signOut(); user = null; syncUI("Signed out. Personas stay saved on this device."); return; }
     const f = $("#sync-form"); f.hidden = !f.hidden; if (!f.hidden) $("#sync-email").focus();
   });
   $("#sync-form").addEventListener("submit", async e => {
@@ -779,10 +779,10 @@ async function pullLineup() {
 function renderLineup() {
   const card = $("#lineup-card"), box = $("#lineup-list"); card.hidden = !user; box.innerHTML = "";
   $("#lineup-sub").textContent = lineup.length ? `${lineup.length} persona${lineup.length === 1 ? "" : "s"}` : "what's showing";
-  if (!lineup.length) { box.innerHTML = `<span class="desc">${role === "admin" ? "Nothing posted yet. Name a combo and tap Post to the Lineup." : "Nothing on the Lineup yet."}</span>`; return; }
+  if (!lineup.length) { box.innerHTML = `<span class="desc">${role === "admin" ? "Nothing posted yet. Name a persona and tap Post to the Lineup." : "Nothing on the Lineup yet."}</span>`; return; }
   lineup.forEach(p => { const w = document.createElement("div"); w.className = "persona";
     w.innerHTML = `<button class="load" aria-label="Load ${esc(p.name)}">${p.thumb ? `<img src="${p.thumb}" alt="">` : '<i></i>'}<span>${esc(p.name)}</span></button>${role === "admin" ? `<button class="x${lineupArmed === p.id ? " armed" : ""}" aria-label="Remove ${esc(p.name)} from the Lineup">${lineupArmed === p.id ? "Remove?" : "×"}</button>` : ""}`;
-    w.querySelector(".load").addEventListener("click", () => { if (!applyDesign(p)) { lineupMsg("That persona's visuals aren't available anymore."); return; } $("#design-name").value = p.name; save(); lineupMsg(`Loaded "${p.name}".`); });
+    w.querySelector(".load").addEventListener("click", () => { if (!applyDesign(p)) { lineupMsg("That persona's traits aren't available anymore."); return; } $("#design-name").value = p.name; save(); lineupMsg(`Loaded "${p.name}".`); });
     const x = w.querySelector(".x"); if (x) x.addEventListener("click", async () => {
       if (lineupArmed !== p.id) { lineupArmed = p.id; renderLineup(); setTimeout(() => { if (lineupArmed === p.id) { lineupArmed = null; renderLineup(); } }, 3000); return; }
       lineupArmed = null; const { error } = await sb.from("glint_lineup").delete().eq("id", p.id); if (error) { lineupMsg("Couldn't remove it: " + error.message); return; }

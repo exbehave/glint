@@ -57,7 +57,7 @@ const RT = new Map();
 function subjectNode() {
   const it = cur(); let t = tw();
   if (it.kind === "lens") { const r = REWORKS.find(x => x.form.key === t.scene) || REWORKS[0]; t = t.sceneT && t.sceneT.form === r.form.key ? t.sceneT : (t.sceneT = reworkTweak(r)); }
-  const hy = t.hy ?? LOW_HOME[t.form] ?? .52, hx = lab.partner && hy < .7 ? .38 : .5;
+  const hy = t.hy ?? LOW_HOME[t.form] ?? .52, hx = t.hx ?? (lab.partner && hy < .7 ? .38 : .5);
   return { id: "subject", form: t.form, char: t.char, hx, hy, dir: t.dir ?? -Math.PI / 2, hue: t.hue, level: 1, listen: "mix", seed: .62, shape: t.shape, p: t.p, o1: t.o1, o2: t.o2, mc: t.mc };
 }
 function partnerNode() { return { id: "partner", form: "tracer", char: "wander", hx: .7, hy: .4, dir: -Math.PI / 2, hue: 45, level: .55, listen: "mix", seed: .21, shape: { length: .3 }, p: Object.assign({}, PDEF, { roam: .35, size: .35 }) }; }
@@ -289,6 +289,11 @@ function renderControls() {
       box.append(s3);
     }
   }
+  // every trait can be placed: where its home sits on the stage (anchored traits sit there; travelling ones orbit it)
+  const [sp, cp] = section("Position", "where it sits on the stage");
+  cp.append(slider("pos-x", "Across", "", 0, 1, .01, t.hx ?? .5, pct, v => { t.hx = v; }));
+  cp.append(slider("pos-y", "Down", "", 0, 1, .01, t.hy ?? LOW_HOME[t.form] ?? .52, pct, v => { t.hy = v; }));
+  box.append(sp);
   const [s4, c4] = section("Motion", "shared by every node");
   KNOBS.filter(kn => !kn.partner || lab.partner).forEach(kn => c4.append(slider("p-" + kn.key, kn.label, kn.hint, kn.min ?? 0, 1, .01, t.p[kn.key], kn.min ? v => (v > 0 ? "+" : "") + Math.round(v * 100) : pct, v => { t.p[kn.key] = v; })));
   box.append(s4);
@@ -367,7 +372,7 @@ document.querySelectorAll("#verdict button").forEach(b => b.addEventListener("cl
 }));
 $("#notes").addEventListener("input", () => { dirty = true; $("#saved-at").textContent = "Unsaved note"; });
 $("#save-note").addEventListener("click", () => saveReview());
-function snapshotSettings() { const t = tw(); if (cur().kind === "lens") return JSON.parse(JSON.stringify({ lens: cur().key, scene: t.scene, opacity: Math.round(t.op * 100), blend: t.mode, settings: t.lk, music: { source: au.mode, ...lab.music } })); return JSON.parse(JSON.stringify({ form: t.form, char: t.char, hue: Math.round(t.hue), shape: t.shape, motion: t.p, partner: lab.partner, music: { source: au.mode, ...lab.music }, path: t.char === "custom" ? { a: t.o1, b: t.o2 } : undefined, performance: MOCAP_DEF[t.char] ? t.mc : undefined })); }
+function snapshotSettings() { const t = tw(); if (cur().kind === "lens") return JSON.parse(JSON.stringify({ lens: cur().key, scene: t.scene, opacity: Math.round(t.op * 100), blend: t.mode, settings: t.lk, music: { source: au.mode, ...lab.music } })); return JSON.parse(JSON.stringify({ form: t.form, char: t.char, hue: Math.round(t.hue), shape: t.shape, motion: t.p, position: { x: t.hx ?? .5, y: t.hy ?? LOW_HOME[t.form] ?? .52 }, partner: lab.partner, music: { source: au.mode, ...lab.music }, path: t.char === "custom" ? { a: t.o1, b: t.o2 } : undefined, performance: MOCAP_DEF[t.char] ? t.mc : undefined })); }
 // one tap is the whole review: the verdict, the note so far, and every slider position go to the store together
 async function saveReview() {
   if (!db) return; const it = cur(), id = docId(it), prev = reviews[id] || {};
@@ -378,7 +383,7 @@ async function saveReview() {
 $("#load-saved").addEventListener("click", () => {
   const rv = reviews[docId(cur())]; if (!rv || !rv.settings) return; const s = rv.settings, t = tw();
   if (cur().kind === "lens") { Object.assign(t, { scene: s.scene || t.scene, op: (s.opacity ?? 75) / 100, mode: s.blend || t.mode, lk: Object.assign({}, s.settings) }); t.sceneT = null; restart(); renderAll(); return; }
-  Object.assign(t, { form: s.form, char: s.char, hue: s.hue, shape: Object.assign({}, s.shape), p: Object.assign({}, PDEF, s.motion) });
+  Object.assign(t, { form: s.form, char: s.char, hue: s.hue, shape: Object.assign({}, s.shape), p: Object.assign({}, PDEF, s.motion) }); if (s.position) { t.hx = s.position.x; t.hy = s.position.y; }
   if (s.path) { t.o1 = Object.assign({}, s.path.a); t.o2 = Object.assign({}, s.path.b); }
   if (s.performance) t.mc = Object.assign({}, s.performance);
   lab.partner = !!s.partner; restart(); renderAll();

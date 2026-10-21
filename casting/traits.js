@@ -34,7 +34,7 @@ const ORRERY = { key: "orrery", name: "Orrery", fade: .3, init: () => ({ t: 0 })
 
 /* ---- Gyroscope: three rings tumbling on three axes ---- */
 const GYRO = { key: "gyro", name: "Gyroscope", fade: .35, init: () => ({ a: [0, 0, 0] }),
-  shape: [{ key: "spin", label: "Spin", def: .5 }, { key: "wobble", label: "Wobble", def: .4 }, { key: "thick", label: "Ring thickness", def: .4 }, { key: "rings", label: "Rings", min: 2, max: 4, def: .5 }],
+  shape: [{ key: "spin", label: "Spin", def: .5 }, { key: "wobble", label: "Wobble", def: .4 }, { key: "thick", label: "Ring thickness", def: .4 }, { key: "rings", label: "Rings", min: 2, max: 4, def: .5 }, { key: "core", label: "Core", min: 0, max: 4, def: 0, fmt: i => ["Glow", "Dot", "Ring", "Diamond", "Star"][i] }, { key: "coresize", label: "Core size", def: .4 }],
   draw(E) { const { g, n, R, S, st, dt, t, L, I, k } = E, loud = tLoud(R), N = I("rings"), r = S * (.2 + .04 * R.bass), sp = L("spin", .3, 2.2) * (.5 + loud + R.kick);
     st.a[0] += dt * sp; st.a[1] += dt * sp * .63; st.a[2] += dt * sp * .41; const wob = L("wobble", 0, .6) * Math.sin(t * .7);
     const rings = []; for (let i = 0; i < N; i++) { const ax = st.a[i % 3] + wob * (i + 1), ay = st.a[(i + 1) % 3] * .5, pts = [];
@@ -42,7 +42,10 @@ const GYRO = { key: "gyro", name: "Gyroscope", fade: .35, init: () => ({ a: [0, 
         let y2 = y * Math.cos(ax) - z * Math.sin(ax), z2 = y * Math.sin(ax) + z * Math.cos(ax); y = y2; z = z2; let x2 = x * Math.cos(ay) + z * Math.sin(ay); z2 = -x * Math.sin(ay) + z * Math.cos(ay); x = x2; z = z2;
         pts.push([n.x + x, n.y + y, .5 + .5 * z / r]); } rings.push({ pts, hue: n.hue + i * 35 }); }
     g.lineCap = "round"; rings.forEach(({ pts, hue }) => { for (let j = 1; j < pts.length; j++) { const p = pts[j - 1], q = pts[j], d = (p[2] + q[2]) / 2; g.lineWidth = S * (.004 + .014 * k("thick")) * (.4 + d); g.strokeStyle = hsl(hue, 95, 55 + 25 * d, .3 + .7 * d); g.beginPath(); g.moveTo(p[0], p[1]); g.lineTo(q[0], q[1]); g.stroke(); } });
-    sprite(g, n.hue, n.x, n.y, S * (.04 + .05 * R.kick), .9); } };
+    // the core: what sits at the center of the rings
+    const core = I("core"), cr = S * (.01 + .08 * k("coresize")) * (1 + .4 * R.kick); sprite(g, n.hue, n.x, n.y, cr * (core === 0 ? 2.2 : 1.4), .9);
+    g.lineWidth = S * .005; g.strokeStyle = hsl(n.hue + 20, 95, 80, .95); g.fillStyle = hsl(n.hue + 20, 95, 85, .95); g.beginPath();
+    if (core === 1) { g.arc(n.x, n.y, cr * .5, 0, TAU); g.fill(); } else if (core === 2) { g.arc(n.x, n.y, cr, 0, TAU); g.stroke(); } else if (core === 3) { g.moveTo(n.x, n.y - cr); g.lineTo(n.x + cr * .7, n.y); g.lineTo(n.x, n.y + cr); g.lineTo(n.x - cr * .7, n.y); g.closePath(); g.stroke(); } else if (core === 4) { for (let q = 0; q < 10; q++) { const a = q / 10 * TAU - Math.PI / 2 + t * .5, rr = q % 2 ? cr * .45 : cr; q ? g.lineTo(n.x + Math.cos(a) * rr, n.y + Math.sin(a) * rr) : g.moveTo(n.x + Math.cos(a) * rr, n.y + Math.sin(a) * rr); } g.closePath(); g.stroke(); } } };
 
 /* ---- Iris: a camera aperture that opens and closes ---- */
 const IRISF = { key: "iris", name: "Iris", fade: .5, init: () => ({ open: .5, rot: 0 }),
@@ -60,10 +63,10 @@ const IRISF = { key: "iris", name: "Iris", fade: .5, init: () => ({ open: .5, ro
 
 /* ---- Curtain: vertical strands that part on the beat ---- */
 const CURTAIN = { key: "curtain", name: "Curtain", fade: .45, init: () => ({ part: 0, sway: [] }),
-  shape: [{ key: "strands", label: "Strands", min: 8, max: 40, def: .5 }, { key: "part", label: "Part amount", def: .6 }, { key: "sway", label: "Sway", def: .4 }, { key: "ret", label: "Return speed", def: .5 }, { key: "height", label: "Height", def: .7 }],
+  shape: [{ key: "strands", label: "Strands", min: 8, max: 40, def: .5 }, { key: "gap", label: "Gap between curtains", def: 0 }, { key: "part", label: "Part amount", def: .6 }, { key: "sway", label: "Sway", def: .4 }, { key: "ret", label: "Return speed", def: .5 }, { key: "height", label: "Height", def: .7 }],
   draw(E) { const { g, n, R, S, st, dt, t, W, L, I, k } = E, N = I("strands"), loud = tLoud(R), h = S * L("height", .4, 1), top = n.y - h / 2;
     if (E.beat) st.part = 1; st.part *= Math.exp(-dt * L("ret", .4, 3)); const part = st.part * k("part") * W * .3, span = W * .7;
-    g.lineCap = "round"; for (let i = 0; i < N; i++) { const u = (i + .5) / N - .5, x0 = n.x + u * span, side = Math.sign(u) || 1, sh = Math.abs(u) * 2, pts = [], sw = L("sway", 0, 1);
+    g.lineCap = "round"; for (let i = 0; i < N; i++) { const u = (i + .5) / N - .5, side = Math.sign(u) || 1, x0 = n.x + u * span + side * W * .25 * k("gap"), sh = Math.abs(u) * 2, pts = [], sw = L("sway", 0, 1);
       for (let j = 0; j <= 20; j++) { const v = j / 20, x = x0 + side * part * (1 - sh) * Math.pow(v, 1.5) + Math.sin(t * 1.3 + i * .7 + v * 4) * S * .02 * sw * (v + .3) * (1 + loud); pts.push([x, top + h * v]); }
       g.lineWidth = S * .012; g.strokeStyle = hsl(n.hue + (i % 3) * 8, 90, 55, .25); strokePath(g, pts); g.lineWidth = S * .004; g.strokeStyle = hsl(n.hue + (i % 3) * 8, 95, 72, .9); strokePath(g, pts);
       sprite(g, n.hue, pts[0][0], pts[0][1], S * .012, .8); } } };
@@ -83,14 +86,14 @@ const GRIN = { key: "grin", name: "Slow grin", fade: .6, init: () => ({ u: 0, ho
 
 /* ---- Blink: paired lids that snap shut and slowly open ---- */
 const BLINK = { key: "blink", name: "Blink", fade: .5, init: () => ({ open: 1, next: 1.5 }),
-  shape: [{ key: "size", label: "Eye size", def: .5 }, { key: "on", label: "Blink on", min: 0, max: 2, def: 0, fmt: i => ["Kicks", "Its own time", "Both"][i] }, { key: "speed", label: "Open speed", def: .4 }, { key: "lashes", label: "Lashes", def: .5 }, { key: "pair", label: "Two eyes", min: 0, max: 1, def: 1, fmt: i => ["One", "Two"][i] }],
+  shape: [{ key: "size", label: "Eye size", def: .5 }, { key: "on", label: "Blink on", min: 0, max: 2, def: 0, fmt: i => ["Kicks", "Its own time", "Both"][i] }, { key: "speed", label: "Open speed", def: .4 }, { key: "lashes", label: "Lashes", def: .5 }, { key: "lashlen", label: "Lash length", def: .3 }, { key: "pair", label: "Two eyes", min: 0, max: 1, def: 1, fmt: i => ["One", "Two"][i] }],
   draw(E) { const { g, n, R, S, st, dt, L, I, k } = E, on = I("on"); st.next -= dt;
     if ((on !== 1 && E.beat) || (on !== 0 && st.next <= 0)) { st.open = 0; st.next = 1.2 + Math.random() * 3; } st.open = lerp(st.open, 1, dt * L("speed", .8, 5));
     const two = I("pair") === 1, eyes = two ? [n.x - S * .22, n.x + S * .22] : [n.x], w = S * L("size", .12, .3), hgt = w * .55 * ease(st.open);
     eyes.forEach((ex, ei) => { const up = [], lo = []; for (let i = 0; i <= 30; i++) { const v = i / 30 * 2 - 1, x = ex + v * w, b = (1 - v * v); up.push([x, n.y - hgt * b]); lo.push([x, n.y + hgt * b * .7]); }
       g.lineCap = "round"; g.lineWidth = S * .016; g.strokeStyle = hsl(n.hue, 90, 55, .2); strokePath(g, up); strokePath(g, lo); g.lineWidth = S * .005; g.strokeStyle = hsl(n.hue, 95, 72, .95); strokePath(g, up); strokePath(g, lo);
       if (st.open > .15) { const ir = hgt * .8 * (1 + .15 * R.kick); g.lineWidth = S * .004; g.strokeStyle = hsl(n.hue + 60, 90, 70, .9); g.beginPath(); g.arc(ex, n.y, ir, 0, TAU); g.stroke(); g.fillStyle = hsl(n.hue + 60, 90, 20, .9); g.beginPath(); g.arc(ex, n.y, ir * .5, 0, TAU); g.fill(); sprite(g, n.hue + 60, ex, n.y, ir * 1.4, .5 * st.open); }
-      if (k("lashes") > .05) { const Lh = Math.round(3 + 6 * k("lashes")); g.lineWidth = S * .003; g.strokeStyle = hsl(n.hue, 95, 72, .8); for (let i = 0; i < Lh; i++) { const v = -.9 + 1.8 * (i + .5) / Lh, x = ex + v * w, y = n.y - hgt * (1 - v * v), len = S * .03 * (1 - .5 * Math.abs(v)); g.beginPath(); g.moveTo(x, y); g.lineTo(x + v * len * .6, y - len * (.3 + .7 * st.open)); g.stroke(); } } }); } };
+      if (k("lashes") > .05) { const Lh = Math.round(3 + 6 * k("lashes")), LL = S * (.02 + .3 * k("lashlen")); g.lineWidth = S * .003; g.strokeStyle = hsl(n.hue, 95, 72, .8); for (let i = 0; i < Lh; i++) { const v = -.9 + 1.8 * (i + .5) / Lh, x = ex + v * w, y = n.y - hgt * (1 - v * v), len = LL * (1 - .45 * Math.abs(v)), cx2 = x + v * len * .5, cy2 = y - len * .55 * (.3 + .7 * st.open); g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(cx2, cy2, x + v * len * .9 + Math.sin(E.t * 2 + i) * len * .05, y - len * (.25 + .75 * st.open)); g.stroke(); } } }); } };
 
 /* ---- Heartbeat: a glowing shape that double-thumps on kicks ---- */
 const HEART = { key: "heartbeat", name: "Heartbeat", fade: .35, init: () => ({ b: 0, b2: 0 }),

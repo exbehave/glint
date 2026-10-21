@@ -25,6 +25,7 @@ const VISUALS = [
   ["liner", { char: "anchored", hue: 185, hy: .9, p: { roam: .08, energy: .8, tempo: .6 }, shape: {} }],
   ["jelly", { char: "anchored", hue: 95, hy: .88, p: { roam: .1, energy: .8, tempo: .6 }, shape: {} }],
   ["mobius", { char: "anchored", hue: 300, hy: .5, p: { roam: .02, size: .6, trails: .45 }, shape: {}, color: { mode: "rainbow", speed: .12, by: "time", flow: "glide" } }],
+  ["grid", { char: "anchored", hue: 146, hy: .5, p: { chaos: .07, energy: .55, grace: .54, roam: .02, size: 1, tempo: .45, trails: .72 }, shape: { bulge: 1, cells: .278, dots: 0, persp: .22 } }],
   ["crew", { char: "anchored", hue: 300, hy: .9, p: { roam: .03, energy: .8, tempo: .6 }, shape: {} }]
 ];
 const VIS = Object.fromEntries(VISUALS);
@@ -33,7 +34,7 @@ const HIRED_LENSES = [["glowtrail", { op: .49, mode: "lighter", k: { length: .36
 HIRED_LENSES.forEach(([key, d]) => { const l = LENS[key]; if (!l) return; l.bias = l.bias || {}; l.defOp = d.op; l.defK = d.k || {}; if (d.mode) l.mode = d.mode; MOODS.push(l); });
 const moodFresh = m => ({ on: false, op: m.defOp ?? .5, mode: m.mode, k: Object.assign({}, m.defK || {}) });
 // these place their own parts on the canvas, so a movement choice would do nothing
-const FIXED = new Set(["graffiti", "storm", "cheshire", "synapse", "lips", "firework", "mobius"]);
+const FIXED = new Set(["graffiti", "storm", "cheshire", "synapse", "lips", "firework", "mobius", "grid"]);
 const MOTION = [
   { key: "energy", label: "Energy", hint: "How big and busy it gets" },
   { key: "tempo", label: "Tempo", hint: "How fast its clock runs" },
@@ -350,7 +351,7 @@ const swatchCSS = stops => stops.length > 1 ? `linear-gradient(90deg, ${stops.ma
 function layerDot(l) { const c = l.color; if (!c || c.mode === "one") return `hsl(${l.hue} 95% 60%)`; if (c.mode === "rainbow") return "conic-gradient(hsl(0 95% 60%), hsl(60 95% 60%), hsl(120 95% 60%), hsl(180 95% 60%), hsl(240 95% 60%), hsl(300 95% 60%), hsl(360 95% 60%))"; return swatchCSS(c.stops); }
 /* ---------- engine ---------- */
 const RT = new Map();
-function nodeOf(l) { return { id: l.id, form: l.form, char: l.char, hx: .5, hy: l.hy ?? .52, dir: -Math.PI / 2, hue: hueNow(l), level: l.level, listen: "mix", seed: l.seed, shape: l.shape, links: l.links || FORM[l.form].links || [], p: l.p, auto: l.auto, o1: { wave: "sine", rate: .6, depth: .16 }, o2: { on: true, wave: "sine", rate: .9, depth: .14, phase: .25 } }; }
+function nodeOf(l) { return { id: l.id, form: l.form, char: l.char, hx: l.hx ?? .5, hy: l.hy ?? .52, dir: -Math.PI / 2, hue: hueNow(l), level: l.level, listen: "mix", seed: l.seed, shape: l.shape, links: l.links || FORM[l.form].links || [], p: l.p, auto: l.auto, o1: { wave: "sine", rate: .6, depth: .16 }, o2: { on: true, wave: "sine", rate: .9, depth: .14, phase: .25 } }; }
 /* ---------- automation: a slider that moves itself over time ----------
    l.auto[key] = { pat, sync, beats, secs, lo, hi } where key is "sh.<shape key>", "p.<motion key>" or "level".
    pat: sine (smooth back and forth) · tri (straight back and forth) · square (snap between the two) · sawup (rise, jump back) ·
@@ -409,6 +410,7 @@ function frame(now) {
   all.forEach(({ node, rt }) => {
     // automation: every automated slider gets this frame's value once, before anything reads it
     const au2 = node.auto || {}, av = rt.av = {}; for (const key in au2) av[key] = autoStep(rt, key, au2[key], dt, node.seed);
+    if (av.hx != null) node.hx = av.hx; if (av.hy != null) node.hy = av.hy;
     const p = {}; for (const k in node.p) { const base = av["p." + k] ?? node.p[k]; p[k] = k === "magnetism" ? clamp(base + (bias[k] || 0), -1, 1) : clamp(base + (bias[k] || 0), 0, 1); }
     rt.lv = av.level ?? node.level;
     const kb = FORM[node.form].kickBoost; if (kb) { const kk = clamp(V.kick * r * m.punch, 0, 1); kb.forEach(key => { p[key] += (1 - p[key]) * kk; }); }
@@ -552,6 +554,10 @@ function renderLayer() {
   if (!FIXED.has(l.form)) { const [g2, c2] = group("Movement"); const row = document.createElement("div"); row.className = "ctl";
     row.innerHTML = `<select class="sel" id="l-char" aria-label="How it moves">${MOVES.map(k => `<option value="${k}"${k === l.char ? " selected" : ""}>${esc(CHAR[k].name)}</option>`).join("")}</select><div class="ctl-hint">${esc(CHAR[l.char].desc)}</div>`;
     row.querySelector("select").addEventListener("change", e => { l.char = e.target.value; save(); renderLayer(); }); c2.append(row); box.append(g2); }
+  const [gp, cp] = group("Position", "where it sits", openGrp[l.form + "Position"] ?? false); gp.addEventListener("toggle", () => { openGrp[l.form + "Position"] = gp.open; });
+  cp.append(slider("pos-x", "Across", "", 0, 1, .01, l.hx ?? .5, pct, v => { l.hx = v; }, { l, key: "hx" }));
+  cp.append(slider("pos-y", "Down", "", 0, 1, .01, l.hy ?? .52, pct, v => { l.hy = v; }, { l, key: "hy" }));
+  box.append(gp);
   const [g3, c3] = group("Motion", "", false);
   MOTION.forEach(kn => c3.append(slider("p-" + kn.key, kn.label, kn.hint, 0, 1, .01, l.p[kn.key], pct, v => { l.p[kn.key] = v; }, { l, key: "p." + kn.key })));
   box.append(g3);

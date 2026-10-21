@@ -26,6 +26,11 @@ const VISUALS = [
   ["jelly", { char: "anchored", hue: 95, hy: .88, p: { roam: .1, energy: .8, tempo: .6 }, shape: {} }],
   ["mobius", { char: "anchored", hue: 300, hy: .5, p: { roam: .02, size: .6, trails: .45 }, shape: {}, color: { mode: "rainbow", speed: .12, by: "time", flow: "glide" } }],
   ["grid", { char: "anchored", hue: 146, hy: .5, p: { chaos: .07, energy: .55, grace: .54, roam: .02, size: 1, tempo: .45, trails: .72 }, shape: { bulge: 1, cells: .278, dots: 0, persp: .22 } }],
+  ["iris", { char: "anchored", hue: 260, hy: .5, p: { roam: .02, size: .6, trails: .5 }, shape: {} }],
+  ["curtain", { char: "anchored", hue: 330, hy: .5, p: { roam: .02, size: .6, trails: .5 }, shape: { gap: .34 } }],
+  ["grin", { char: "anchored", hue: 300, hy: .67, p: { roam: .02, size: .6, trails: .55 }, shape: {} }],
+  ["blink", { char: "anchored", hue: 220, hy: .43, p: { roam: .02, size: .6, trails: .5 }, shape: { lashlen: .59 } }],
+  ["gyro", { char: "anchored", hue: 185, hy: .5, p: { roam: .02, size: .55, trails: .45 }, shape: {} }],
   ["crew", { char: "anchored", hue: 300, hy: .9, p: { roam: .03, energy: .8, tempo: .6 }, shape: {} }]
 ];
 const VIS = Object.fromEntries(VISUALS);
@@ -34,7 +39,7 @@ const HIRED_LENSES = [["glowtrail", { op: .49, mode: "lighter", k: { length: .36
 HIRED_LENSES.forEach(([key, d]) => { const l = LENS[key]; if (!l) return; l.bias = l.bias || {}; l.defOp = d.op; l.defK = d.k || {}; if (d.mode) l.mode = d.mode; MOODS.push(l); });
 const moodFresh = m => ({ on: false, op: m.defOp ?? .5, mode: m.mode, k: Object.assign({}, m.defK || {}) });
 // these place their own parts on the canvas, so a movement choice would do nothing
-const FIXED = new Set(["graffiti", "storm", "cheshire", "synapse", "lips", "firework", "mobius", "grid"]);
+const FIXED = new Set(["graffiti", "storm", "cheshire", "synapse", "lips", "firework", "mobius", "grid", "iris", "curtain", "grin", "blink", "gyro"]);
 const MOTION = [
   { key: "energy", label: "Energy", hint: "How big and busy it gets" },
   { key: "tempo", label: "Tempo", hint: "How fast its clock runs" },

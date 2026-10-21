@@ -28,6 +28,10 @@ const VISUALS = [
   ["crew", { char: "anchored", hue: 300, hy: .9, p: { roam: .03, energy: .8, tempo: .6 }, shape: {} }]
 ];
 const VIS = Object.fromEntries(VISUALS);
+/* Lenses hired from Casting (Oct 21, 2026), with the opacity, blend and sliders Kennedy had when hiring. The six originals stay first. */
+const HIRED_LENSES = [["glowtrail", { op: .49, mode: "lighter", k: { length: .36, strength: .23 } }], ["halftone", { op: .75 }], ["oldfilm", { op: .75 }], ["veil", { op: .75, mode: "screen", k: { height: 1, hue: .42, shimmer: .04 } }]];
+HIRED_LENSES.forEach(([key, d]) => { const l = LENS[key]; if (!l) return; l.bias = l.bias || {}; l.defOp = d.op; l.defK = d.k || {}; if (d.mode) l.mode = d.mode; MOODS.push(l); });
+const moodFresh = m => ({ on: false, op: m.defOp ?? .5, mode: m.mode, k: Object.assign({}, m.defK || {}) });
 // these place their own parts on the canvas, so a movement choice would do nothing
 const FIXED = new Set(["graffiti", "storm", "cheshire", "synapse", "lips", "firework", "mobius"]);
 const MOTION = [
@@ -55,8 +59,8 @@ function newLayer(form) {
 }
 function setDefault(l) { const d = JSON.parse(JSON.stringify(l, (k, v) => k === "_st" ? undefined : v)); delete d.id; delete d.seed; delete d.on; myDefs[l.form] = d; storeDefs(); }
 function storeDefs() { try { localStorage.setItem(DEFK, JSON.stringify(myDefs)); } catch (_) {} if (typeof pushDefs === "function") pushDefs(); }
-function fresh() { return { layers: [newLayer("cheshire")], moods: Object.fromEntries(MOODS.map(m => [m.key, { on: false, op: .5, mode: m.mode }])), music: { reaction: 1, punch: 1, decay: 1 } }; }
-function load() { try { const s = JSON.parse(localStorage.getItem(KEY) || "null"); if (s && Array.isArray(s.layers)) s.layers.forEach(l => { if (l.form === "doodle") l.form = "doodle2"; }); if (s && Array.isArray(s.layers) && s.layers.length && s.layers.every(l => VIS[l.form])) { MOODS.forEach(m => { s.moods[m.key] ||= { on: false, op: .5, mode: m.mode }; }); return s; } } catch (_) {} return fresh(); }
+function fresh() { return { layers: [newLayer("cheshire")], moods: Object.fromEntries(MOODS.map(m => [m.key, moodFresh(m)])), music: { reaction: 1, punch: 1, decay: 1 } }; }
+function load() { try { const s = JSON.parse(localStorage.getItem(KEY) || "null"); if (s && Array.isArray(s.layers)) s.layers.forEach(l => { if (l.form === "doodle") l.form = "doodle2"; }); if (s && Array.isArray(s.layers) && s.layers.length && s.layers.every(l => VIS[l.form])) { MOODS.forEach(m => { s.moods[m.key] ||= moodFresh(m); }); return s; } } catch (_) {} return fresh(); }
 /* undo / redo: every settled change (save() is debounced, so a slider drag is one step) goes into history; Cmd/Ctrl+Z and Shift+Cmd/Ctrl+Z, or the buttons in the header */
 const HIST = { past: [], future: [], cur: null };
 const stateJSON = () => JSON.stringify(state, (k, v) => k === "_st" ? undefined : v);
@@ -66,7 +70,7 @@ function histUI() { const u = $("#undo"), r = $("#redo"); if (u) u.disabled = !H
 function histGo(dir) {
   const from = dir < 0 ? HIST.past : HIST.future, to = dir < 0 ? HIST.future : HIST.past; if (!from.length) return;
   clearTimeout(saveT); to.push(HIST.cur); HIST.cur = from.pop();
-  const s = JSON.parse(HIST.cur); MOODS.forEach(m => { s.moods[m.key] ||= { on: false, op: .5, mode: m.mode }; }); state = s;
+  const s = JSON.parse(HIST.cur); MOODS.forEach(m => { s.moods[m.key] ||= moodFresh(m); }); state = s;
   try { localStorage.setItem(KEY, HIST.cur); } catch (_) {}
   renderAll(); renderMoods(); if (typeof rebuildMusic === "function") rebuildMusic(); histUI();
 }
@@ -444,7 +448,8 @@ function frame(now) {
   F.setTransform(1, 0, 0, 1, 0, 0); F.globalCompositeOperation = "source-over"; F.globalAlpha = 1; F.clearRect(0, 0, cv.width, cv.height); F.drawImage(Bc, 0, 0);
   const M = { t: gtime, dt, energy: idle * (.3 + .25 * breath) + V.rms * r * 1.1, kick: V.kick * r * m.punch, bass: V.bass * r, hit: hits.kick && r > .05, hat: hits.hat && r > .05, chaos: clamp(.15 + (bias.chaos || 0), 0, 1) };
   if (!V.active && Math.random() < dt * .8) M.hit = true;
-  MOODS.forEach(md => { const s = state.moods[md.key]; if (!s.on || s.op <= 0) return; s._st ||= {};
+  M.loud = V.rms * r;
+  MOODS.forEach(md => { const s = state.moods[md.key]; if (!s.on || s.op <= 0) return; s._st ||= {}; const sh = md.shape || []; M.k = key => { const d = sh.find(x => x.key === key); return (s.k && s.k[key]) ?? (d && d.def != null ? d.def : .5); };
     F.save(); F.globalCompositeOperation = s.mode; F.globalAlpha = s.op; try { md.draw(F, Bc, s._st, M); } catch (err) { console.error(err); } F.restore(); });
   if (fadeA > 0) { F.save(); F.globalCompositeOperation = "source-over"; F.globalAlpha = fadeA; F.drawImage(fadeC, 0, 0, cv.width, cv.height); F.restore(); fadeA = Math.max(0, fadeA - dt / 1.6); }
   // automated sliders on the selected visual's card glide along with their values
@@ -561,7 +566,12 @@ function renderMoods() {
     c.addEventListener("click", () => { s.on = !s.on; save(); renderMoods(); }); box.append(c);
     if (s.on) { ctl.append(slider("mo-" + m.key, m.name, "", 0, 1, .01, s.op, pct, v => { s.op = v; }));
       const sel2 = document.createElement("select"); sel2.className = "sel"; sel2.setAttribute("aria-label", m.name + " blend");
-      sel2.innerHTML = BLENDS.map(([k, n]) => `<option value="${k}"${k === s.mode ? " selected" : ""}>${n}</option>`).join(""); sel2.addEventListener("change", e => { s.mode = e.target.value; save(); }); ctl.append(sel2); } });
+      sel2.innerHTML = BLENDS.map(([k, n]) => `<option value="${k}"${k === s.mode ? " selected" : ""}>${n}</option>`).join(""); sel2.addEventListener("change", e => { s.mode = e.target.value; save(); }); ctl.append(sel2);
+      (m.shape || []).forEach(sh => { s.k ||= {}; const mn = sh.min ?? 0, mx = sh.max ?? 1, steps = mn === 0 && mx === 1 && !sh.fmt ? 0 : mx - mn, v0 = s.k[sh.key] ?? sh.def ?? .5;
+        if (sh.fmt && !sh.slide) { const row = document.createElement("div"); row.className = "ctl"; row.innerHTML = `<div class="ctl-top"><label>${esc(sh.label)}</label></div><div class="chips seg"></div>`; const cur = Math.round(lerp(mn, mx, v0)), bx = row.querySelector(".chips");
+          for (let i = mn; i <= mx; i++) { const c2 = document.createElement("button"); c2.className = "chip"; c2.type = "button"; c2.textContent = sh.fmt(i); c2.setAttribute("aria-pressed", i === cur); c2.addEventListener("click", () => { s.k[sh.key] = steps ? (i - mn) / steps : 0; save(); renderMoods(); }); bx.append(c2); } ctl.append(row); return; }
+        const fmt = v => { if (!steps) return pct(v); const n2 = Math.round(lerp(mn, mx, v)); return sh.fmt ? sh.fmt(n2) : String(n2); };
+        ctl.append(slider("mk-" + m.key + "-" + sh.key, sh.label, "", 0, 1, steps ? 1 / steps : .01, v0, fmt, v => { s.k[sh.key] = v; })); }); } });
 }
 function musicUI(text) {
   $("#now").textContent = text; if (typeof applyOffset === "function") applyOffset();
@@ -639,7 +649,7 @@ let armed = null, msgT = 0;
 function applyDesign(d) {
   const s = JSON.parse(JSON.stringify(d.design)); s.layers = (s.layers || []).filter(l => VIS[l.form] || l.form === "doodle").map(l => Object.assign(l, { form: l.form === "doodle" ? "doodle2" : l.form, id: "L" + Date.now().toString(36) + (seq++) }));
   if (!s.layers.length) return false;
-  s.moods ||= {}; MOODS.forEach(m => { s.moods[m.key] ||= { on: false, op: .5, mode: m.mode }; }); s.music ||= { reaction: 1, punch: 1, decay: 1 };
+  s.moods ||= {}; MOODS.forEach(m => { s.moods[m.key] ||= moodFresh(m); }); s.music ||= { reaction: 1, punch: 1, decay: 1 };
   state = s; RT.clear(); sel = 0; renderAll(); renderMoods(); rebuildMusic(); return true;
 }
 // every change to the saved list goes through here so it also reaches the cloud

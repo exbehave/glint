@@ -24,31 +24,36 @@ const lensRand = (st, key, n, make) => st[key] && st[key].length === n ? st[key]
 const LTAU = Math.PI * 2;
 
 const LENSES = [
-  { key: "flare", name: "Lens flare", mode: "lighter", desc: "An anamorphic streak and a few ghost discs that follow the brightest spot, flaring on hits.",
-    shape: [{ key: "streak", label: "Streak length", def: .55 }, { key: "ghosts", label: "Ghosts", def: .5 }, { key: "warm", label: "Warmth", def: .35 }, { key: "flash", label: "Flare on hits", def: .6 }],
+  { key: "flare", name: "Lens flare", mode: "lighter", desc: "A horizontal streak that follows the brightest spot, a vertical one that wanders on its own path, and ghost discs; the two streaks keep drifting back together into a crosshair.",
+    shape: [{ key: "streak", label: "Streak length", def: .55 }, { key: "vert", label: "Vertical streak", def: .7 }, { key: "meet", label: "How often they meet", def: .5 }, { key: "ghosts", label: "Ghosts", def: .5 }, { key: "warm", label: "Warmth", def: .35 }, { key: "flash", label: "Flare on hits", def: .6 }],
     draw(F, B, st, M) { const W = B.width, H = B.height, smp = lensSample(B, st, M), b = lensBright(smp, 1)[0]; st.x = lerp(st.x ?? .5, b ? b[0] : .5, .08); st.y = lerp(st.y ?? .5, b ? b[1] : .5, .08); st.l = lerp(st.l ?? 0, b ? b[2] : 0, .1);
-      st.f = Math.max((st.f || 0) - M.dt * 2.5, M.hit ? M.k("flash") : 0); const x = st.x * W, y = st.y * H, hue = lerp(200, 30, M.k("warm")), a = (.25 + .75 * st.l) * (1 + 1.5 * st.f), len = W * (.25 + .75 * M.k("streak")) * (1 + .5 * st.f);
-      const g = F.createLinearGradient(x - len, y, x + len, y); g.addColorStop(0, hsl(hue, 90, 70, 0)); g.addColorStop(.5, hsl(hue, 80, 80, .55 * a)); g.addColorStop(1, hsl(hue, 90, 70, 0));
-      F.fillStyle = g; F.fillRect(x - len, y - H * .006, len * 2, H * .012);
+      st.f = Math.max((st.f || 0) - M.dt * 2.5, M.hit ? M.k("flash") : 0); const hue = lerp(200, 30, M.k("warm")), a = (.25 + .75 * st.l) * (1 + 1.5 * st.f), len = W * (.25 + .75 * M.k("streak")) * (1 + .5 * st.f), x = st.x * W, y = st.y * H;
+      const streak = (sx, sy, horiz, al) => { const L2 = horiz ? len : len * H / W * 1.2, g = horiz ? F.createLinearGradient(sx - L2, sy, sx + L2, sy) : F.createLinearGradient(sx, sy - L2, sx, sy + L2); g.addColorStop(0, hsl(hue, 90, 70, 0)); g.addColorStop(.5, hsl(hue, 80, 80, .55 * al)); g.addColorStop(1, hsl(hue, 90, 70, 0)); F.fillStyle = g; if (horiz) F.fillRect(sx - L2, sy - H * .006, L2 * 2, H * .012); else F.fillRect(sx - W * .004, sy - L2, W * .008, L2 * 2); };
+      streak(x, y, true, a);
+      if (M.k("vert") > .02) { // the vertical streak has a slow path of its own; a tide pulls it to the crosshair and lets it go again
+        st.ph = (st.ph || 0) + M.dt * (.06 + .2 * M.k("meet")); const tide = .5 + .5 * Math.cos(st.ph * LTAU), wx = .5 + .35 * Math.sin(M.t * .17 + 1.3) + .1 * Math.sin(M.t * .41), wy = .5 + .3 * Math.cos(M.t * .13) + .1 * Math.cos(M.t * .37 + 2);
+        st.vx = lerp(st.vx ?? wx, lerp(wx, st.x, tide * tide), .04); st.vy = lerp(st.vy ?? wy, lerp(wy, st.y, tide * tide), .04); const near = 1 - Math.min(1, Math.hypot(st.vx - st.x, st.vy - st.y) * 6); streak(st.vx * W, st.vy * H, false, a * M.k("vert") * (.7 + .6 * near));
+        if (near > .6) spriteWhite(F, (st.vx + st.x) / 2 * W, (st.vy + st.y) / 2 * H, W * .04 * (near - .6) / .4, .5 * a); }
       const core = F.createRadialGradient(x, y, 0, x, y, W * .05 * (1 + st.f)); core.addColorStop(0, hsl(hue, 60, 95, .5 * a)); core.addColorStop(1, hsl(hue, 90, 70, 0)); F.fillStyle = core; F.fillRect(x - W * .06, y - W * .06, W * .12, W * .12);
       const n = Math.round(M.k("ghosts") * 6), cx = W / 2, cy = H / 2;
-      for (let i = 1; i <= n; i++) { const tt = -.3 - i * .35, gx = lerp(x, cx, tt) , gy = lerp(y, cy, tt), r = W * (.012 + .014 * ((i * 7) % 3)); const gg = F.createRadialGradient(gx, gy, r * .6, gx, gy, r); gg.addColorStop(0, hsl(hue + i * 40, 80, 70, .18 * a)); gg.addColorStop(1, hsl(hue + i * 40, 80, 70, 0)); F.fillStyle = gg; F.beginPath(); F.arc(gx, gy, r, 0, LTAU); F.fill(); } } },
+      for (let i = 1; i <= n; i++) { const tt = -.3 - i * .35, gx = lerp(x, cx, tt), gy = lerp(y, cy, tt), r = W * (.012 + .014 * ((i * 7) % 3)); const gg = F.createRadialGradient(gx, gy, r * .6, gx, gy, r); gg.addColorStop(0, hsl(hue + i * 40, 80, 70, .18 * a)); gg.addColorStop(1, hsl(hue + i * 40, 80, 70, 0)); F.fillStyle = gg; F.beginPath(); F.arc(gx, gy, r, 0, LTAU); F.fill(); } } },
 
-  { key: "prism", name: "Prism", mode: "lighter", desc: "A faint rainbow fringe along bright edges, like light through glass.",
-    shape: [{ key: "spread", label: "Spread", def: .35 }, { key: "angle", label: "Angle", def: .5 }, { key: "amount", label: "Amount", def: .5 }],
-    draw(F, B, st, M) { const W = B.width, H = B.height, bc = lensBrightCopy(B, st, .5), s = W * .012 * M.k("spread") * (1 + .6 * M.bass), an = M.k("angle") * LTAU, dx = Math.cos(an) * s, dy = Math.sin(an) * s, a = .35 * M.k("amount");
-      st.t1 ||= mk(1, 1); const tc = fit(st.t1, bc.width, bc.height);
-      [[-1, "#ff3030"], [0, "#30ff60"], [1, "#4060ff"]].forEach(([o, col]) => { tc.globalCompositeOperation = "source-over"; tc.clearRect(0, 0, tc.canvas.width, tc.canvas.height); tc.drawImage(bc, 0, 0); tc.globalCompositeOperation = "multiply"; tc.fillStyle = col; tc.fillRect(0, 0, tc.canvas.width, tc.canvas.height);
-        F.globalAlpha *= a; F.drawImage(st.t1, dx * o, dy * o, W, H); F.globalAlpha /= a; }); } },
+  { key: "prism", name: "Prism", mode: "lighter", desc: "The picture split into a rainbow fringe, like light through glass; wider with the bass.",
+    shape: [{ key: "spread", label: "Spread", def: .5 }, { key: "angle", label: "Angle", def: .5 }, { key: "amount", label: "Amount", def: .8 }, { key: "bands", label: "Bands", def: .5, min: 3, max: 7 }],
+    draw(F, B, st, M) { const W = B.width, H = B.height, s = W * .035 * M.k("spread") * (1 + .8 * M.bass), an = M.k("angle") * LTAU, dx = Math.cos(an) * s, dy = Math.sin(an) * s, nb = Math.round(lerp(3, 7, M.k("bands"))), a = .9 * M.k("amount") / Math.sqrt(nb);
+      st.t1 ||= mk(1, 1); const hw = W / 2, hh = H / 2, tc = fit(st.t1, hw, hh);
+      for (let i = 0; i < nb; i++) { const u = nb > 1 ? i / (nb - 1) : .5, o = u * 2 - 1, hue = u * 300; tc.globalCompositeOperation = "source-over"; tc.clearRect(0, 0, hw, hh); tc.drawImage(B, 0, 0, hw, hh); tc.globalCompositeOperation = "multiply"; tc.fillStyle = hsl(hue, 100, 50, 1); tc.fillRect(0, 0, hw, hh); tc.globalCompositeOperation = "destination-in"; tc.drawImage(B, 0, 0, hw, hh);
+        F.globalAlpha *= a; F.drawImage(st.t1, dx * o, dy * o, W, H); F.globalAlpha /= a; } } },
 
-  { key: "sparkle", name: "Sparkle", mode: "lighter", desc: "Small four-point glints that twinkle on the brightest pixels.",
-    shape: [{ key: "count", label: "Count", def: .4 }, { key: "size", label: "Size", def: .35 }, { key: "twinkle", label: "Twinkle speed", def: .5 }],
-    draw(F, B, st, M) { const W = B.width, H = B.height, pts = lensBright(lensSample(B, st, M, 2), 4 + Math.round(M.k("count") * 28)), sp = 2 + 8 * M.k("twinkle");
-      pts.forEach(([x, y, l], i) => { const ph = Math.sin(M.t * sp + i * 1.7 + x * 9) * .5 + .5, a = (.25 + .75 * ph) * l, r = W * (.004 + .02 * M.k("size")) * (.6 + ph) * (1 + .6 * M.kick); if (a < .05) return;
-        const px = x * W + (Math.sin(i * 3.1) * W * .006), py = y * H + Math.cos(i * 2.3) * H * .006; F.strokeStyle = `rgba(255,255,255,${a})`; F.lineWidth = Math.max(1, r * .12); F.lineCap = "round";
-        F.beginPath(); F.moveTo(px - r, py); F.lineTo(px + r, py); F.moveTo(px, py - r); F.lineTo(px, py + r); F.stroke();
-        F.lineWidth = Math.max(1, r * .06); F.beginPath(); F.moveTo(px - r * .4, py - r * .4); F.lineTo(px + r * .4, py + r * .4); F.moveTo(px + r * .4, py - r * .4); F.lineTo(px - r * .4, py + r * .4); F.stroke();
-        spriteWhite(F, px, py, r * .9, a * .5); }); } },
+  { key: "sparkle", name: "Sparkle", mode: "lighter", desc: "Small four-point glints that settle on the brightest spots and twinkle.",
+    shape: [{ key: "count", label: "Count", def: .4 }, { key: "size", label: "Size", def: .35 }, { key: "twinkle", label: "Twinkle speed", def: .3 }],
+    draw(F, B, st, M) { const W = B.width, H = B.height, n = 4 + Math.round(M.k("count") * 28), smp = lensSample(B, st, M, 6), pts = lensBright(smp, n);
+      // glints live on grid cells: a cell that stays bright keeps its glint, so the picture doesn't crackle with every refresh
+      st.gl ||= new Map(); st.fr = (st.fr || 0) + 1; if (st.fr % 6 === 1) { const live = new Set(); pts.forEach(([x, y, l]) => { const id = Math.round(x * 48) + ":" + Math.round(y * 30); live.add(id); const g2 = st.gl.get(id); if (g2) g2.l = l; else st.gl.set(id, { x, y, l, a: 0, ph: Math.random() * LTAU, sp: .6 + Math.random() * .8 }); }); st.gl.forEach((g2, id) => { if (!live.has(id)) g2.l = 0; }); }
+      const sp = .15 + 5 * M.k("twinkle"), sz = W * (.004 + .02 * M.k("size"));
+      st.gl.forEach((g2, id) => { g2.a = lerp(g2.a, g2.l > 0 ? 1 : 0, M.dt * 3); if (g2.a < .02 && g2.l <= 0) { st.gl.delete(id); return; } const tw = .55 + .45 * Math.sin(M.t * sp * g2.sp + g2.ph), a = g2.a * tw * (.4 + .6 * g2.l), r = sz * (.7 + .3 * tw) * (1 + .5 * M.kick), px = g2.x * W, py = g2.y * H;
+        F.strokeStyle = `rgba(255,255,255,${a})`; F.lineWidth = Math.max(1, r * .12); F.lineCap = "round"; F.beginPath(); F.moveTo(px - r, py); F.lineTo(px + r, py); F.moveTo(px, py - r); F.lineTo(px, py + r); F.stroke();
+        F.lineWidth = Math.max(1, r * .06); F.beginPath(); F.moveTo(px - r * .4, py - r * .4); F.lineTo(px + r * .4, py + r * .4); F.moveTo(px + r * .4, py - r * .4); F.lineTo(px - r * .4, py + r * .4); F.stroke(); spriteWhite(F, px, py, r * .9, a * .5); }); } },
 
   { key: "dust", name: "Dust", mode: "lighter", desc: "Slow-drifting motes catching light, most visible against the dark.",
     shape: [{ key: "count", label: "Count", def: .45 }, { key: "size", label: "Size", def: .3 }, { key: "drift", label: "Drift", def: .3 }],

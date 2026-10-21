@@ -181,7 +181,67 @@ const STAMP = { key: "stamp", name: "Stamp", fade: .35, init: () => ({ st: [], i
       g.lineWidth = fs * .06; g.strokeStyle = hsl(s.h, 90, 70, .7 * f); const tw2 = g.measureText(s.w).width; g.strokeRect(-tw2 / 2 - fs * .2, -fs * .62, tw2 + fs * .4, fs * 1.24); g.restore(); });
     st.st = st.st.filter(s => s.t < L("hold", .6, 2.5)); } };
 
+/* ---- Jack-o'-lantern (Oct 21, 2026; Kennedy picked directions 1 + 3): a carved face whose holes each hold a smaller lit
+   jack-o'-lantern, zooming forever into one of them (Droste), with a flickering candle throwing beams out through the carvings
+   and flame tongues licking out of the mouth on hits. Geometry lives in unit space (pumpkin radius 1); the zoom is the complex
+   map p -> q + a^-z (p - q), where a = r·e^(iθ) is the child placement and q its fixed point, so each loop lands exactly on the next level. */
+function jackHoles(teeth, menace) {
+  const m = menace, eyeL = [[-.7, -.44 + .1 * m], [-.13, -.16 + .1 * m], [-.48, -.02]].map(p => [p[0], p[1] - .02]), eyeR = eyeL.map(p => [-p[0], p[1]]).reverse(),
+    nose = [[0, -.02], [-.1, .17], [.1, .17]], mouth = [], N = teeth, x0 = -.76, x1 = .76, top = x => .3 - .2 * x * x - .08 * m * (1 - x * x), bot = x => .4 + .26 * (1 - x * x / .6);
+  for (let i = 0; i <= N * 2; i++) { const x = lerp(x0, x1, i / (N * 2)); mouth.push([x, top(x) + (i % 2 && i > 0 && i < N * 2 ? .13 + .04 * m : 0)]); }
+  for (let i = N * 2 - 1; i >= 1; i--) { const x = lerp(x0 + .08, x1 - .08, i / (N * 2)); mouth.push([x, Math.max(top(x) + .05, bot(x) - (i % 2 ? 0 : .12 + .04 * m))]); }
+  // anchor each child at the carving's roomiest point (largest inscribed circle, found on a grid), not its centroid, which can land on a tooth
+  const inside = (pts, x, y) => { let c = false; for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) { const [xi, yi] = pts[i], [xj, yj] = pts[j]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c; } return c; },
+    edge = (pts, x, y) => { let r = 9; for (let i = 0; i < pts.length; i++) { const [ax, ay] = pts[i], [bx, by] = pts[(i + 1) % pts.length], dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy || 1, u = clamp(((x - ax) * dx + (y - ay) * dy) / L2, 0, 1); r = Math.min(r, Math.hypot(x - ax - u * dx, y - ay - u * dy)); } return r; };
+  return [eyeL, eyeR, nose, mouth].map(pts => { let x0 = 9, x1 = -9, y0 = 9, y1 = -9; pts.forEach(([x, y]) => { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); });
+    let best = { cx: (x0 + x1) / 2, cy: (y0 + y1) / 2, r: 0 }; for (let i = 1; i < 28; i++) for (let j = 1; j < 18; j++) { const x = lerp(x0, x1, i / 28), y = lerp(y0, y1, j / 18); if (!inside(pts, x, y)) continue; const r = edge(pts, x, y) - Math.abs(x) * .02; if (r > best.r) best = { cx: x, cy: y, r }; }
+    return { pts, cx: best.cx, cy: best.cy, r: Math.max(.02, best.r) }; });
+}
+const JACK = { key: "jack", name: "Jack-o'-lantern", fade: .75, init: () => ({ z: 0, turn: 0, fl: [], sw: 0 }),
+  shape: [{ key: "size", label: "Size", def: .55, grp: "Face" }, { key: "teeth", label: "Teeth", min: 2, max: 9, def: .43, slide: true, fmt: i => String(i), grp: "Face" }, { key: "menace", label: "Menace", def: .7, grp: "Face" }, { key: "ribs", label: "Ribs", def: .5, grp: "Face" },
+    { key: "depth", label: "Depth", min: 1, max: 5, def: .75, slide: true, fmt: i => String(i), grp: "Inside the carvings" }, { key: "every", label: "Pumpkins in", min: 0, max: 1, def: 1, fmt: i => ["The zoom hole", "Every hole"][i], grp: "Inside the carvings" }, { key: "into", label: "Zoom into", min: 0, max: 3, def: 1, fmt: i => ["Mouth", "Left eye", "Right eye", "Take turns"][i], grp: "Inside the carvings" }, { key: "zoom", label: "Zoom speed", def: .35, grp: "Inside the carvings" }, { key: "kickzoom", label: "Zoom on kicks", def: .5, grp: "Inside the carvings" }, { key: "twist", label: "Twist", def: .5, grp: "Inside the carvings" }, { key: "fill", label: "Inner pumpkin size", def: .6, grp: "Inside the carvings" },
+    { key: "flicker", label: "Flicker", def: .6, grp: "Candle" }, { key: "beams", label: "Beam length", def: .5, grp: "Candle" }, { key: "sweep", label: "Beam sweep", def: .4, grp: "Candle" }, { key: "flame", label: "Flame", def: .5, grp: "Candle" }, { key: "warm", label: "Candle color shift", def: .1, grp: "Candle" }],
+  draw(E) { const { g, n, R, S, st, dt, t, L, I, k } = E; st.z ??= 0; st.turn ??= 0; st.fl ??= []; const hk = I("teeth") + "/" + k("menace").toFixed(3); if (st.hk !== hk) { st.hk = hk; st.holes = jackHoles(I("teeth"), k("menace")); } const holes = st.holes, depth = I("depth"), every = I("every") === 1, into = I("into"), loud = tLoud(R), hue = n.hue, chue = hue + k("warm") * 120 - 10;
+    const flick = lerp(1, .55 + .25 * Math.sin(t * 13.1) + .15 * Math.sin(t * 29.7 + 1) + .1 * Math.sin(t * 5.3) + .25 * R.kick, k("flicker")), unit = S * L("size", .1, .3) * (1 + .06 * R.kick);
+    // Droste zoom: which hole we fly into, and its child map a = r·e^(iθ), placed at the hole's center
+    const ti = into === 3 ? [0, 1, 3][st.turn % 3] : [3, 0, 1][into], th = holes[ti], ang = (k("twist") - .5) * 1.4, CH = L("fill", .9, 1.8), ar = th.r * CH;
+    st.z += dt * L("zoom", 0, .45) * (1 + 3 * k("kickzoom") * R.kick + loud); if (st.z >= 1) { st.z -= 1; if (into === 3) st.turn++; }
+    const z = st.z, A = [ar * Math.cos(ang), ar * Math.sin(ang)], cm = (p, q) => [p[0] * q[0] - p[1] * q[1], p[0] * q[1] + p[1] * q[0]], om = [1 - A[0], -A[1]], d2 = om[0] * om[0] + om[1] * om[1],
+      Q = cm([th.cx, th.cy], [om[0] / d2, -om[1] / d2]), wm = Math.pow(ar, -z), W = [wm * Math.cos(-ang * z), wm * Math.sin(-ang * z)], WQ = cm(W, Q);
+    const sweep = Math.sin(t * .7) * .25 * k("sweep") + Math.sin(t * 1.9) * .08 * k("sweep"), cand = [sweep, .18 + .03 * Math.sin(t * 7)];
+    const path = pts => { g.beginPath(); pts.forEach((p, i) => i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); g.closePath(); };
+    const ribsN = Math.round(lerp(3, 9, k("ribs")));
+    function level(i, sc, alpha, hot) { if (alpha <= .01 || sc < 3) return; const lw = 1 / sc;
+      // pumpkin body: a lobed outline, inner rib arcs, a stem
+      const out = []; for (let q = 0; q <= 120; q++) { const a = q / 120 * TAU, lobe = 1 - .07 * (1 - Math.abs(Math.cos(a * ribsN / 2))), wob = 1 + .03 * R.bass * Math.sin(a * 3 + t * 2 + i); out.push([Math.cos(a) * 1.15 * lobe * wob, Math.sin(a) * .95 * lobe * wob]); }
+      g.lineJoin = g.lineCap = "round";
+      g.lineWidth = 9 * lw; g.strokeStyle = hsl(hue, 95, 50, .18 * alpha); path(out); g.stroke(); g.lineWidth = 2.6 * lw; g.strokeStyle = hsl(hue, 100, 62, .95 * alpha); path(out); g.stroke();
+      g.lineWidth = 1.4 * lw; g.strokeStyle = hsl(hue, 90, 55, .4 * alpha); for (let j = 1; j <= Math.floor(ribsN / 2); j++) { const xr = 1.15 * j / (Math.floor(ribsN / 2) + 1); [-1, 1].forEach(s => { g.beginPath(); g.ellipse(0, 0, xr, .9, 0, s > 0 ? -1.25 : Math.PI + .1, s > 0 ? -.1 : Math.PI + 1.25); g.stroke(); }); }
+      g.lineWidth = 3 * lw; g.strokeStyle = hsl(hue + 70, 70, 50, .85 * alpha); g.beginPath(); g.moveTo(-.06, -.9); g.quadraticCurveTo(-.02, -1.12, .14, -1.2); g.moveTo(.06, -.9); g.quadraticCurveTo(.08, -1.06, .18, -1.12); g.stroke();
+      // beams through the carvings, only from the pumpkin that fills the screen
+      if (hot && k("beams") > .02) { const len = L("beams", .4, 4); g.save(); g.globalCompositeOperation = "lighter"; holes.forEach(h => { const ps = h.pts, far = ps.map(p => [p[0] + (p[0] - cand[0]) * len, p[1] + (p[1] - cand[1]) * len]);
+          for (let e = 0; e < ps.length; e++) { const a1 = ps[e], a2 = ps[(e + 1) % ps.length], b2 = far[(e + 1) % ps.length], b1 = far[e], gr = g.createLinearGradient(h.cx, h.cy, h.cx + (h.cx - cand[0]) * len, h.cy + (h.cy - cand[1]) * len);
+            gr.addColorStop(0, hsl(chue + 15, 100, 62, .16 * flick * alpha)); gr.addColorStop(1, hsl(chue, 100, 50, 0)); g.fillStyle = gr; g.beginPath(); g.moveTo(a1[0], a1[1]); g.lineTo(a2[0], a2[1]); g.lineTo(b2[0], b2[1]); g.lineTo(b1[0], b1[1]); g.closePath(); g.fill(); } }); g.restore(); }
+      // each carving: candlelight inside, a smaller lit pumpkin inside that, and so on
+      holes.forEach((h, hi) => { g.save(); path(h.pts); g.clip(); const fa = alpha * alpha;
+        const gr = g.createRadialGradient(cand[0], cand[1], 0, cand[0], cand[1], 1.1); gr.addColorStop(0, hsl(chue + 20, 100, 66, .5 * flick * fa)); gr.addColorStop(.6, hsl(chue, 100, 48, .22 * flick * fa)); gr.addColorStop(1, hsl(chue - 10, 100, 35, .08 * fa)); g.fillStyle = gr; g.fillRect(-1.3, -1.3, 2.6, 2.6); g.restore();
+        // the child pumpkin overfills its carving and is clipped to it; as the screen-filling parent fades out, that clip widens so the child arrives whole
+        const deep = hi === ti ? i < depth : every && i < Math.min(depth, 2);
+        if (deep) { const grow = hot && hi === ti ? 1 + 3 * (1 - alpha) : 1, ca = hi === ti ? A : [h.r * CH * Math.cos(ang), h.r * CH * Math.sin(ang)]; g.save(); path(h.pts.map(p => [h.cx + (p[0] - h.cx) * grow, h.cy + (p[1] - h.cy) * grow])); g.clip();
+          g.transform(ca[0], ca[1], -ca[1], ca[0], h.cx, h.cy); level(i + 1, sc * Math.hypot(ca[0], ca[1]), 1, false); g.restore(); }
+        g.lineWidth = 2 * lw; g.strokeStyle = hsl(chue + 25, 100, 72, .9 * alpha); path(h.pts); g.stroke(); });
+      // flame tongues licking out of the mouth on hits
+      if (hot) st.fl.forEach(f => { const a = Math.sin(clamp(f.life, 0, 1) * Math.PI), m = holes[3].pts, p = m[f.at % m.length]; g.lineWidth = 3 * lw * a; g.strokeStyle = hsl(chue + 30 * (1 - f.life), 100, 65, .9 * a); g.beginPath(); g.moveTo(p[0], p[1]);
+        for (let q = 1; q <= 12; q++) { const u = q / 12, y = p[1] - u * f.h * (1.2 - f.life), x = p[0] + Math.sin(u * 7 + t * 9 + f.ph) * .06 * u + f.dx * u; g.lineTo(x, y); } g.stroke(); });
+    }
+    if (E.beat && Math.random() < k("flame")) for (let q = 0; q < 1 + Math.round(3 * k("flame") * (loud + R.kick)); q++) st.fl.push({ at: Math.floor(Math.random() * 40), h: .3 + .6 * Math.random() * (.5 + loud), dx: (Math.random() - .5) * .3, ph: Math.random() * 9, life: 1 });
+    st.fl = st.fl.filter(f => (f.life -= dt * 1.4) > 0);
+    g.save(); g.translate(n.x, n.y); g.scale(unit, unit); g.transform(W[0], W[1], -W[1], W[0], Q[0] - WQ[0], Q[1] - WQ[1]);
+    const zf = Math.min(.6, Math.log(2) / -Math.log(ar)), a0 = z < zf ? 1 : Math.pow(1 - (z - zf) / (1 - zf), 1.5); level(0, unit * wm, a0, true);
+    g.restore(); sprite(g, chue, n.x, n.y + unit * .2, unit * 1.6, .18 * flick); } };
+
 NEW_TRAITS.push(
+  { form: JACK, char: "anchored", hue: 28, hy: .5, p: { roam: .02, size: .6, trails: .5 }, desc: "A carved, menacing jack-o'-lantern. Every carving holds a smaller lit one, and the view zooms forever into one of them while the candle throws beams through the holes and flames lick out of the grin on hits." },
   { form: MURMUR, char: "anchored", hue: 200, hy: .5, p: { roam: .02, size: .6, trails: .45 }, desc: "A few hundred birds flocking as one body, steering toward a wandering target. Hits can send the whole flock turning." },
   { form: EMBERS, char: "anchored", hue: 25, hy: .5, p: { roam: .02, size: .6, trails: .4 }, desc: "Sparks rising from the bottom edge, twinkling and drifting on the wind. Hits throw a handful more into the air." },
   { form: CONFETTI, char: "anchored", hue: 320, hy: .5, p: { roam: .02, size: .6, trails: .4 }, desc: "Bursts of flat shapes tumbling on loud hits (or every kick, or a steady rain), in mixed colors." },

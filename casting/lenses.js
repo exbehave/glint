@@ -7,16 +7,16 @@ const LENS_SAMPLE = 48; // width of the tiny luminance sample some lenses read
 function lensSample(B, st, M, every = 3) {
   st.sn = (st.sn || 0) + 1; if (st.smp && st.sn % every) return st.smp;
   const w = LENS_SAMPLE, h = Math.max(4, Math.round(w * B.height / B.width)); st.sc ||= mk(w, h); const c = fit(st.sc, w, h);
-  c.globalCompositeOperation = "source-over"; c.drawImage(B, 0, 0, w, h);
+  c.globalCompositeOperation = "source-over"; c.clearRect(0, 0, w, h); c.drawImage(B, 0, 0, w, h);
   try { st.smp = { w, h, d: c.getImageData(0, 0, w, h).data }; } catch (_) { st.smp = null; }
   return st.smp;
 }
 function lensBright(smp, n) { // the n brightest cells, as [x, y, lum] in 0..1 units
   if (!smp) return []; const out = []; const { w, h, d } = smp;
-  for (let i = 0; i < w * h; i++) { const l = (d[i * 4] * .3 + d[i * 4 + 1] * .59 + d[i * 4 + 2] * .11) / 255; if (l < .18) continue; out.push([(i % w + .5) / w, (Math.floor(i / w) + .5) / h, l]); }
+  for (let i = 0; i < w * h; i++) { const l = (d[i * 4] * .3 + d[i * 4 + 1] * .59 + d[i * 4 + 2] * .11) / 255 * d[i * 4 + 3] / 255; if (l < .18) continue; out.push([(i % w + .5) / w, (Math.floor(i / w) + .5) / h, l]); }
   out.sort((a, b) => b[2] - a[2]); return out.slice(0, n);
 }
-function lensCenter(smp) { if (!smp) return [.5, .5, 0]; let sx = 0, sy = 0, s = 0; const { w, h, d } = smp; for (let i = 0; i < w * h; i++) { const l = (d[i * 4] + d[i * 4 + 1] + d[i * 4 + 2]) / 765; sx += (i % w + .5) / w * l; sy += (Math.floor(i / w) + .5) / h * l; s += l; } return s > .01 ? [sx / s, sy / s, s / (w * h)] : [.5, .5, 0]; }
+function lensCenter(smp) { if (!smp) return [.5, .5, 0]; let sx = 0, sy = 0, s = 0; const { w, h, d } = smp; for (let i = 0; i < w * h; i++) { const l = (d[i * 4] + d[i * 4 + 1] + d[i * 4 + 2]) / 765 * d[i * 4 + 3] / 255; sx += (i % w + .5) / w * l; sy += (Math.floor(i / w) + .5) / h * l; s += l; } return s > .01 ? [sx / s, sy / s, s / (w * h)] : [.5, .5, 0]; }
 // bright parts only: multiplying the picture by itself twice pushes the dim parts toward black
 function lensBrightCopy(B, st, scale) { st.bc ||= mk(1, 1); const w = B.width * scale, h = B.height * scale, c = fit(st.bc, w, h); c.globalCompositeOperation = "source-over"; c.globalAlpha = 1; c.clearRect(0, 0, w, h); c.drawImage(B, 0, 0, w, h); c.globalCompositeOperation = "multiply"; c.drawImage(B, 0, 0, w, h); c.drawImage(B, 0, 0, w, h); c.globalCompositeOperation = "source-over"; return st.bc; }
 function lensNoise(st, w, h, key = "nz") { const c = st[key] ||= mk(w, h); if (c.width !== w || c.height !== h) { c.width = w; c.height = h; } const g = c.getContext("2d"), id = g.createImageData(w, h), d = id.data; for (let i = 0; i < d.length; i += 4) { d[i] = d[i + 1] = d[i + 2] = Math.random() * 255; d[i + 3] = 255; } g.putImageData(id, 0, 0); return c; }
@@ -91,7 +91,7 @@ const LENSES = [
 
   { key: "diffusion", name: "Soft focus", mode: "screen", desc: "A diffusion layer, like a stocking over the lens.",
     shape: [{ key: "soft", label: "Softness", def: .5 }, { key: "amount", label: "Amount", def: .5 }],
-    draw(F, B, st, M) { const W = B.width, H = B.height, s = 1 / (3 + 9 * M.k("soft")); st.a ||= mk(1, 1); const c = fit(st.a, W * s, H * s); c.globalCompositeOperation = "source-over"; c.drawImage(B, 0, 0, W * s, H * s);
+    draw(F, B, st, M) { const W = B.width, H = B.height, s = 1 / (3 + 9 * M.k("soft")); st.a ||= mk(1, 1); const c = fit(st.a, W * s, H * s); c.globalCompositeOperation = "source-over"; c.clearRect(0, 0, c.canvas.width, c.canvas.height); c.drawImage(B, 0, 0, W * s, H * s);
       F.imageSmoothingEnabled = true; const a = .3 + .6 * M.k("amount"); F.globalAlpha *= a; F.drawImage(st.a, 0, 0, W, H); F.globalAlpha /= a; } },
 
   { key: "starlight", name: "Starlight", mode: "lighter", desc: "A few slow pinpoint stars behind everything.",

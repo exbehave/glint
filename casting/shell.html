@@ -170,11 +170,11 @@ textarea { width: 100%; min-height: 110px; resize: vertical; background: var(--w
           <button data-v="rework" aria-pressed="false"><i></i>Rework</button>
           <button data-v="cut" aria-pressed="false"><i></i>Cut</button>
         </div>
-        <label for="notes" class="meta">For a rework: what to change (saves as you type)</label>
+        <label for="notes" class="meta">For a rework: what to change</label>
         <textarea id="notes" placeholder="e.g. Love the taper, but it reads as a snake at high energy. Try a softer glow and slower whip on the beat."></textarea>
         <div class="row">
           <span class="meta" id="saved-at"></span>
-          <button class="btn" id="load-saved" hidden>Load saved settings</button>
+          <div class="row"><button class="btn" id="load-saved" hidden>Load saved settings</button><button class="primary" id="save-note">Save note</button></div>
         </div>
         <div class="meta">Hire sends it to the Studio with the sliders as they are now (it lands there on the next build). Cut removes it from the bench. Untouched ones stay here for later. <span class="status" id="store-status"></span></div>
       </div>

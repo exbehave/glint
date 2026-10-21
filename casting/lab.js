@@ -300,7 +300,7 @@ function renderControls() {
 function renderReview() {
   const it = cur(), rv = reviews[docId(it)] || {};
   document.querySelectorAll("#verdict button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === rv.verdict || (b.dataset.v === "hire" && rv.verdict === "keep")));
-  $("#notes").value = rv.notes || "";
+  if (document.activeElement !== $("#notes")) $("#notes").value = rv.notes || "";
   $("#review-for").textContent = it.name;
   $("#saved-at").textContent = rv.updatedAt ? "Saved " + new Date(rv.updatedAt).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) + (rv.settings ? " with these settings" : "") : (db ? "Tap a verdict to save it with the current settings" : "");
   $("#load-saved").hidden = !rv.settings;
@@ -365,13 +365,14 @@ document.querySelectorAll("#verdict button").forEach(b => b.addEventListener("cl
   pendingVerdict = b.dataset.v; document.querySelectorAll("#verdict button").forEach(x => x.setAttribute("aria-pressed", x === b));
   if (b.dataset.v === "rework") $("#notes").focus(); saveReview();
 }));
-let notesT = 0; $("#notes").addEventListener("input", () => { dirty = true; $("#saved-at").textContent = "Saving…"; clearTimeout(notesT); notesT = setTimeout(saveReview, 900); });
+$("#notes").addEventListener("input", () => { dirty = true; $("#saved-at").textContent = "Unsaved note"; });
+$("#save-note").addEventListener("click", () => saveReview());
 function snapshotSettings() { const t = tw(); if (cur().kind === "lens") return JSON.parse(JSON.stringify({ lens: cur().key, scene: t.scene, opacity: Math.round(t.op * 100), blend: t.mode, settings: t.lk, music: { source: au.mode, ...lab.music } })); return JSON.parse(JSON.stringify({ form: t.form, char: t.char, hue: Math.round(t.hue), shape: t.shape, motion: t.p, partner: lab.partner, music: { source: au.mode, ...lab.music }, path: t.char === "custom" ? { a: t.o1, b: t.o2 } : undefined, performance: MOCAP_DEF[t.char] ? t.mc : undefined })); }
 // one tap is the whole review: the verdict, the note so far, and every slider position go to the store together
 async function saveReview() {
   if (!db) return; const it = cur(), id = docId(it), prev = reviews[id] || {};
   const body = { kind: it.kind, key: it.key, name: it.name, verdict: pendingVerdict ?? prev.verdict ?? null, notes: $("#notes").value.trim(), settings: snapshotSettings(), updatedAt: new Date().toISOString() };
-  try { await db.collection("reviews").doc(id).set(body); reviews[id] = body; dirty = false; pendingVerdict = null; renderReview(); renderStrip(); }
+  try { await db.collection("reviews").doc(id).set(body); reviews[id] = body; dirty = false; pendingVerdict = null; renderReview(); renderStrip(); $("#saved-at").textContent = "Saved"; }
   catch (e) { $("#saved-at").textContent = e.code === "invalid_argument" ? "Only you can save notes here." : "Didn't save (" + e.code + "). Try again."; }
 }
 $("#load-saved").addEventListener("click", () => {

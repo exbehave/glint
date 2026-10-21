@@ -32,19 +32,19 @@ const TRACER = { key: "tracer", name: "Plain trail", fade: 1, init: () => ({ h: 
 const formOf = key => key === "tracer" ? TRACER : FORM[key];
 
 /* ---------- state ---------- */
-const lab = { mode: "reworks", idx: { reworks: 0, forms: 0, chars: 0, lenses: 0 }, partner: false, music: { reaction: 1, punch: 1, decay: 1 } };
+const lab = { mode: "reworks", idx: { reworks: 0, forms: 0, chars: 0, lenses: 0, traits: 0 }, partner: false, music: { reaction: 1, punch: 1, decay: 1 } };
 const LENS_SCENES = ["cheshire", "lips", "storm", "graffiti", "synapse", "firework", "tornado2", "vine2"]; // reworks to look at through a lens
 const base = mk(1, 1), baseX = base.getContext("2d"); // the composed picture, before any lens
 const tweaks = {};     // per item, kept while you move around the list
 const reviews = {};    // saved feedback, from the store
-const itemsFor = m => m === "lenses" ? LENSES.map(l => ({ kind: "lens", key: l.key, name: l.name, desc: l.desc, l })) : m === "reworks" ? REWORKS.map(r => ({ kind: "rework", key: r.form.key, name: r.form.name, desc: r.desc, from: r.from, r })) : m === "forms" ? FORMS.map(f => ({ kind: "form", key: f.key, name: f.name })) : CHARS.map(c => ({ kind: "char", key: c.key, name: c.name, desc: c.desc }));
+const itemsFor = m => m === "traits" ? NEW_TRAITS.map(r => ({ kind: "trait", key: r.form.key, name: r.form.name, desc: r.desc, r })) : m === "lenses" ? LENSES.map(l => ({ kind: "lens", key: l.key, name: l.name, desc: l.desc, l })) : m === "reworks" ? REWORKS.map(r => ({ kind: "rework", key: r.form.key, name: r.form.name, desc: r.desc, from: r.from, r })) : m === "forms" ? FORMS.map(f => ({ kind: "form", key: f.key, name: f.name })) : CHARS.map(c => ({ kind: "char", key: c.key, name: c.name, desc: c.desc }));
 const cur = () => itemsFor(lab.mode)[lab.idx[lab.mode]];
 const docId = it => it.kind + "-" + it.key;
 
 function reworkTweak(r) { return { form: r.form.key, char: r.char, hue: r.hue, hy: r.hy, shape: {}, p: Object.assign({}, PDEF, r.p), o1: { wave: "sine", rate: .6, depth: .16 }, o2: { on: true, wave: "sine", rate: .9, depth: .14, phase: .25 } }; }
 function freshTweak(it) {
   if (it.kind === "lens") return { scene: "cheshire", op: .75, mode: it.l.mode, lk: {} };
-  if (it.kind === "rework") { const r = it.r; return { form: r.form.key, char: r.char, hue: r.hue, hy: r.hy, shape: {}, p: Object.assign({}, PDEF, r.p), o1: { wave: "sine", rate: .6, depth: .16 }, o2: { on: true, wave: "sine", rate: .9, depth: .14, phase: .25 } }; }
+  if (it.kind === "rework" || it.kind === "trait") { const r = it.r; return { form: r.form.key, char: r.char, hue: r.hue, hy: r.hy, shape: {}, p: Object.assign({}, PDEF, r.p), o1: { wave: "sine", rate: .6, depth: .16 }, o2: { on: true, wave: "sine", rate: .9, depth: .14, phase: .25 } }; }
   if (it.kind === "form") { const f = FORM[it.key]; return { form: it.key, char: f.keepChar || f.char, hue: f.keepHue ?? 300, shape: {}, p: Object.assign({}, PDEF, COMMON, f.def || {}, f.keepP || {}), o1: { wave: "sine", rate: .6, depth: .16 }, o2: { on: true, wave: "sine", rate: .9, depth: .14, phase: .25 } }; }
   return { form: "tracer", char: it.key, hue: 190, shape: MOCAP_DEF[it.key] ? { length: .85 } : {}, mc: MOCAP_DEF[it.key] ? Object.assign({}, MOCAP_DEF[it.key]) : undefined, p: Object.assign({}, PDEF, COMMON, MOCAP_DEF[it.key] ? { roam: .4 } : {}), o1: { wave: "sine", rate: .6, depth: .16 }, o2: { on: true, wave: "sine", rate: .9, depth: .14, phase: .25 } };
 }
@@ -229,7 +229,7 @@ function renderHead() {
   const it = cur(), list = itemsFor(lab.mode), t = tw();
   $("#item-name").textContent = it.name;
   $("#item-count").textContent = `${lab.idx[lab.mode] + 1} / ${list.length}`;
-  $("#item-desc").textContent = it.kind === "lens" ? it.desc : it.kind === "rework" ? it.desc + " From your notes on " + it.from + "." : it.kind === "char" ? it.desc : `Moves as ${CHAR[t.char].name}${t.char === FORM[it.key].char ? " (its default)" : ""}.`;
+  $("#item-desc").textContent = it.kind === "lens" || it.kind === "trait" ? it.desc : it.kind === "rework" ? it.desc + " From your notes on " + it.from + "." : it.kind === "char" ? it.desc : `Moves as ${CHAR[t.char].name}${t.char === FORM[it.key].char ? " (its default)" : ""}.`;
 }
 function mocapSection(box, t) {
   if (!MOCAP_DEF[t.char]) return;
@@ -259,17 +259,17 @@ function renderControls() {
     $("#hue-swatch").style.background = "transparent";
     return;
   }
-  if (it.kind === "form" || it.kind === "rework") {
-    const [s, c] = section("Shape", it.kind === "rework" ? "this take" : "unique to this form");
+  if (it.kind === "form" || it.kind === "rework" || it.kind === "trait") {
+    const [s, c] = section("Shape", it.kind === "rework" ? "this take" : it.kind === "trait" ? "its own settings" : "unique to this form");
     (f.shape || []).forEach(sh => { if (sh.text) { const row = document.createElement("div"); row.className = "ctl"; row.innerHTML = `<div class="ctl-top"><label for="sh-${sh.key}">${esc(sh.label)}</label></div><textarea id="sh-${sh.key}" class="words" rows="2"></textarea>`; const ta = row.querySelector("textarea"); ta.value = t.shape[sh.key] ?? sh.def; ta.addEventListener("input", () => { t.shape[sh.key] = ta.value; }); c.append(row); return; }
       const mn = sh.min ?? 0, mx = sh.max ?? 1, steps = mn === 0 && mx === 1 ? 0 : mx - mn;
       const v0 = t.shape[sh.key] ?? sh.def ?? .5;
       const fmt = v => { if (sh.cfmt) return sh.cfmt(v); if (!steps) return pct(v); const n = Math.round(lerp(mn, mx, v)); return sh.fmt ? sh.fmt(n) : String(n); };
       c.append(slider("sh-" + sh.key, sh.label, "", 0, 1, steps ? 1 / steps : .01, v0, fmt, v => { t.shape[sh.key] = v; })); });
     box.append(s);
-    if (it.kind === "rework" && ["graffiti", "storm", "cheshire", "swim", "synapse", "lips", "firework"].includes(it.key)) { /* these place their own parts on the canvas */ } else {
+    if (it.kind === "trait" || (it.kind === "rework" && ["graffiti", "storm", "cheshire", "swim", "synapse", "lips", "firework"].includes(it.key))) { /* these place their own parts on the canvas */ } else {
     const [s2, c2] = section("Movement", "try it with other characters");
-    c2.append(selectRow("mv-char", "Character", CHARS.filter(ch => ch.key !== "custom").map(ch => [ch.key, ch.name + (ch.key === (it.kind === "rework" ? it.r.char : FORM[it.key].char) ? " · default" : "")]), t.char, v => { t.char = v; restart(); renderHead(); renderControls(); }));
+    c2.append(selectRow("mv-char", "Character", CHARS.filter(ch => ch.key !== "custom").map(ch => [ch.key, ch.name + (ch.key === (it.kind === "rework" || it.kind === "trait" ? it.r.char : FORM[it.key].char) ? " · default" : "")]), t.char, v => { t.char = v; restart(); renderHead(); renderControls(); }));
     box.append(s2);
     mocapSection(box, t); }
   } else {
@@ -304,7 +304,7 @@ function renderReview() {
   $("#load-saved").hidden = !rv.settings;
 }
 function renderAll() {
-  $("#tab-lenses").setAttribute("aria-pressed", lab.mode === "lenses"); $("#tab-reworks").setAttribute("aria-pressed", lab.mode === "reworks"); $("#tab-forms").setAttribute("aria-pressed", lab.mode === "forms"); $("#tab-chars").setAttribute("aria-pressed", lab.mode === "chars");
+  $("#tab-lenses").setAttribute("aria-pressed", lab.mode === "lenses"); $("#tab-traits").setAttribute("aria-pressed", lab.mode === "traits"); $("#tab-reworks").setAttribute("aria-pressed", lab.mode === "reworks"); $("#tab-forms").setAttribute("aria-pressed", lab.mode === "forms"); $("#tab-chars").setAttribute("aria-pressed", lab.mode === "chars");
   const it = cur();
   $("#partner").checked = lab.partner;
   $("#partner-note").textContent = it.kind === "char" && NEEDS_PARTNER.has(it.key) ? "This character reacts to other nodes, so a partner is on." : "A dim second node to react to.";
@@ -325,6 +325,7 @@ $("#tab-forms").addEventListener("click", () => setMode("forms"));
 $("#tab-reworks").addEventListener("click", () => setMode("reworks"));
 $("#tab-chars").addEventListener("click", () => setMode("chars"));
 $("#tab-lenses").addEventListener("click", () => setMode("lenses"));
+$("#tab-traits").addEventListener("click", () => setMode("traits"));
 $("#prev").addEventListener("click", () => go(lab.idx[lab.mode] - 1));
 $("#next").addEventListener("click", () => go(lab.idx[lab.mode] + 1));
 $("#reset").addEventListener("click", () => { delete tweaks[docId(cur())]; restart(); renderAll(); });
@@ -387,7 +388,7 @@ $("#save-general").addEventListener("click", async () => {
 });
 function remember() { dirty = false; pendingVerdict = null; try { localStorage.setItem("casting.pos2", JSON.stringify({ mode: lab.mode, idx: lab.idx })); } catch (_) {} }
 
-try { const pos = JSON.parse(localStorage.getItem("casting.pos2") || "null"); if (pos && pos.idx) { lab.mode = ["reworks", "forms", "chars", "lenses"].includes(pos.mode) ? pos.mode : "reworks"; lab.idx.lenses = clamp(pos.idx.lenses | 0, 0, LENSES.length - 1); lab.idx.reworks = clamp(pos.idx.reworks | 0, 0, REWORKS.length - 1); lab.idx.forms = clamp(pos.idx.forms | 0, 0, FORMS.length - 1); lab.idx.chars = clamp(pos.idx.chars | 0, 0, CHARS.length - 1); } } catch (_) {}
+try { const pos = JSON.parse(localStorage.getItem("casting.pos2") || "null"); if (pos && pos.idx) { lab.mode = ["reworks", "forms", "chars", "lenses", "traits"].includes(pos.mode) ? pos.mode : "reworks"; lab.idx.lenses = clamp(pos.idx.lenses | 0, 0, LENSES.length - 1); lab.idx.traits = clamp(pos.idx.traits | 0, 0, NEW_TRAITS.length - 1); lab.idx.reworks = clamp(pos.idx.reworks | 0, 0, REWORKS.length - 1); lab.idx.forms = clamp(pos.idx.forms | 0, 0, FORMS.length - 1); lab.idx.chars = clamp(pos.idx.chars | 0, 0, CHARS.length - 1); } } catch (_) {}
 syncMusicUI("Silence · idle motion only");
 go(lab.idx[lab.mode]);
 resize(); requestAnimationFrame(frame);

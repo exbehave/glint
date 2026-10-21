@@ -356,7 +356,8 @@ const swatchCSS = stops => stops.length > 1 ? `linear-gradient(90deg, ${stops.ma
 function layerDot(l) { const c = l.color; if (!c || c.mode === "one") return `hsl(${l.hue} 95% 60%)`; if (c.mode === "rainbow") return "conic-gradient(hsl(0 95% 60%), hsl(60 95% 60%), hsl(120 95% 60%), hsl(180 95% 60%), hsl(240 95% 60%), hsl(300 95% 60%), hsl(360 95% 60%))"; return swatchCSS(c.stops); }
 /* ---------- engine ---------- */
 const RT = new Map();
-function nodeOf(l) { return { id: l.id, form: l.form, char: l.char, hx: l.hx ?? .5, hy: l.hy ?? .52, dir: -Math.PI / 2, hue: hueNow(l), level: l.level, listen: "mix", seed: l.seed, shape: l.shape, links: l.links || FORM[l.form].links || [], p: l.p, auto: l.auto, o1: { wave: "sine", rate: .6, depth: .16 }, o2: { on: true, wave: "sine", rate: .9, depth: .14, phase: .25 } }; }
+function S0Px() { return Math.min(Bc.width, Bc.height); }
+function nodeOf(l) { return { id: l.id, form: l.form, char: l.char, hx: l.hx ?? .5, hy: l.hy ?? .52, focus: l.focus ?? .5, dir: -Math.PI / 2, hue: hueNow(l), level: l.level, listen: "mix", seed: l.seed, shape: l.shape, links: l.links || FORM[l.form].links || [], p: l.p, auto: l.auto, o1: { wave: "sine", rate: .6, depth: .16 }, o2: { on: true, wave: "sine", rate: .9, depth: .14, phase: .25 } }; }
 /* ---------- automation: a slider that moves itself over time ----------
    l.auto[key] = { pat, sync, beats, secs, lo, hi } where key is "sh.<shape key>", "p.<motion key>" or "level".
    pat: sine (smooth back and forth) · tri (straight back and forth) · square (snap between the two) · sawup (rise, jump back) ·
@@ -417,7 +418,7 @@ function frame(now) {
     const au2 = node.auto || {}, av = rt.av = {}; for (const key in au2) av[key] = autoStep(rt, key, au2[key], dt, node.seed);
     if (av.hx != null) node.hx = av.hx; if (av.hy != null) node.hy = av.hy;
     const p = {}; for (const k in node.p) { const base = av["p." + k] ?? node.p[k]; p[k] = k === "magnetism" ? clamp(base + (bias[k] || 0), -1, 1) : clamp(base + (bias[k] || 0), 0, 1); }
-    rt.lv = av.level ?? node.level;
+    rt.lv = av.level ?? node.level; rt.fo = av.focus ?? node.focus;
     const kb = FORM[node.form].kickBoost; if (kb) { const kk = clamp(V.kick * r * m.punch, 0, 1); kb.forEach(key => { p[key] += (1 - p[key]) * kk; }); }
     rt.p = p;
     const R = { kick: V.kick * r * m.punch * 1.4 * (.5 + p.energy), bass: V.bass * r, mid: V.mid * r, treble: V.treble * r, rms: V.rms * r, hat: V.hat * r, raw: V.active ? V.raw || 0 : null, idle, breath };
@@ -449,7 +450,9 @@ function frame(now) {
   });
   Bx.setTransform(1, 0, 0, 1, 0, 0); Bx.globalAlpha = 1; Bx.globalCompositeOperation = "source-over"; Bx.clearRect(0, 0, Bc.width, Bc.height);
   Bx.globalCompositeOperation = "lighter";
-  all.forEach(({ node, rt }) => { Bx.globalAlpha = rt.lv ?? node.level; Bx.drawImage(rt.layer, 0, 0); });
+  // Focus (Oct 21, 2026): .5 = as drawn. Softer blurs the layer; crisper raises contrast so dim glow falls away and lines read harder (2D canvas can't truly sharpen).
+  all.forEach(({ node, rt }) => { Bx.globalAlpha = rt.lv ?? node.level; const fo = rt.fo ?? .5; Bx.filter = fo < .48 ? `blur(${((.5 - fo) * 2 * S0Px() * .012).toFixed(1)}px)` : fo > .52 ? `contrast(${(1 + (fo - .5) * 2 * 1.6).toFixed(2)}) brightness(${(1 + (fo - .5) * .4).toFixed(2)})` : "none"; Bx.drawImage(rt.layer, 0, 0); });
+  Bx.filter = "none";
   if (shared.lava.length) drawLava(shared.lava);
   Bx.globalAlpha = 1;
   F.setTransform(1, 0, 0, 1, 0, 0); F.globalCompositeOperation = "source-over"; F.globalAlpha = 1; F.clearRect(0, 0, cv.width, cv.height); F.drawImage(Bc, 0, 0);
@@ -525,6 +528,7 @@ function renderLayer() {
   box.append(chips);
   renderColor(box, l);
   box.append(slider("l-level", "Opacity", "", 0, 1, .01, l.level, pct, v => { l.level = v; }, { l, key: "level" }));
+  box.append(slider("l-focus", "Focus", "", 0, 1, .01, l.focus ?? .5, v => v < .48 ? `Softer ${Math.round((.5 - v) * 200)}` : v > .52 ? `Crisper ${Math.round((v - .5) * 200)}` : "As drawn", v => { l.focus = v; }, { l, key: "focus" }));
   // the visual's own controls
   // a visual can split its controls into named groups (sh.grp); open/closed state survives re-renders
   const f = FORM[l.form], groups = new Map(), items = f.shape || [];
@@ -582,7 +586,7 @@ function renderMoods() {
     if (s.on) { ctl.append(slider("mo-" + m.key, m.name, "", 0, 1, .01, s.op, pct, v => { s.op = v; }));
       const sel2 = document.createElement("select"); sel2.className = "sel"; sel2.setAttribute("aria-label", m.name + " blend");
       sel2.innerHTML = BLENDS.map(([k, n]) => `<option value="${k}"${k === s.mode ? " selected" : ""}>${n}</option>`).join(""); sel2.addEventListener("change", e => { s.mode = e.target.value; save(); }); ctl.append(sel2);
-      (m.shape || []).forEach(sh => { s.k ||= {}; const mn = sh.min ?? 0, mx = sh.max ?? 1, steps = mn === 0 && mx === 1 && !sh.fmt ? 0 : mx - mn, v0 = s.k[sh.key] ?? sh.def ?? .5;
+      (m.shape || []).forEach(sh => { s.k ||= {}; if (sh.when && !sh.when(key => { const it = m.shape.find(x => x.key === key) || {}; return Math.round(lerp(it.min ?? 0, it.max ?? 1, s.k[key] ?? it.def ?? .5)); })) return; const mn = sh.min ?? 0, mx = sh.max ?? 1, steps = mn === 0 && mx === 1 && !sh.fmt ? 0 : mx - mn, v0 = s.k[sh.key] ?? sh.def ?? .5;
         if (sh.fmt && !sh.slide) { const row = document.createElement("div"); row.className = "ctl"; row.innerHTML = `<div class="ctl-top"><label>${esc(sh.label)}</label></div><div class="chips seg"></div>`; const cur = Math.round(lerp(mn, mx, v0)), bx = row.querySelector(".chips");
           for (let i = mn; i <= mx; i++) { const c2 = document.createElement("button"); c2.className = "chip"; c2.type = "button"; c2.textContent = sh.fmt(i); c2.setAttribute("aria-pressed", i === cur); c2.addEventListener("click", () => { s.k[sh.key] = steps ? (i - mn) / steps : 0; save(); renderMoods(); }); bx.append(c2); } ctl.append(row); return; }
         const fmt = v => { if (!steps) return pct(v); const n2 = Math.round(lerp(mn, mx, v)); return sh.fmt ? sh.fmt(n2) : String(n2); };

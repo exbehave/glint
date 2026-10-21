@@ -141,9 +141,12 @@ const LENSES = [
       F.imageSmoothingEnabled = M.k("size") < .3; F.globalAlpha *= .2 + .6 * M.k("amount"); F.drawImage(st.nz, 0, 0, W, H); F.globalAlpha /= .2 + .6 * M.k("amount"); } },
 
   { key: "veil", name: "Aurora veil", mode: "screen", desc: "A slow shimmering curtain of color along the top edge.",
-    shape: [{ key: "height", label: "Height", def: .35 }, { key: "shimmer", label: "Shimmer", def: .5 }, { key: "hue", label: "Hue", def: .45 }],
-    draw(F, B, st, M) { const W = B.width, H = B.height, n = 40, sw = W / n, h0 = H * (.1 + .45 * M.k("height")), hue = M.k("hue") * 360 + Math.sin(M.t * .2) * 25, sh = M.k("shimmer");
-      for (let i = 0; i < n; i++) { const u = i / n, hh = h0 * (.6 + .4 * Math.sin(u * 7 + M.t * (.6 + 2 * sh)) * Math.sin(u * 3.3 - M.t * .4)) * (1 + .3 * M.loud); const g = F.createLinearGradient(0, 0, 0, hh); g.addColorStop(0, hsl(hue + u * 60, 85, 60, .8)); g.addColorStop(.5, hsl(hue + 40 + u * 60, 85, 55, .35)); g.addColorStop(1, hsl(hue + 80, 85, 50, 0));
+    shape: [{ key: "height", label: "Height", def: .35 }, { key: "shimmer", label: "Shimmer", def: .5 }, { key: "cmode", label: "Color", min: 0, max: 2, def: 0, fmt: i => ["One color", "Rotate", "On the beat"][i] }, { key: "hue", label: "Hue", def: .45, when: pick => pick("cmode") === 0 }, { key: "rot", label: "Rotate speed", def: .3, when: pick => pick("cmode") !== 0 }, { key: "spread", label: "Color spread", def: .4 }],
+    draw(F, B, st, M) { const W = B.width, H = B.height, n = 40, sw = W / n, h0 = H * (.1 + .45 * M.k("height")), sh = M.k("shimmer"), cm = Math.round(M.k("cmode") * 2), sp = 2.5 * M.k("spread");
+      // color: a fixed hue with a gentle sway, a steady hue rotation, or a jump around the wheel on each kick (eased)
+      st.rh = (st.rh ?? M.k("hue") * 360) + (cm === 1 ? M.dt * (4 + 116 * M.k("rot")) : 0); if (cm === 2 && M.hit) st.tgt = (st.tgt ?? st.rh) + 30 + 120 * M.k("rot"); if (cm === 2) st.rh += ((st.tgt ?? st.rh) - st.rh) * Math.min(1, M.dt * 4);
+      const hue = cm === 0 ? M.k("hue") * 360 + Math.sin(M.t * .2) * 25 : st.rh;
+      for (let i = 0; i < n; i++) { const u = i / n, hh = h0 * (.6 + .4 * Math.sin(u * 7 + M.t * (.6 + 2 * sh)) * Math.sin(u * 3.3 - M.t * .4)) * (1 + .3 * M.loud); const g = F.createLinearGradient(0, 0, 0, hh); g.addColorStop(0, hsl(hue + u * 60 * sp, 85, 60, .8)); g.addColorStop(.5, hsl(hue + (40 + u * 60) * sp, 85, 55, .35)); g.addColorStop(1, hsl(hue + 80 * sp, 85, 50, 0));
         F.fillStyle = g; F.fillRect(i * sw, 0, sw + 1, hh); } } },
 
   { key: "halo", name: "Halo", mode: "lighter", desc: "A soft ring of light around wherever the picture's weight is.",

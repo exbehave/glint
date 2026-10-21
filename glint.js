@@ -506,6 +506,7 @@ function renderLayers() {
   const nav = $("#layers"); nav.innerHTML = "";
   state.layers.forEach((l, i) => { const b = document.createElement("button"); b.className = "layer-tab" + (l.on ? "" : " off"); b.setAttribute("aria-pressed", i === sel);
     b.style.setProperty("--c", layerDot(l)); b.innerHTML = `<i></i>${esc(FORM[l.form].name)}`; b.addEventListener("click", () => { sel = i; renderAll(); }); nav.append(b); });
+  if (state.layers.length > 1) { const hint = document.createElement("span"); hint.className = "layers-hint"; hint.textContent = "back → front"; nav.prepend(hint); }
   if (state.layers.length < 3) { const add = document.createElement("button"); add.className = "layer-tab add-tab"; add.textContent = "+ Add a trait";
     add.addEventListener("click", () => { const used = state.layers.map(l => l.form), next = VISUALS.map(v => v[0]).find(k => !used.includes(k)) || "graffiti"; state.layers.push(newLayer(next)); sel = state.layers.length - 1; save(); renderAll(); }); nav.append(add); }
 }
@@ -514,7 +515,7 @@ function renderLayer() {
   const box = $("#layer-card"), l = state.layers[sel]; box.innerHTML = ""; LIVE.clear();
   if (!l) return;
   const head = document.createElement("div"); head.className = "row spread";
-  head.innerHTML = `<h3 style="margin:0">Trait ${sel + 1} of ${state.layers.length}</h3><div class="row"><button class="btn" id="l-hide">${l.on ? "Hide" : "Show"}</button><button class="btn" id="l-reset" title="Back to this trait's default settings">Reset</button><button class="btn" id="l-def" title="Make the current settings this trait's default">${myDefs[l.form] ? "Update default" : "Set as default"}</button>${state.layers.length > 1 ? '<button class="btn danger" id="l-del">Remove</button>' : ""}</div>`;
+  head.innerHTML = `<h3 style="margin:0">Trait ${sel + 1} of ${state.layers.length}</h3><div class="row">${state.layers.length > 1 ? `<button class="btn icon-btn" id="l-back" title="Draw this one further back (behind the others)" aria-label="Move back" ${sel === 0 ? "disabled" : ""}>↓</button><button class="btn icon-btn" id="l-fwd" title="Draw this one further forward (on top)" aria-label="Move forward" ${sel === state.layers.length - 1 ? "disabled" : ""}>↑</button>` : ""}<button class="btn" id="l-hide">${l.on ? "Hide" : "Show"}</button><button class="btn" id="l-reset" title="Back to this trait's default settings">Reset</button><button class="btn" id="l-def" title="Make the current settings this trait's default">${myDefs[l.form] ? "Update default" : "Set as default"}</button>${state.layers.length > 1 ? '<button class="btn danger" id="l-del">Remove</button>' : ""}</div>`;
   box.append(head);
   if (myDefs[l.form]) { const fd = document.createElement("button"); fd.className = "link-btn"; fd.type = "button"; fd.textContent = "Forget my default for " + FORM[l.form].name;
     fd.addEventListener("click", () => { if (!confirm(`Forget your default for ${FORM[l.form].name}? New copies will start from the original settings again.`)) return; delete myDefs[l.form]; storeDefs(); renderLayer(); }); box.append(fd); }
@@ -567,6 +568,9 @@ function renderLayer() {
   MOTION.forEach(kn => c3.append(slider("p-" + kn.key, kn.label, kn.hint, 0, 1, .01, l.p[kn.key], pct, v => { l.p[kn.key] = v; }, { l, key: "p." + kn.key })));
   box.append(g3);
   $("#l-hide").addEventListener("click", () => { l.on = !l.on; save(); renderAll(); });
+  // order = drawing order: first in the list is drawn first, so it sits behind the rest
+  const swap = d => { const j = sel + d; if (j < 0 || j >= state.layers.length) return; [state.layers[sel], state.layers[j]] = [state.layers[j], state.layers[sel]]; sel = j; save(); renderAll(); };
+  const bk = $("#l-back"), fw = $("#l-fwd"); if (bk) bk.addEventListener("click", () => swap(-1)); if (fw) fw.addEventListener("click", () => swap(1));
   $("#l-def").addEventListener("click", () => { if (!confirm(`Set the current settings as the default for ${FORM[l.form].name}? Every new ${FORM[l.form].name} trait, and Reset, will start from them.`)) return; setDefault(l); renderLayer(); designMsg(`${FORM[l.form].name} default saved.`); });
   $("#l-reset").addEventListener("click", () => { Object.assign(l, newLayer(l.form), { id: l.id, on: l.on }); RT.delete(l.id); save(); renderAll(); });
   const del = $("#l-del"); if (del) del.addEventListener("click", () => { RT.delete(l.id); state.layers.splice(sel, 1); sel = Math.max(0, sel - 1); save(); renderAll(); });

@@ -172,3 +172,10 @@ input[type=range].hue::-webkit-slider-thumb { margin-top: -6px; }
 .btn:disabled { opacity: .35; cursor: default; }
 .link-btn { background: none; border: 0; padding: 0; color: var(--dim); font-size: 12px; text-align: left; text-decoration: underline; text-underline-offset: 3px; justify-self: start; }
 .link-btn:hover { color: var(--muted); }
+.persona span em { font-style: normal; color: var(--dim); font-size: 11px; margin-left: 4px; }
+.moods { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.mood { position: relative; display: inline-flex; }
+.mood .chip { padding: 4px 10px; font-size: 12px; }
+.mood .x { position: static; width: 20px; height: 20px; margin-left: 2px; font-size: 12px; align-self: center; }
+.mood .x.armed { width: auto; padding: 0 6px; font-size: 11px; }
+#post-as { align-items: center; gap: 8px; } #post-as .sel { width: auto; flex: 1; }

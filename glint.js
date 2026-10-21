@@ -769,34 +769,43 @@ if (sb) {
 let role = null, lineup = [], lineupArmed = null, lineupMsgT = 0;
 function lineupMsg(t) { $("#lineup-msg").textContent = t; clearTimeout(lineupMsgT); lineupMsgT = setTimeout(() => { $("#lineup-msg").textContent = ""; }, 3000); }
 function thumbnail() { const c = mk(320, 200), g = c.getContext("2d"); g.fillStyle = "#000"; g.fillRect(0, 0, 320, 200); const s = Math.max(320 / cv.width, 200 / cv.height), w = cv.width * s, h = cv.height * s; g.drawImage(cv, (320 - w) / 2, (200 - h) / 2, w, h); return c.toDataURL("image/jpeg", .72); }
-async function loadRole() { role = null; if (!sb || !user) return; try { const { data } = await sb.from("glint_roles").select("role").eq("user_id", user.id).maybeSingle(); role = data ? data.role : "member"; } catch (_) { role = "member"; } $("#post-design").hidden = role !== "admin"; }
+async function loadRole() { role = null; if (!sb || !user) return; try { const { data } = await sb.from("glint_roles").select("role").eq("user_id", user.id).maybeSingle(); role = data ? data.role : "member"; } catch (_) { role = "member"; } $("#post-design").hidden = role !== "admin"; $("#post-as").hidden = role !== "admin"; }
 async function pullLineup() {
   if (!sb || !user) { lineup = []; renderLineup(); return; }
-  try { const { data, error } = await sb.from("glint_lineup").select("id,name,design,thumb,position,posted_at").order("position").order("posted_at", { ascending: false }); if (error) throw error; lineup = data || []; }
+  try { const { data, error } = await sb.from("glint_lineup").select("id,name,design,thumb,position,posted_at,parent_id").order("position").order("posted_at", { ascending: false }); if (error) throw error; lineup = data || []; }
   catch (_) { lineupMsg("Couldn't load the Lineup right now."); }
   renderLineup();
 }
 function renderLineup() {
   const card = $("#lineup-card"), box = $("#lineup-list"); card.hidden = !user; box.innerHTML = "";
-  $("#lineup-sub").textContent = lineup.length ? `${lineup.length} persona${lineup.length === 1 ? "" : "s"}` : "what's showing";
+  const tops = lineup.filter(p => !p.parent_id || !lineup.some(q => q.id === p.parent_id)), moodsOf = p => lineup.filter(q => q.parent_id === p.id);
+  $("#lineup-sub").textContent = lineup.length ? `${tops.length} persona${tops.length === 1 ? "" : "s"}` : "what's showing";
+  // the admin's "Post as" picker: its own persona, or a mood of one already posted
+  const sel2 = $("#post-parent"); if (sel2) { const cur = sel2.value; sel2.innerHTML = '<option value="">its own persona</option>' + tops.map(p => `<option value="${p.id}">a mood of ${esc(p.name)}</option>`).join(""); if ([...sel2.options].some(o => o.value === cur)) sel2.value = cur; }
   if (!lineup.length) { box.innerHTML = `<span class="desc">${role === "admin" ? "Nothing posted yet. Name a persona and tap Post to the Lineup." : "Nothing on the Lineup yet."}</span>`; return; }
-  lineup.forEach(p => { const w = document.createElement("div"); w.className = "persona";
-    w.innerHTML = `<button class="load" aria-label="Load ${esc(p.name)}">${p.thumb ? `<img src="${p.thumb}" alt="">` : '<i></i>'}<span>${esc(p.name)}</span></button>${role === "admin" ? `<button class="x${lineupArmed === p.id ? " armed" : ""}" aria-label="Remove ${esc(p.name)} from the Lineup">${lineupArmed === p.id ? "Remove?" : "×"}</button>` : ""}`;
-    w.querySelector(".load").addEventListener("click", () => { if (!applyDesign(p)) { lineupMsg("That persona's traits aren't available anymore."); return; } $("#design-name").value = p.name; save(); lineupMsg(`Loaded "${p.name}".`); });
-    const x = w.querySelector(".x"); if (x) x.addEventListener("click", async () => {
+  const loadP = p => { if (!applyDesign(p)) { lineupMsg("That persona's traits aren't available anymore."); return; } $("#design-name").value = p.name; save(); lineupMsg(`Loaded "${p.name}".`); };
+  const removeBtn = (p, w) => { const x = document.createElement("button"); x.className = "x" + (lineupArmed === p.id ? " armed" : ""); x.type = "button"; x.setAttribute("aria-label", `Remove ${p.name} from the Lineup`); x.textContent = lineupArmed === p.id ? "Remove?" : "×";
+    x.addEventListener("click", async e => { e.stopPropagation();
       if (lineupArmed !== p.id) { lineupArmed = p.id; renderLineup(); setTimeout(() => { if (lineupArmed === p.id) { lineupArmed = null; renderLineup(); } }, 3000); return; }
       lineupArmed = null; const { error } = await sb.from("glint_lineup").delete().eq("id", p.id); if (error) { lineupMsg("Couldn't remove it: " + error.message); return; }
-      lineup = lineup.filter(q => q.id !== p.id); renderLineup(); lineupMsg(`Took "${p.name}" off the Lineup.`); });
+      lineup = lineup.filter(q => q.id !== p.id && q.parent_id !== p.id); renderLineup(); lineupMsg(`Took "${p.name}" off the Lineup.`); }); w.append(x); };
+  tops.forEach(p => { const w = document.createElement("div"), moods = moodsOf(p); w.className = "persona";
+    w.innerHTML = `<button class="load" aria-label="Load ${esc(p.name)}">${p.thumb ? `<img src="${p.thumb}" alt="">` : '<i></i>'}<span>${esc(p.name)}${moods.length ? ` <em>${moods.length + 1} moods</em>` : ""}</span></button>`;
+    w.querySelector(".load").addEventListener("click", () => loadP(p));
+    if (role === "admin") removeBtn(p, w);
+    if (moods.length) { const mb = document.createElement("div"); mb.className = "moods";
+      moods.forEach(m => { const c = document.createElement("span"); c.className = "mood"; c.innerHTML = `<button class="chip" type="button">${esc(m.name)}</button>`; c.querySelector(".chip").addEventListener("click", () => loadP(m)); if (role === "admin") removeBtn(m, c); mb.append(c); });
+      w.append(mb); }
     box.append(w); });
 }
 $("#post-design").addEventListener("click", async () => {
   const name = $("#design-name").value.trim(); if (!name) { designMsg("Give it a name first."); $("#design-name").focus(); return; }
   if (!sb || !user || role !== "admin") { designMsg("Sign in as the admin to post."); return; }
   $("#save-form").requestSubmit(); // save it under that name too
-  const existing = lineup.find(p => p.name.toLowerCase() === name.toLowerCase()), row = { name, design: snapshot(), thumb: thumbnail(), posted_by: user.id, posted_at: new Date().toISOString() };
+  const parent = $("#post-parent").value || null, existing = lineup.find(p => p.name.toLowerCase() === name.toLowerCase()), row = { name, design: snapshot(), thumb: thumbnail(), posted_by: user.id, posted_at: new Date().toISOString(), parent_id: parent === (existing && existing.id) ? null : parent };
   const q = existing ? sb.from("glint_lineup").update(row).eq("id", existing.id) : sb.from("glint_lineup").insert(row);
   const { error } = await q; if (error) { lineupMsg("Couldn't post it: " + error.message); return; }
-  await pullLineup(); lineupMsg(existing ? `Updated "${name}" on the Lineup.` : `"${name}" is on the Lineup.`);
+  await pullLineup(); const pn = parent && (lineup.find(p => p.id === parent) || {}).name; lineupMsg(existing ? `Updated "${name}" on the Lineup.` : pn ? `"${name}" is on the Lineup as a mood of ${pn}.` : `"${name}" is on the Lineup.`);
 });
 $("#lineup-play").addEventListener("click", () => {
   if (lineup.length < 2) { lineupMsg("Post at least two personas to play the Lineup."); return; }

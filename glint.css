@@ -168,3 +168,7 @@ input[type=range].hue::-webkit-slider-thumb { margin-top: -6px; }
 .persona span { font-size: 12.5px; padding: 0 10px 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .persona .x { position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; padding: 0; border-radius: 50%; border: 1px solid var(--line-hi); background: rgba(0, 0, 0, .6); color: var(--muted); font-size: 14px; line-height: 1; }
 .persona .x.armed { width: auto; padding: 0 8px; color: #d6a9a9; font-size: 12px; }
+.icon-btn { padding: 7px 10px; font-size: 15px; line-height: 1; }
+.btn:disabled { opacity: .35; cursor: default; }
+.link-btn { background: none; border: 0; padding: 0; color: var(--dim); font-size: 12px; text-align: left; text-decoration: underline; text-underline-offset: 3px; justify-self: start; }
+.link-btn:hover { color: var(--muted); }

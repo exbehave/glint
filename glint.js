@@ -43,14 +43,35 @@ const MOVES = ["anchored", "wander", "skater", "moth", "wallflower", "metronome"
 /* ---------- state, saved on this device ---------- */
 const KEY = "glint.v3";
 let state = null, sel = 0, seq = 0;
+/* my defaults: "Set as default" on a trait saves its current settings, and every new copy of that trait (and Reset) starts from them */
+const DEFK = "glint.defaults"; let myDefs = {}; try { myDefs = JSON.parse(localStorage.getItem(DEFK) || "{}") || {}; } catch (_) {}
 function newLayer(form) {
-  const v = VIS[form];
-  return { id: "L" + Date.now().toString(36) + (seq++), form, char: v.char, hue: v.hue, level: 1, on: true, hy: v.hy ?? .52, seed: Math.random(), shape: Object.assign({}, v.shape), links: JSON.parse(JSON.stringify(FORM[form].links || [])), p: Object.assign({}, PDEF, v.p) };
+  const v = VIS[form], d = myDefs[form];
+  const l = { id: "L" + Date.now().toString(36) + (seq++), form, char: v.char, hue: v.hue, level: 1, on: true, hy: v.hy ?? .52, seed: Math.random(), shape: Object.assign({}, v.shape), links: JSON.parse(JSON.stringify(FORM[form].links || [])), p: Object.assign({}, PDEF, v.p) };
+  if (d) Object.assign(l, JSON.parse(JSON.stringify(d)), { id: l.id, seed: l.seed, on: true });
+  return l;
 }
+function setDefault(l) { const d = JSON.parse(JSON.stringify(l, (k, v) => k === "_st" ? undefined : v)); delete d.id; delete d.seed; delete d.on; myDefs[l.form] = d; storeDefs(); }
+function storeDefs() { try { localStorage.setItem(DEFK, JSON.stringify(myDefs)); } catch (_) {} if (typeof pushDefs === "function") pushDefs(); }
 function fresh() { return { layers: [newLayer("cheshire")], moods: Object.fromEntries(MOODS.map(m => [m.key, { on: false, op: .5, mode: m.mode }])), music: { reaction: 1, punch: 1, decay: 1 } }; }
 function load() { try { const s = JSON.parse(localStorage.getItem(KEY) || "null"); if (s && Array.isArray(s.layers)) s.layers.forEach(l => { if (l.form === "doodle") l.form = "doodle2"; }); if (s && Array.isArray(s.layers) && s.layers.length && s.layers.every(l => VIS[l.form])) { MOODS.forEach(m => { s.moods[m.key] ||= { on: false, op: .5, mode: m.mode }; }); return s; } } catch (_) {} return fresh(); }
-let saveT = 0; function save() { clearTimeout(saveT); saveT = setTimeout(() => { try { localStorage.setItem(KEY, JSON.stringify(state, (k, v) => k === "_st" ? undefined : v)); } catch (_) {} }, 300); }
-state = load();
+/* undo / redo: every settled change (save() is debounced, so a slider drag is one step) goes into history; Cmd/Ctrl+Z and Shift+Cmd/Ctrl+Z, or the buttons in the header */
+const HIST = { past: [], future: [], cur: null };
+const stateJSON = () => JSON.stringify(state, (k, v) => k === "_st" ? undefined : v);
+let saveT = 0; function save() { clearTimeout(saveT); saveT = setTimeout(() => { const j = stateJSON(); try { localStorage.setItem(KEY, j); } catch (_) {}
+  if (j !== HIST.cur) { if (HIST.cur != null) HIST.past.push(HIST.cur); if (HIST.past.length > 80) HIST.past.shift(); HIST.future = []; HIST.cur = j; histUI(); } }, 300); }
+function histUI() { const u = $("#undo"), r = $("#redo"); if (u) u.disabled = !HIST.past.length; if (r) r.disabled = !HIST.future.length; }
+function histGo(dir) {
+  const from = dir < 0 ? HIST.past : HIST.future, to = dir < 0 ? HIST.future : HIST.past; if (!from.length) return;
+  clearTimeout(saveT); to.push(HIST.cur); HIST.cur = from.pop();
+  const s = JSON.parse(HIST.cur); MOODS.forEach(m => { s.moods[m.key] ||= { on: false, op: .5, mode: m.mode }; }); state = s;
+  try { localStorage.setItem(KEY, HIST.cur); } catch (_) {}
+  renderAll(); renderMoods(); if (typeof rebuildMusic === "function") rebuildMusic(); histUI();
+}
+document.addEventListener("keydown", e => {
+  if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== "z") return; const t = e.target; if (t && (t.tagName === "INPUT" && t.type === "text" || t.tagName === "TEXTAREA")) return;
+  e.preventDefault(); histGo(e.shiftKey ? 1 : -1); });
+state = load(); HIST.cur = stateJSON();
 
 /* ---------- audio ---------- */
 const A = { bass: 0, mid: 0, treble: 0, rms: 0, kick: 0, midHit: 0, hat: 0, active: false };
@@ -479,8 +500,10 @@ function renderLayer() {
   const box = $("#layer-card"), l = state.layers[sel]; box.innerHTML = ""; LIVE.clear();
   if (!l) return;
   const head = document.createElement("div"); head.className = "row spread";
-  head.innerHTML = `<h3 style="margin:0">Trait ${sel + 1} of ${state.layers.length}</h3><div class="row"><button class="btn" id="l-hide">${l.on ? "Hide" : "Show"}</button><button class="btn" id="l-reset">Reset</button>${state.layers.length > 1 ? '<button class="btn danger" id="l-del">Remove</button>' : ""}</div>`;
+  head.innerHTML = `<h3 style="margin:0">Trait ${sel + 1} of ${state.layers.length}</h3><div class="row"><button class="btn" id="l-hide">${l.on ? "Hide" : "Show"}</button><button class="btn" id="l-reset" title="Back to this trait's default settings">Reset</button><button class="btn" id="l-def" title="Make the current settings this trait's default">${myDefs[l.form] ? "Update default" : "Set as default"}</button>${state.layers.length > 1 ? '<button class="btn danger" id="l-del">Remove</button>' : ""}</div>`;
   box.append(head);
+  if (myDefs[l.form]) { const fd = document.createElement("button"); fd.className = "link-btn"; fd.type = "button"; fd.textContent = "Forget my default for " + FORM[l.form].name;
+    fd.addEventListener("click", () => { if (!confirm(`Forget your default for ${FORM[l.form].name}? New copies will start from the original settings again.`)) return; delete myDefs[l.form]; storeDefs(); renderLayer(); }); box.append(fd); }
   const chips = document.createElement("div"); chips.className = "chips";
   VISUALS.forEach(([key]) => { const c = document.createElement("button"); c.className = "chip"; c.textContent = FORM[key].name; c.setAttribute("aria-pressed", key === l.form);
     c.addEventListener("click", () => { if (key === l.form) return; Object.assign(l, newLayer(key), { id: l.id, on: l.on }); save(); renderAll(); }); chips.append(c); });
@@ -526,6 +549,7 @@ function renderLayer() {
   MOTION.forEach(kn => c3.append(slider("p-" + kn.key, kn.label, kn.hint, 0, 1, .01, l.p[kn.key], pct, v => { l.p[kn.key] = v; }, { l, key: "p." + kn.key })));
   box.append(g3);
   $("#l-hide").addEventListener("click", () => { l.on = !l.on; save(); renderAll(); });
+  $("#l-def").addEventListener("click", () => { if (!confirm(`Set the current settings as the default for ${FORM[l.form].name}? Every new ${FORM[l.form].name} trait, and Reset, will start from them.`)) return; setDefault(l); renderLayer(); designMsg(`${FORM[l.form].name} default saved.`); });
   $("#l-reset").addEventListener("click", () => { Object.assign(l, newLayer(l.form), { id: l.id, on: l.on }); RT.delete(l.id); save(); renderAll(); });
   const del = $("#l-del"); if (del) del.addEventListener("click", () => { RT.delete(l.id); state.layers.splice(sel, 1); sel = Math.max(0, sel - 1); save(); renderAll(); });
 }
@@ -711,13 +735,16 @@ async function syncNow() {
   } catch (_) { syncUI("Couldn't reach the cloud. Designs are still saved here."); }
   syncing = false;
 }
+const DEF_ROW = "glint:defaults"; let defsT = 0;
+async function pullDefs() { if (!sb || !user) return; try { const { data } = await sb.from("kv").select("value").eq("key", DEF_ROW).maybeSingle(); if (data && data.value) { myDefs = JSON.parse(data.value) || {}; try { localStorage.setItem(DEFK, data.value); } catch (_) {} renderLayer(); } } catch (_) {} }
+function pushDefs() { if (!sb || !user) return; clearTimeout(defsT); defsT = setTimeout(async () => { try { await sb.from("kv").upsert({ user_id: user.id, key: DEF_ROW, value: JSON.stringify(myDefs), updated_at: new Date().toISOString() }); } catch (_) {} }, 600); }
 function pushSoon() {
   if (!sb || !user) return; lsSet(DIRTY, "1"); clearTimeout(pushT);
   pushT = setTimeout(async () => { try { await pushCloud(getDesigns()); lsSet(DIRTY, null); syncUI(); } catch (_) { syncUI("Saved here; will sync when the connection is back."); } }, 600);
 }
 if (sb) {
   syncUI();
-  const onUser = async () => { await loadRole(); await pullLineup(); };
+  const onUser = async () => { await loadRole(); await pullLineup(); await pullDefs(); };
   sb.auth.getSession().then(({ data }) => { user = data && data.session ? data.session.user : null; syncUI(); if (user) syncNow(); onUser(); });
   sb.auth.onAuthStateChange((ev, session) => { const was = user && user.id; user = session ? session.user : null; syncUI(); if (user && user.id !== was) syncNow(); if ((user && user.id) !== was) onUser(); });
   document.addEventListener("visibilitychange", () => { if (!document.hidden && user && Date.now() - lastPull > 10000) { syncNow(); pullLineup(); } });
@@ -777,5 +804,6 @@ $("#lineup-play").addEventListener("click", () => {
 });
 document.addEventListener("fullscreenchange", () => { if (!document.fullscreenElement && document.body.classList.contains("playing")) setPlaying(false); });
 
+$("#undo").addEventListener("click", () => histGo(-1)); $("#redo").addEventListener("click", () => histGo(1)); histUI();
 musicUI("Silence · idle motion only");
 renderAll(); renderMoods(); renderDesigns(); resize(); requestAnimationFrame(frame);

@@ -1,0 +1,13 @@
+/* Theater: the member player. Same engine and markup as the Studio; the Studio-only cards stay in the page but hidden. */
+body.theater #designs-card, body.theater #layer-card, body.theater .layers, body.theater .foot, body.theater #cycle-ctl { display: none !important; }
+body.theater .rack > section:has(#moods) { display: none !important; }
+body.theater #music-ctl { display: none; }
+body.theater .mark::after { content: "THEATER"; letter-spacing: .18em; font-size: 11px; color: var(--dim); margin-left: .7em; }
+body.theater .lineup { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+body.theater .persona .load { cursor: pointer; }
+body.theater .persona.now .load { border-color: var(--silver); }
+.fav { position: absolute; top: 6px; left: 6px; width: 24px; height: 24px; padding: 0; border-radius: 50%; border: 1px solid var(--line-hi); background: rgba(0, 0, 0, .6); color: var(--muted); font-size: 13px; line-height: 1; }
+.fav[aria-pressed="true"] { color: #f0d27a; border-color: #f0d27a; }
+.remote-code { font-family: var(--font-data); font-size: 12px; color: var(--muted); letter-spacing: .14em; padding: 6px 10px; border: 1px dashed var(--line-hi); border-radius: 8px; }
+.remote-code b { color: var(--silver); font-size: 14px; letter-spacing: .22em; margin-left: 6px; }
+#sign-gate { display: grid; gap: 10px; }

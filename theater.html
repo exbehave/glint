@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Glint</title>
+<meta name="glint-mode" content="theater">
+<meta name="theme-color" content="#08080a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Glint">
+<link rel="icon" href="icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500&family=IBM+Plex+Mono:wght@400&display=swap">
+<link rel="stylesheet" href="glint.css">
+<link rel="stylesheet" href="theater.css">
+</head>
+<body class="theater">
+<div class="wrap">
+  <header class="top">
+    <div class="mark">GLINT</div>
+    <div class="row"><span class="remote-code" id="remote-code" hidden></span><button class="btn icon-btn" id="undo" type="button" hidden>↶</button><button class="btn icon-btn" id="redo" type="button" hidden>↷</button><button class="btn" id="cycle" hidden>Cycle my personas</button><button class="btn play-btn" id="play">Play full screen</button></div>
+  </header>
+
+  <div class="main">
+    <div class="stage-col">
+      <div class="stage" id="stage-box">
+        <canvas id="stage" aria-label="Your persona"></canvas>
+        <div class="beat" id="beat"></div>
+        <button class="exit-play" id="exit-play" hidden>Tap to show controls</button>
+        <div class="cycle-name" id="cycle-name" aria-live="polite"></div>
+        <div class="cal" id="cal" hidden>
+          <button class="cal-x" id="cal-x" type="button" aria-label="Cancel tap to sync">×</button>
+          <div class="cal-step" id="cal-step"></div>
+          <div class="cal-dot" id="cal-dot"></div>
+          <div class="cal-say" id="cal-say" aria-live="polite"></div>
+          <div class="cal-pips" id="cal-pips"></div>
+          <div class="row cal-btns" id="cal-btns" hidden><button class="btn" id="cal-keep" type="button" aria-pressed="true">Keep</button><button class="btn" id="cal-again" type="button">Try again</button></div>
+        </div>
+      </div>
+      <nav class="layers" id="layers" aria-label="Traits in this persona"></nav>
+    </div>
+
+    <aside class="rack">
+      <section class="card" id="theater-card">
+        <h3>Tonight <span id="theater-sub">pick a persona, or play the whole Lineup</span></h3>
+        <div class="row">
+          <button class="btn play-btn" id="th-play" type="button">Play the Lineup</button>
+          <button class="btn" id="th-shuffle" type="button" aria-pressed="false">Shuffle</button>
+          <button class="btn" id="th-favs" type="button" aria-pressed="false">Favorites only</button>
+        </div>
+        <div class="ctls" id="th-ctl"></div>
+        <div class="chips seg" id="th-fade"></div>
+      </section>
+      <section class="card" id="designs-card" hidden>
+        <h3>My personas <span id="designs-where">saved on this device</span></h3>
+        <form class="row" id="save-form">
+          <input class="name-in" id="design-name" type="text" placeholder="Name this persona" maxlength="40" aria-label="Persona name">
+          <button class="btn" type="submit" id="save-design">Save</button>
+          <button class="btn" type="button" id="post-design" hidden title="Save it and put it on the Lineup for everyone">Post to the Lineup</button>
+        </form>
+        <div class="row" id="post-as" hidden><span class="desc">Post as</span><select class="sel" id="post-parent" aria-label="Post as its own persona, or as a mood of one"></select></div>
+        <div class="chips" id="design-list"></div>
+        <div class="now" id="design-msg" aria-live="polite"></div>
+        <div class="ctls" id="cycle-ctl"></div>
+        <div class="sync" id="sync" hidden>
+          <div class="row spread"><span class="now" id="sync-msg">Saved on this device only</span><button class="btn" id="sync-toggle" type="button">Sync across devices</button></div>
+          <form class="sync-form" id="sync-form" hidden>
+            <input class="name-in" id="sync-email" type="email" placeholder="Email" autocomplete="username" aria-label="Email">
+            <input class="name-in" id="sync-pass" type="password" placeholder="Password" autocomplete="current-password" aria-label="Password">
+            <button class="btn" type="submit" id="sync-go">Sign in</button>
+            <p class="desc">Same account as In the Loop.</p>
+          </form>
+        </div>
+      </section>
+      <section class="card" id="lineup-card" hidden>
+        <h3>The Lineup <span id="lineup-sub">what's showing</span></h3>
+        <div class="lineup" id="lineup-list"></div>
+        <div class="row"><button class="btn" id="lineup-play" type="button">Play the Lineup</button></div>
+        <div class="now" id="lineup-msg" aria-live="polite"></div>
+      </section>
+      <section class="card" id="layer-card"></section>
+
+      <section class="card">
+        <h3>Music</h3>
+        <div class="row">
+          <button class="btn" id="m-demo" aria-pressed="false">Demo beat</button>
+          <label class="btn file-btn" id="m-file-l" aria-pressed="false">Load a song<input type="file" id="m-file"></label>
+          <button class="btn" id="m-mic" aria-pressed="false">Microphone</button>
+          <button class="btn" id="m-off" aria-pressed="true">Silence</button>
+        </div>
+        <div class="capture" id="capture" hidden>
+          <div class="cap-head">On this computer</div>
+          <div class="row">
+            <button class="btn" id="m-screen" aria-pressed="false">Tab or screen audio</button>
+            <button class="btn" id="m-dev" aria-pressed="false">Audio input…</button>
+          </div>
+          <div class="row" id="dev-row" hidden>
+            <select class="sel" id="dev-sel" aria-label="Audio input device"></select>
+          </div>
+          <p class="desc" id="cap-help"></p>
+        </div>
+        <div class="now" id="now">Silence · idle motion only</div>
+        <div class="meter" id="meter" hidden aria-hidden="true"><i id="lvl"></i></div>
+        <div class="transport" id="transport" hidden>
+          <button class="btn" id="t-play" aria-label="Play">Play</button>
+          <input type="range" id="t-seek" min="0" max="1000" value="0" step="1" aria-label="Song position">
+          <span class="t-time" id="t-time">0:00 / 0:00</span>
+        </div>
+        <div class="ctls" id="music-ctl"></div>
+      </section>
+
+      <section class="card">
+        <h3>Lenses <span>over the whole picture</span></h3>
+        <div class="chips" id="moods"></div>
+        <div class="ctls" id="mood-ctl"></div>
+      </section>
+
+      <p class="foot">The previous Studio is still at <a href="studio.html">studio.html</a>.</p>
+    </aside>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
+<script src="engine/core.js"></script>
+<script src="engine/forms.js"></script>
+<script src="engine/forms2.js"></script>
+<script src="engine/twerk.js"></script>
+<script src="engine/traits.js"></script>
+<script src="engine/moods.js"></script>
+<script src="engine/lenses.js"></script>
+<script src="engine/lenses2.js"></script>
+<script src="glint.js"></script>
+<script src="theater.js"></script>
+</body>
+</html>

@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Glint Remote</title>
+<meta name="theme-color" content="#08080a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Glint Remote">
+<link rel="icon" href="icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500&family=IBM+Plex+Mono:wght@400&display=swap">
+<link rel="stylesheet" href="glint.css">
+<style>
+/* Remote: a phone-sized controller for a Theater running on a computer. No rendering here; thumbnails and buttons only. */
+body { padding-bottom: env(safe-area-inset-bottom, 0); }
+.wrap { max-width: 560px; }
+.join { display: grid; gap: 12px; }
+.code-in { font-family: var(--font-data); font-size: 28px; letter-spacing: .4em; text-align: center; text-transform: uppercase; width: 100%; background: var(--well); border: 1px solid var(--line-hi); border-radius: 10px; padding: 12px; color: var(--silver); }
+.transport-r { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.transport-r .btn { padding: 14px 8px; font-size: 15px; }
+.lineup { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+.persona.now .load { border-color: var(--silver); }
+.fav { position: absolute; top: 6px; left: 6px; width: 26px; height: 26px; padding: 0; border-radius: 50%; border: 1px solid var(--line-hi); background: rgba(0, 0, 0, .6); color: var(--muted); font-size: 13px; line-height: 1; }
+.fav[aria-pressed="true"] { color: #f0d27a; border-color: #f0d27a; }
+.link-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; color: var(--dim); }
+.now-line { font-family: var(--font-data); font-size: 12px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="mark">GLINT <span style="letter-spacing:.18em;font-size:11px;color:var(--dim);margin-left:.7em">REMOTE</span></div>
+    <div class="link-row"><span id="link-state">Not connected</span><button class="btn" id="leave" type="button" hidden>Leave</button></div>
+  </header>
+  <div class="main" style="grid-template-columns:1fr">
+    <div class="rack">
+      <section class="card join" id="join-card">
+        <h3>Join a Theater</h3>
+        <p class="desc">On the computer that's playing, the four-letter code is in the top bar of the Theater. Type it here.</p>
+        <input class="code-in" id="code" type="text" maxlength="4" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="ABCD" aria-label="Remote code">
+        <button class="btn play-btn" id="join" type="button">Connect</button>
+        <div class="now" id="join-msg" aria-live="polite"></div>
+      </section>
+      <section class="card" id="ctl-card" hidden>
+        <h3>Now <span class="now-line" id="now-line">—</span></h3>
+        <div class="transport-r">
+          <button class="btn" id="r-prev" type="button">‹ Prev</button>
+          <button class="btn play-btn" id="r-playall" type="button">Play the Lineup</button>
+          <button class="btn" id="r-next" type="button">Next ›</button>
+        </div>
+        <div class="row">
+          <button class="btn" id="r-shuffle" type="button" aria-pressed="false">Shuffle</button>
+          <button class="btn" id="r-favs" type="button" aria-pressed="false">Favorites only</button>
+          <button class="btn" id="r-fs" type="button">Full screen</button>
+          <button class="btn" id="r-stop" type="button">Exit</button>
+        </div>
+        <div class="ctls" id="r-ctl"></div>
+        <div class="chips seg" id="r-fade"></div>
+      </section>
+      <section class="card" id="list-card" hidden>
+        <h3>The Lineup <span id="r-sub"></span></h3>
+        <div class="lineup" id="r-list"></div>
+      </section>
+    </div>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
+<script src="remote.js"></script>
+</body>
+</html>

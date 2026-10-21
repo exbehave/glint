@@ -91,6 +91,18 @@ Kennedy asked to overhaul the whole interface: combine up to three visuals, with
 - **Color** (Oct 18, 2026, every visual): the Color fold replaces the single hue slider. One color / Rainbow / Palette; Moves with Time, Every beat or Loudness; Speed; Smooth or Snap. Palettes are lists of hues (visuals tint from one hue, so a palette can't hold white, black or pastels). Presets: In the Loop, Sunset, Ocean, Vaporwave, Fire, Ice, Pink and gold, Acid. Palette maker: + New palette or Copy this palette to edit; name, 2–10 colors on hue sliders, delete. Custom palettes live in localStorage `glint.palettes` (not cloud-synced yet); each layer keeps its own copy of the stops in `l.color`, so saved designs keep their colors.
 - Next after refining: more "paths" for the drawing visuals (Graffiti and similar), i.e. what they trace or sketch.
 
+## Share + Remote (decided Oct 20, 2026) — next build
+Kennedy wants to share Glint with a handful of people and control it from a phone. Decisions:
+- **The desktop app in Chrome is the only player.** It is the only place music sync really works (tab/system audio). People play it on a computer and cast or AirPlay to a TV. Phone playback is shelved for now (a mic can't stay on for hours).
+- **The phone app is a minimal "preview remote"**, not a player: it controls the desktop live so nobody has to walk over to the computer. Members see published presets with thumbnails, favorites, a queue, and slideshow settings (which presets, order, seconds per preset, crossfade or hard cut, shuffle). Kennedy's remote adds "save current look as preset" and "publish".
+- **Kennedy alone uses the Studio** (every knob, from the computer). Members get a plain player on desktop: published presets, favorites, slideshow, full screen. Roles live in Supabase (admin / member).
+- **Publishing:** a preset is a saved design (all layers, settings, automations) plus a thumbnail; "Publish" makes it visible to every member. Published presets are the shared library both apps read from.
+- **Knob automation (DAW-style), build first.** Every continuous slider gets an optional motion instead of a fixed value: Hold · Cycle (shape, speed, range; tempo-synced or free) · Ramp (rise or fall over N bars, then hold — crescendos) · React (the existing Music links). Saved inside the preset. This is what makes presets feel alive without hand-coded animation.
+- **Remote transport:** desktop opens a session and shows a short join code; phones join it; commands travel over Supabase Realtime (same project as cloud sync). Several phones may join one desktop. Phone shows preset thumbnails, not a live video of the screen (add live preview later only if people miss it).
+- **New forms keep coming through Casting:** e.g. a gallery of Cheshire eye shapes with automations, more Graffiti paths. Build them on the automation layer so Kennedy can do more alone before asking for new code.
+
+Build order: (1) knob automation + save/publish presets in the current app; (2) roles and the member player; (3) remote with pairing; (4) Casting rounds for new forms.
+
 ## Personalities
 - Starting set: Hypnotic, Aggressive, Dreamy, Glitch, Electric, Fluid. Multiple can be active at once.
 - Each has its own **opacity** (0–100%) and its own **blend mode** (independent).

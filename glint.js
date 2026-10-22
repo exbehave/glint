@@ -744,10 +744,11 @@ let sb = null, user = null, syncing = false, pushT = 0, lastPull = 0;
 try { if (window.supabase && SUPA_URL) sb = window.supabase.createClient(SUPA_URL, SUPA_KEY, { auth: { persistSession: true, autoRefreshToken: true } }); } catch (_) {}
 function syncUI(msg) {
   $("#sync").hidden = !sb;
-  $("#sync-msg").textContent = msg || (user ? "Synced to " + (user.email || "your account") : "Saved on this device only");
+  $("#sync-msg").textContent = msg || (user ? "Signed in as " + GlintAccount.name(user) : "Saved on this device only");
   $("#designs-where").textContent = user ? "synced across your devices" : "saved on this device";
-  $("#sync-toggle").textContent = user ? "Sign out" : "Sync across devices";
+  $("#sync-toggle").textContent = user ? "Sign out" : "Sign in";
   if (user) $("#sync-form").hidden = true;
+  $("#acct-change").hidden = !user;
 }
 function mergeLists(a, b) {
   const map = new Map();
@@ -777,29 +778,32 @@ function pushSoon() {
 }
 if (sb) {
   syncUI();
-  const onUser = async () => { await loadRole(); await pullLineup(); await pullDefs(); };
+  const onUser = async () => { GlintAccount.gate(sb, user); await loadRole(); await pullLineup(); await pullDefs(); membersCard(); };
   sb.auth.getSession().then(({ data }) => { user = data && data.session ? data.session.user : null; syncUI(); if (user) syncNow(); onUser(); });
-  sb.auth.onAuthStateChange((ev, session) => { const was = user && user.id; user = session ? session.user : null; syncUI(); if (user && user.id !== was) syncNow(); if ((user && user.id) !== was) onUser(); });
+  sb.auth.onAuthStateChange((ev, session) => { const was = user && user.id; user = session ? session.user : null; syncUI(); if (user && user.id !== was) syncNow(); if ((user && user.id) !== was) onUser(); else if (ev === "USER_UPDATED") GlintAccount.gate(sb, user); });
   document.addEventListener("visibilitychange", () => { if (!document.hidden && user && Date.now() - lastPull > 10000) { syncNow(); pullLineup(); } });
   $("#sync-toggle").addEventListener("click", async () => {
     if (user) { await sb.auth.signOut(); user = null; syncUI("Signed out. Personas stay saved on this device."); return; }
-    const f = $("#sync-form"); f.hidden = !f.hidden; if (!f.hidden) $("#sync-email").focus();
+    const f = $("#sync-form"); f.hidden = !f.hidden; if (!f.hidden) $("#sync-user").focus();
   });
   $("#sync-form").addEventListener("submit", async e => {
     e.preventDefault();
-    const email = $("#sync-email").value.trim(), password = $("#sync-pass").value;
-    if (!email || !password) { syncUI("Enter your email and password."); return; }
+    const email = GlintAccount.email($("#sync-user").value), password = $("#sync-pass").value;
+    if (!email || !password) { syncUI("Enter your username and password."); return; }
     $("#sync-go").disabled = true; syncUI("Signing in…");
     const { error } = await sb.auth.signInWithPassword({ email, password });
     $("#sync-go").disabled = false;
-    if (error) { syncUI(/invalid/i.test(error.message) ? "That email and password don't match. Use your In the Loop sign-in." : "Couldn't sign in: " + error.message); return; }
+    if (error) { syncUI(/invalid/i.test(error.message) ? "That username and password don't match." : "Couldn't sign in: " + error.message); return; }
     $("#sync-pass").value = "";
   });
+  $("#acct-change").append(GlintAccount.changeLink(sb));
 }
 /* ---------- the Lineup: published personas, shared with every member ----------
    Table glint_lineup (name, design, thumb, position). Everyone signed in can read it; only an admin (glint_roles) can post or remove.
    A persona is a saved design plus a thumbnail captured from the stage at posting time. */
 let role = null, lineup = [], lineupArmed = null, lineupMsgT = 0;
+// the admin's Members card (Studio only; the Theater has no such card)
+function membersCard() { const m = $("#members-card"); if (!m) return; m.hidden = role !== "admin"; if (role === "admin" && !m.dataset.live) { m.dataset.live = "1"; GlintAccount.members(sb, m, user); } }
 function lineupMsg(t) { $("#lineup-msg").textContent = t; clearTimeout(lineupMsgT); lineupMsgT = setTimeout(() => { $("#lineup-msg").textContent = ""; }, 3000); }
 function thumbnail() { const c = mk(320, 200), g = c.getContext("2d"); g.fillStyle = "#000"; g.fillRect(0, 0, 320, 200); const s = Math.max(320 / cv.width, 200 / cv.height), w = cv.width * s, h = cv.height * s; g.drawImage(cv, (320 - w) / 2, (200 - h) / 2, w, h); return c.toDataURL("image/jpeg", .72); }
 async function loadRole() { role = null; if (!sb || !user) return; try { const { data } = await sb.from("glint_roles").select("role").eq("user_id", user.id).maybeSingle(); role = data ? data.role : "member"; } catch (_) { role = "member"; } $("#post-design").hidden = role !== "admin"; $("#post-as").hidden = role !== "admin"; }

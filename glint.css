@@ -182,3 +182,12 @@ input[type=range].hue::-webkit-slider-thumb { margin-top: -6px; }
 .remote-code { font-family: var(--font-data); font-size: 12px; color: var(--muted); letter-spacing: .14em; padding: 6px 10px; border: 1px dashed var(--line-hi); border-radius: 8px; }
 .remote-code b { color: var(--silver); font-size: 14px; letter-spacing: .22em; margin-left: 6px; }
 .layers-hint { align-self: center; font-family: var(--font-data); font-size: 10.5px; letter-spacing: .12em; color: var(--dim); text-transform: uppercase; margin-right: 2px; }
+
+/* accounts: set-your-password veil, change-password fold, the admin's Members card */
+.acct-veil { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 16px; background: rgba(4, 4, 5, .82); backdrop-filter: blur(6px); }
+.acct-box { width: min(100%, 380px); }
+.acct-change { display: grid; gap: 8px; }
+.mem-list { display: grid; gap: 6px; }
+.mem { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 6px 0; border-top: 1px solid var(--line); }
+.mem-name { font-size: 13.5px; }
+.mem .btn { padding: 5px 9px; font-size: 12px; }

@@ -49,7 +49,7 @@ body { padding-bottom: env(safe-area-inset-bottom, 0); }
         <h3>Your Glint <span class="now-line" id="auth-sub"></span></h3>
         <p class="desc" id="auth-help">Sign in and this phone finds the computer you're signed in on. Open Glint there first.</p>
         <form class="sync-form" id="auth-form">
-          <input class="name-in" id="auth-email" type="email" placeholder="Email" autocomplete="username" aria-label="Email">
+          <input class="name-in" id="auth-user" type="text" placeholder="Username" autocomplete="username" autocapitalize="none" spellcheck="false" aria-label="Username">
           <input class="name-in" id="auth-pass" type="password" placeholder="Password" autocomplete="current-password" aria-label="Password">
           <button class="btn" type="submit" id="auth-go">Sign in</button>
         </form>
@@ -97,6 +97,7 @@ body { padding-bottom: env(safe-area-inset-bottom, 0); }
   </div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
+<script src="account.js"></script>
 <script src="remote.js"></script>
 </body>
 </html>

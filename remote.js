@@ -76,15 +76,15 @@ function syncAdmin() { const set = (id, v, fmt) => { const inp = document.getEle
 $("#a-post").addEventListener("click", () => { const n = $("#a-name").value.trim(); if (!n) { $("#a-name").focus(); return; } send({ cmd: "post", name: n }); $("#a-name").value = ""; });
 
 /* ---------- account pairing: sign in here, and the phone finds the computer this account has open ---------- */
-function authUI(m) { $("#auth-msg").textContent = m || ""; $("#auth-form").hidden = !!user; $("#auth-find").hidden = !user; $("#auth-out").hidden = !user; $("#auth-sub").textContent = user ? (user.email || "signed in") : ""; $("#auth-help").hidden = !!user; }
+function authUI(m) { $("#auth-msg").textContent = m || ""; $("#auth-form").hidden = !!user; $("#auth-find").hidden = !user; $("#auth-out").hidden = !user; $("#auth-sub").textContent = user ? GlintAccount.name(user) : ""; GlintAccount.gate(sb, user); $("#auth-help").hidden = !!user; }
 async function findRoom(quiet) {
   if (!sb || !user) return; if (!quiet) authUI("Looking for your computer…");
   const { data } = await sb.from("glint_rooms").select("code,page,seen_at").eq("user_id", user.id).maybeSingle();
   if (!data || Date.now() - new Date(data.seen_at).getTime() > 120000) { authUI(quiet ? "" : "Nothing open. Open Glint on your computer, then tap Find my computer."); return false; }
   authUI("Found your " + (data.page === "studio" ? "Studio" : "Theater") + " · " + data.code); join(data.code); return true;
 }
-$("#auth-form").addEventListener("submit", async e => { e.preventDefault(); const email = $("#auth-email").value.trim(), password = $("#auth-pass").value; if (!email || !password) return; $("#auth-go").disabled = true; authUI("Signing in…");
-  const { error } = await sb.auth.signInWithPassword({ email, password }); $("#auth-go").disabled = false; if (error) authUI(/invalid/i.test(error.message) ? "That email and password don't match." : "Couldn't sign in: " + error.message); else $("#auth-pass").value = ""; });
+$("#auth-form").addEventListener("submit", async e => { e.preventDefault(); const email = GlintAccount.email($("#auth-user").value), password = $("#auth-pass").value; if (!email || !password) return; $("#auth-go").disabled = true; authUI("Signing in…");
+  const { error } = await sb.auth.signInWithPassword({ email, password }); $("#auth-go").disabled = false; if (error) authUI(/invalid/i.test(error.message) ? "That username and password don't match." : "Couldn't sign in: " + error.message); else $("#auth-pass").value = ""; });
 $("#auth-find").addEventListener("click", () => findRoom(false));
 $("#auth-out").addEventListener("click", async () => { await sb.auth.signOut(); user = null; authUI("Signed out."); leave(); });
 if (sb) { sb.auth.onAuthStateChange((ev, session) => { user = session ? session.user : null; authUI(); if (user && !room) findRoom(true); }); sb.auth.getSession().then(({ data }) => { user = data && data.session ? data.session.user : null; authUI(); if (user && !room) findRoom(true); }); }

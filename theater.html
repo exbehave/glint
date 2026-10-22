@@ -74,11 +74,12 @@ if (matchMedia("(pointer: coarse)").matches && Math.min(screen.width, screen.hei
         <div class="sync" id="sync" hidden>
           <div class="row spread"><span class="now" id="sync-msg">Saved on this device only</span><button class="btn" id="sync-toggle" type="button">Sync across devices</button></div>
           <form class="sync-form" id="sync-form" hidden>
-            <input class="name-in" id="sync-email" type="email" placeholder="Email" autocomplete="username" aria-label="Email">
+            <input class="name-in" id="sync-user" type="text" placeholder="Username" autocomplete="username" autocapitalize="none" spellcheck="false" aria-label="Username">
             <input class="name-in" id="sync-pass" type="password" placeholder="Password" autocomplete="current-password" aria-label="Password">
             <button class="btn" type="submit" id="sync-go">Sign in</button>
-            <p class="desc">Same account as In the Loop.</p>
+            <p class="desc">Same account as In the Loop. No account yet? Ask Kennedy.</p>
           </form>
+          <div id="acct-change" hidden></div>
         </div>
       </section>
       <section class="card" id="lineup-card" hidden>
@@ -138,6 +139,7 @@ if (matchMedia("(pointer: coarse)").matches && Math.min(screen.width, screen.hei
 <script src="engine/moods.js"></script>
 <script src="engine/lenses.js"></script>
 <script src="engine/lenses2.js"></script>
+<script src="account.js"></script>
 <script src="glint.js"></script>
 <script src="theater.js"></script>
 <script src="room.js"></script>

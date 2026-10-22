@@ -119,9 +119,9 @@ const CREW = { key: "crew", name: "Backup crew", fade: 1, char: "anchored", link
 
 // ---- neon line dancer: one continuous curvy outline in profile, back arched, booty out, arms free to dance ----
 // Body type runs from feminine to masculine; every setting keeps a narrow waist with big hips, thighs and booty.
-const DANCES = ["Mix it up", "Twerk", "Duck walk"];
-const ARM_MOVES = ["Mix it up", "Hands on knees", "Hands up", "Wave", "Booty slap", "Air pump", "Hands on hips", "Floor touch", "Hair flip", "Old way", "New way", "Vogue fem"];
-const ARM_POOL = { 1: [1, 1, 2, 4, 5, 7, 8, 9, 10, 11, 9, 10, 11], 2: [9, 10, 11, 9, 10, 11, 2, 3] }; // what Mix it up picks from, per dance: voguing runs through both
+const DANCES = ["Mix it up", "Twerk", "Duck walk"]; // Oct 21, 2026: Duck walk and the vogue arm moves were cut from the line dancer (Kennedy); ballroom lives in the Serve trait now. The picker is gone and the dancer only twerks.
+const ARM_MOVES = ["Mix it up", "Hands on knees", "Hands up", "Wave", "Booty slap", "Air pump", "Hands on hips", "Floor touch", "Hair flip"];
+const ARM_POOL = { 1: [1, 1, 2, 4, 5, 7, 8], 2: [2, 3] }; // what Mix it up picks from, per dance: voguing runs through both
 const DROP_WHEN = ["Off", "Beat drops", "Loud hits", "Every 8 bars"];
 const BODY_LABEL = v => v < .15 ? "Feminine" : v < .4 ? "Femme-leaning" : v < .6 ? "Androgynous" : v < .85 ? "Masc-leaning" : "Masculine";
 const V2 = { add: (a, b, s = 1) => [a[0] + b[0] * s, a[1] + b[1] * s], mix: (a, b, u) => [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u], norm: v => { const l = Math.hypot(v[0], v[1]) || 1; return [v[0] / l, v[1] / l]; }, sub: (a, b) => [a[0] - b[0], a[1] - b[1]], rot: (v, a) => [v[0] * Math.cos(a) - v[1] * Math.sin(a), v[0] * Math.sin(a) + v[1] * Math.cos(a)] };
@@ -146,18 +146,15 @@ const LINER = { key: "liner", name: "Neon line dancer", fade: 1, char: "anchored
   init: () => ({ hip: sp0(), hx: sp0(), bt: sp0(), btx: sp0(), armCur: 1, armPrev: 1, armF: 1, lastBeat: 0, hands: null, dCur: 1, dPrev: 1, dF: 1, tx: 0, tdir: 1, vog: 0, vogPrev: 0, vogT: 9, drop: null, dropReq: null, breakT: 0, sinceDrop: 99 }),
   links: [{ src: "bass", dst: "jiggle", amt: .5 }, { src: "mid", dst: "armnrg", amt: .6 }, { src: "high", dst: "sparkle", amt: .7 }],
   shape: [
-    { key: "dance", label: "Dance", min: 0, max: DANCES.length - 1, def: 0, fmt: v => DANCES[v], grp: "Dance" },
-    { key: "mixbars", label: "Switch dance every", min: 1, max: 8, def: 3 / 7, fmt: v => v + (v > 1 ? " bars" : " bar"), slide: true, grp: "Dance", when: g => g("dance") === 0 },
-    { key: "per", label: "Twerks per beat", min: 1, max: 4, def: 1 / 3, fmt: v => v + "×", grp: "Dance", when: g => [0, 1].includes(g("dance")) },
+    { key: "per", label: "Twerks per beat", min: 1, max: 4, def: 1 / 3, fmt: v => v + "×", grp: "Dance" },
     { key: "bounce", label: "Bounce", def: .65, grp: "Dance" }, { key: "rubber", label: "Rubberiness", def: .6, grp: "Dance" }, { key: "jiggle", label: "Jiggle", def: .6, grp: "Dance" },
     { key: "wobble", label: "Wobble time", def: .55, grp: "Dance" }, { key: "sharp", label: "Snap", def: .6, grp: "Dance" },
-    { key: "back", label: "Push back", def: .5, grp: "Dance", when: g => [0, 1].includes(g("dance")) },
-    { key: "stride", label: "Kick and stride", def: .6, grp: "Dance", when: g => [0, 2].includes(g("dance")) },
-    { key: "travel", label: "Where", min: 0, max: 1, def: 0, fmt: v => ["In place", "Across the stage"][v], grp: "Dance", when: g => [0, 2].includes(g("dance")) },
+    { key: "back", label: "Push back", def: .5, grp: "Dance" },
+    { key: "stride", label: "Kick and stride", def: .6, grp: "Dance", when: () => false }, { key: "travel", label: "Where", min: 0, max: 1, def: 0, fmt: i => ["In place", "Across the stage"][i], grp: "Dance", when: () => false }, // kept for the code paths, hidden
     { key: "nod", label: "Head bob", def: .5, grp: "Dance" },
     { key: "armstyle", label: "Arm moves", min: 0, max: ARM_MOVES.length - 1, def: 0, fmt: v => ARM_MOVES[v], grp: "Arms" },
     { key: "armfreq", label: "Switch moves", def: .5, grp: "Arms", when: g => g("armstyle") === 0 },
-    { key: "posebeat", label: "Strike a new pose every", min: 0, max: 2, def: 0, fmt: v => ["Beat", "2 beats", "Bar"][v], grp: "Arms", when: g => [0, 9].includes(g("armstyle")) },
+    { key: "posebeat", label: "Strike a new pose every", min: 0, max: 2, def: 0, fmt: v => ["Beat", "2 beats", "Bar"][v], grp: "Arms", when: g => g("armstyle") === 0 },
     { key: "armnrg", label: "Arm energy", def: .6, grp: "Arms" }, { key: "armsync", label: "Arms on the beat", def: .7, grp: "Arms" },
     { key: "dropwhen", label: "Death drop", min: 0, max: DROP_WHEN.length - 1, def: 1 / 3, fmt: v => DROP_WHEN[v], grp: "Death drop" },
     { key: "dropstyle", label: "Style", min: 0, max: 1, def: 0, fmt: v => ["Classic", "Spin, then drop"][v], grp: "Death drop" },
@@ -169,7 +166,7 @@ const LINER = { key: "liner", name: "Neon line dancer", fade: 1, char: "anchored
     { key: "ripples", label: "Ripples", def: .4, grp: "Extras" }, { key: "lines", label: "Motion lines", def: .7, grp: "Extras" }, { key: "sweat", label: "Sweat drops", def: .3, grp: "Extras" }, { key: "sparkle", label: "Sparkles", def: .25, grp: "Extras" }, { key: "spread", label: "Color spread", def: .3, grp: "Extras" }, { key: "fill", label: "Fill", def: .25, grp: "Extras" }, { key: "glow", label: "Glow", def: .5, grp: "Extras" }],
   draw(E) { const { g, n, S, st, dt, t, I, k, L, W } = E, gap = twBeat(E, st), beatN = st.beats || 0, newBeat = beatN !== st.lastBeat, ph = st.since * I("per") / gap, uB = clamp(st.since / gap, 0, 1.5), amp = twAmp(E, st), { K: SK, C: SC } = twSprings(E);
     // ---- which dance (Mix it up switches every few bars and blends between them) ----
-    const dsel = I("dance");
+    const dsel = 1; // twerk only (see DANCES note)
     if (dsel === 0) { if (newBeat && beatN % (I("mixbars") * 4) === 0 && beatN > 0) { let nx; nx = st.dCur === 1 ? 2 : 1; st.dPrev = st.dCur; st.dCur = nx; st.dF = 0; } }
     else if (dsel !== st.dCur) { st.dPrev = st.dCur; st.dCur = dsel; st.dF = 0; }
     st.dF = Math.min(1, st.dF + dt * 1.6);

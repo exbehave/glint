@@ -58,6 +58,7 @@ const SERVE = { key: "serve", name: "Serve", fade: .55,
     { key: "kreach", label: "Kick reach", def: 1, grp: "Duck walk", when: g => g("dance") !== 1 },
     { key: "knees", label: "Knee spread", def: 0, grp: "Duck walk", when: g => g("dance") !== 1 },
     { key: "dlean", label: "Lean forward", def: 0.74, grp: "Duck walk", when: g => g("dance") !== 1 },
+    { key: "armvogue", label: "Arm voguing", def: .6, grp: "Duck walk", when: g => g("dance") !== 1 },
     { key: "flings", label: "Arm flings", def: 1, grp: "Duck walk", when: g => g("dance") !== 1 },
     { key: "travel", label: "Travel per kick", def: .5, grp: "Duck walk", when: g => g("dance") !== 1 },
     { key: "body", label: "Body type", def: 0.52, cfmt: v => v < .15 ? "Feminine" : v < .4 ? "Femme-leaning" : v < .6 ? "Androgynous" : v < .85 ? "Masc-leaning" : "Masculine", grp: "Body" },
@@ -181,7 +182,9 @@ const SERVE = { key: "serve", name: "Serve", fade: .55,
     // arms
     const ua = armL * .51, fa = armL * .49, reach = L("reach", .5, 1.0) * (.7 + .4 * loud) * (1 + .15 * R.kick), pose = SV_POSES[st.pose](reach), handT = [];
     for (let i = 0; i < 2; i++) { const sd = i ? 1 : -1, sh = i ? shR : shL, pv = pose[st.poseMirror ? 1 - i : i], vog = V3.add(sh, [sd * pv[0] * (ua + fa), pv[1] * (ua + fa), pv[2] * (ua + fa)]);
-      const da = st.duckArm[i], dk = V3.add(sh, [sd * (.16 + da[0]) * (ua + fa) * .95, (.05 + da[1]) * (ua + fa) + .05 * Math.sin(t * TAU / gap * 2 + i), .12]);
+      const da = st.duckArm[i], hover = V3.add(sh, [sd * (.16 + da[0]) * (ua + fa) * .95, (.05 + da[1]) * (ua + fa) + .05 * Math.sin(t * TAU / gap * 2 + i), .12]);
+      // duck walk arms still vogue, milder and thrown forward (the way the dancer faces) rather than all over the place
+      const av = k("armvogue"), fwd = V3.add(sh, [sd * pv[0] * (ua + fa) * .65, pv[1] * (ua + fa) * .75, (Math.max(pv[2], .1) + .25) * (ua + fa)]), dk = V3.mix(hover, fwd, av);
       handT.push(V3.mix(vog, dk, duck)); }
     { const ps = L("posespeed", .15, 1.6); for (let i = 0; i < 2; i++) { const prevT = st.handPrev ? st.handPrev[i] : handT[i], u = Math.min(1, (t - st.poseT) * 3 * ps); if (!st.handFrom) st.handFrom = handT.map(h => h.slice()); if (st.poseT === t) st.handFrom[i] = prevT; handT[i] = V3.mix(st.handFrom[i], handT[i], svEaseIO(u)); } st.handPrev = handT.map(h => h.slice()); }
     // the hands chase their targets on a lagging spring, then are held within arm's length of the shoulder (no stretching off the body)

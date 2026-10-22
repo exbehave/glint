@@ -769,6 +769,40 @@ async function syncNow() {
   } catch (_) { syncUI("Couldn't reach the cloud. Personas are still saved here."); }
   syncing = false;
 }
+/* ---------- Carry: one-time move of a device's setup from preview to the live site (Oct 22, 2026) ----------
+   Preview and glint.haus are different sites, so a browser keeps their stored settings apart. On preview the admin taps
+   "Send my setup"; that copies this device's glint.* settings into kv row glint:carry:<phone|computer>. The live site, on
+   the admin's next sign-in on the same kind of device, writes them into its own storage (preview's copy wins), pushes the
+   personas and defaults to the cloud, and reloads once. Each sent copy is applied once per site (glint.carried). */
+const CARRY_KEYS = ["glint.v3", DKEY, DEFK, PKEY, OKEY, CKEY, DEVKEY];
+const isPreview = /^preview[.-]/.test(location.hostname);
+const carryRow = () => "glint:carry:" + (matchMedia("(pointer: coarse)").matches && Math.min(screen.width, screen.height) < 700 ? "phone" : "computer");
+function carryUI() { const c = $("#carry"); if (c) c.hidden = !(isPreview && user && role === "admin"); }
+async function sendCarry() {
+  const b = $("#carry-send"), m = $("#carry-msg"); b.disabled = true; m.textContent = "Sending…";
+  const data = {}; CARRY_KEYS.forEach(k => { const v = lsGet(k); if (v != null) data[k] = v; });
+  try {
+    const { error } = await sb.from("kv").upsert({ user_id: user.id, key: carryRow(), value: JSON.stringify({ at: new Date().toISOString(), data }), updated_at: new Date().toISOString() });
+    if (error) throw error;
+    await pushCloud(getDesigns()); lsSet(DIRTY, null);
+    await sb.from("kv").upsert({ user_id: user.id, key: DEF_ROW, value: JSON.stringify(myDefs), updated_at: new Date().toISOString() });
+    m.textContent = "Sent (" + getDesigns().length + " personas, " + Object.keys(myDefs).length + " trait defaults, " + myPals.length + " palettes). Open glint.haus on this " + carryRow().split(":")[2] + " and sign in.";
+  } catch (_) { m.textContent = "Couldn't reach the cloud. Try again."; }
+  b.disabled = false;
+}
+async function applyCarry() {
+  if (isPreview || !user || role !== "admin") return false;
+  try {
+    const { data: row } = await sb.from("kv").select("value").eq("key", carryRow()).maybeSingle(); if (!row || !row.value) return false;
+    const c = JSON.parse(row.value); if (!c || !c.data || lsGet("glint.carried") === c.at) return false;
+    Object.entries(c.data).forEach(([k, v]) => lsSet(k, v));
+    CARRY_KEYS.forEach(k => { if (!(k in c.data) && k !== OKEY && k !== DEVKEY) lsSet(k, null); });
+    lsSet(MERGED, user.id); lsSet(DIRTY, "1"); lsSet("glint.carried", c.at);
+    if (c.data[DKEY]) await pushCloud(JSON.parse(c.data[DKEY]));
+    if (c.data[DEFK]) await sb.from("kv").upsert({ user_id: user.id, key: DEF_ROW, value: c.data[DEFK], updated_at: new Date().toISOString() });
+    lsSet(DIRTY, null); location.reload(); return true;
+  } catch (_) { return false; }
+}
 const DEF_ROW = "glint:defaults"; let defsT = 0;
 async function pullDefs() { if (!sb || !user) return; try { const { data } = await sb.from("kv").select("value").eq("key", DEF_ROW).maybeSingle(); if (data && data.value) { myDefs = JSON.parse(data.value) || {}; try { localStorage.setItem(DEFK, data.value); } catch (_) {} renderLayer(); } } catch (_) {} }
 function pushDefs() { if (!sb || !user) return; clearTimeout(defsT); defsT = setTimeout(async () => { try { await sb.from("kv").upsert({ user_id: user.id, key: DEF_ROW, value: JSON.stringify(myDefs), updated_at: new Date().toISOString() }); } catch (_) {} }, 600); }
@@ -778,10 +812,11 @@ function pushSoon() {
 }
 if (sb) {
   syncUI();
-  const onUser = async () => { GlintAccount.gate(sb, user); await loadRole(); await pullLineup(); await pullDefs(); membersCard(); };
+  const onUser = async () => { GlintAccount.gate(sb, user); await loadRole(); if (await applyCarry()) return; await pullLineup(); await pullDefs(); membersCard(); carryUI(); };
   sb.auth.getSession().then(({ data }) => { user = data && data.session ? data.session.user : null; syncUI(); if (user) syncNow(); onUser(); });
   sb.auth.onAuthStateChange((ev, session) => { const was = user && user.id; user = session ? session.user : null; syncUI(); if (user && user.id !== was) syncNow(); if ((user && user.id) !== was) onUser(); else if (ev === "USER_UPDATED") GlintAccount.gate(sb, user); });
   document.addEventListener("visibilitychange", () => { if (!document.hidden && user && Date.now() - lastPull > 10000) { syncNow(); pullLineup(); } });
+  $("#carry-send").addEventListener("click", sendCarry);
   $("#sync-toggle").addEventListener("click", async () => {
     if (user) { await sb.auth.signOut(); user = null; syncUI("Signed out. Personas stay saved on this device."); return; }
     const f = $("#sync-form"); f.hidden = !f.hidden; if (!f.hidden) $("#sync-user").focus();

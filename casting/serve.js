@@ -39,51 +39,52 @@ const SERVE = { key: "serve", name: "Serve", fade: .55,
   init: () => ({ hands: [svS3(), svS3()], ha: [svS0(), svS0()], fa: [svS0(), svS0()], feet: [svS3(), svS3()], hip: svS3(), bend: svS3(), nod: svS0(), yaw: svS0(), pos: { x: svS0(), z: svS0() }, pose: -1, poseT: 0, hat: [0, 0], hdir: [1, -1], ft: [0, 0], fl: [0, 0], trail: [[], []], freezes: [], prev: null, flare: {}, dCur: 1, dPrev: 1, dF: 1, sweep: 0, kickFoot: 0, cross: 0, crossT: 0, lastBeat: -1, duckArm: [[0, 0], [0, 0]], face: 0, tgt: [0, 0], moving: 0, yawT: 0, spin: -9, bendT: [0, 0, 0], nodT: 0, leanT: 0 }),
   shape: [
     { key: "dance", label: "Dance", min: 0, max: 2, def: 0, fmt: i => ["Mix it up", "Vogue", "Duck walk"][i], grp: "Dance" },
+    { key: "feel", label: "Tempo feel", min: 0, max: 3, def: 2 / 3, fmt: i => ["Double time", "On the beat", "Half time", "Quarter time"][i], grp: "Dance" },
     { key: "mixbars", label: "Switch dance every", min: 1, max: 8, def: 3 / 7, slide: true, fmt: v => v + (v > 1 ? " bars" : " bar"), grp: "Dance", when: g => g("dance") === 0 },
-    { key: "posebeat", label: "New pose every", min: 0, max: 2, def: 0, fmt: i => ["Beat", "2 beats", "Bar"][i], grp: "Vogue", when: g => g("dance") !== 2 },
+    { key: "posebeat", label: "New pose every", min: 0, max: 3, def: 0, fmt: i => ["Beat", "2 beats", "Bar", "2 bars"][i], grp: "Vogue", when: g => g("dance") !== 2 },
     { key: "reach", label: "Reach", def: .7, grp: "Vogue", when: g => g("dance") !== 2 },
     { key: "posespeed", label: "Pose speed", def: .6, grp: "Vogue", when: g => g("dance") !== 2 },
     { key: "waist", label: "Waist bend", def: .5, grp: "Vogue", when: g => g("dance") !== 2 },
-    { key: "lean", label: "Lean", def: .4, grp: "Vogue", when: g => g("dance") !== 2 },
+    { key: "lean", label: "Lean", def: 0.91, grp: "Vogue", when: g => g("dance") !== 2 },
     { key: "sway", label: "Hip sway", def: .5, grp: "Vogue", when: g => g("dance") !== 2 },
     { key: "vbounce", label: "Bounce", def: .3, grp: "Vogue", when: g => g("dance") !== 2 },
     { key: "crosses", label: "Leg crosses", def: .5, grp: "Vogue", when: g => g("dance") !== 2 },
-    { key: "stance", label: "Stance width", def: .5, grp: "Vogue", when: g => g("dance") !== 2 },
-    { key: "squat", label: "Squat depth", def: .65, grp: "Duck walk", when: g => g("dance") !== 1 },
-    { key: "bounce", label: "Bounce", def: .7, grp: "Duck walk", when: g => g("dance") !== 1 },
-    { key: "bsnap", label: "Bounce snap", def: .6, grp: "Duck walk", when: g => g("dance") !== 1 },
-    { key: "kicks", label: "Kicks per beat", min: 1, max: 2, def: 0, fmt: v => v + "×", grp: "Duck walk", when: g => g("dance") !== 1 },
-    { key: "kick", label: "Kick height", def: .6, grp: "Duck walk", when: g => g("dance") !== 1 },
-    { key: "kreach", label: "Kick reach", def: .65, grp: "Duck walk", when: g => g("dance") !== 1 },
-    { key: "knees", label: "Knee spread", def: .2, grp: "Duck walk", when: g => g("dance") !== 1 },
-    { key: "dlean", label: "Lean forward", def: .4, grp: "Duck walk", when: g => g("dance") !== 1 },
-    { key: "flings", label: "Arm flings", def: .5, grp: "Duck walk", when: g => g("dance") !== 1 },
-    { key: "body", label: "Body type", def: .35, cfmt: v => v < .15 ? "Feminine" : v < .4 ? "Femme-leaning" : v < .6 ? "Androgynous" : v < .85 ? "Masc-leaning" : "Masculine", grp: "Body" },
-    { key: "waistw", label: "Waist", def: .4, grp: "Body" },
-    { key: "arch", label: "Back arch", def: .6, grp: "Body" },
-    { key: "flicks", label: "Flicks per beat", min: 1, max: 4, def: 1 / 3, fmt: v => v + "×", grp: "Hands" },
+    { key: "stance", label: "Stance width", def: 0.23, grp: "Vogue", when: g => g("dance") !== 2 },
+    { key: "squat", label: "Squat depth", def: 0.06, grp: "Duck walk", when: g => g("dance") !== 1 },
+    { key: "bounce", label: "Bounce", def: 1, grp: "Duck walk", when: g => g("dance") !== 1 },
+    { key: "bsnap", label: "Bounce snap", def: 1, grp: "Duck walk", when: g => g("dance") !== 1 },
+    { key: "kicks", label: "Kicks per beat", min: 0, max: 2, def: .5, fmt: i => ["½×", "1×", "2×"][i], grp: "Duck walk", when: g => g("dance") !== 1 },
+    { key: "kick", label: "Kick height", def: 0.74, grp: "Duck walk", when: g => g("dance") !== 1 },
+    { key: "kreach", label: "Kick reach", def: 1, grp: "Duck walk", when: g => g("dance") !== 1 },
+    { key: "knees", label: "Knee spread", def: 0, grp: "Duck walk", when: g => g("dance") !== 1 },
+    { key: "dlean", label: "Lean forward", def: 0.74, grp: "Duck walk", when: g => g("dance") !== 1 },
+    { key: "flings", label: "Arm flings", def: 1, grp: "Duck walk", when: g => g("dance") !== 1 },
+    { key: "body", label: "Body type", def: 0.52, cfmt: v => v < .15 ? "Feminine" : v < .4 ? "Femme-leaning" : v < .6 ? "Androgynous" : v < .85 ? "Masc-leaning" : "Masculine", grp: "Body" },
+    { key: "waistw", label: "Waist", def: 0.25, grp: "Body" },
+    { key: "arch", label: "Back arch", def: 1, grp: "Body" },
+    { key: "flicks", label: "Flicks per beat", min: 0, max: 5, def: .4, fmt: i => ["¼×", "½×", "1×", "2×", "3×", "4×"][i], grp: "Hands" },
     { key: "fdir", label: "Flick direction", min: 0, max: 3, def: 0, fmt: i => ["Anywhere", "Up and down", "Side to side", "Circles"][i], grp: "Hands" },
-    { key: "wild", label: "Flick size", def: .7, grp: "Hands" },
+    { key: "wild", label: "Flick size", def: 0.99, grp: "Hands" },
     { key: "wspeed", label: "Wrist speed", def: .6, grp: "Hands" },
-    { key: "rubber", label: "Rubber", def: .7, grp: "Hands" },
-    { key: "stretch", label: "Stretch", def: .6, grp: "Hands" },
+    { key: "rubber", label: "Rubber", def: 0.98, grp: "Hands" },
+    { key: "stretch", label: "Stretch", def: 1, grp: "Hands" },
     { key: "hand", label: "Hand size", def: .5, grp: "Hands" },
-    { key: "armlen", label: "Arm length", def: .5, grp: "Arms" },
-    { key: "elbows", label: "Elbows out", def: .55, grp: "Arms" },
-    { key: "armspeed", label: "Arm speed", def: .6, grp: "Arms" },
-    { key: "armlag", label: "Arm lag", def: .6, grp: "Arms" },
-    { key: "shoulders", label: "Shoulder width", def: .5, grp: "Arms" },
-    { key: "leglen", label: "Leg length", def: .5, grp: "Legs" },
-    { key: "hips", label: "Hip width", def: .5, grp: "Legs" },
-    { key: "legspeed", label: "Leg speed", def: .6, grp: "Legs" },
+    { key: "armlen", label: "Arm length", def: 0.91, grp: "Arms" },
+    { key: "elbows", label: "Elbows out", def: 0.19, grp: "Arms" },
+    { key: "armspeed", label: "Arm speed", def: 0.3, grp: "Arms" },
+    { key: "armlag", label: "Arm lag", def: 0.74, grp: "Arms" },
+    { key: "shoulders", label: "Shoulder width", def: 0.22, grp: "Arms" },
+    { key: "leglen", label: "Leg length", def: 0.97, grp: "Legs" },
+    { key: "hips", label: "Hip width", def: 0.31, grp: "Legs" },
+    { key: "legspeed", label: "Leg speed", def: 0.2, grp: "Legs" },
     { key: "ankles", label: "Ankle flicks", def: .5, grp: "Legs" },
     { key: "foot", label: "Foot size", def: .5, grp: "Legs" },
-    { key: "size", label: "Size", def: .5, grp: "Body" },
-    { key: "width", label: "Limb width", def: .5, grp: "Body" },
-    { key: "weight", label: "Line weight", def: .5, grp: "Body" },
-    { key: "head", label: "Head size", def: .5, grp: "Body" },
-    { key: "nod", label: "Head bob", def: .5, grp: "Body" },
-    { key: "crest", label: "Hair crest", def: .35, grp: "Body" },
+    { key: "size", label: "Size", def: 0.65, grp: "Body" },
+    { key: "width", label: "Limb width", def: 0.58, grp: "Body" },
+    { key: "weight", label: "Line weight", def: 0.12, grp: "Body" },
+    { key: "head", label: "Head size", def: 0.46, grp: "Body" },
+    { key: "nod", label: "Head bob", def: 1, grp: "Body" },
+    { key: "crest", label: "Hair crest", def: 0, grp: "Body" },
     { key: "roam", label: "Roam the stage", def: .5, grp: "Moving around" },
     { key: "walk", label: "Walk speed", def: .5, grp: "Moving around" },
     { key: "turns", label: "Turns", def: .6, grp: "Moving around" },
@@ -100,7 +101,9 @@ const SERVE = { key: "serve", name: "Serve", fade: .55,
     { key: "spread", label: "Color spread", def: .3, grp: "Extras" },
     { key: "glow", label: "Glow", def: .5, grp: "Extras" }],
   draw(E) {
-    const { g, n, R, S, st, dt, t, L, I, k } = E, loud = tLoud(R), gap = svBeat(E, st), ph = clamp(st.since / gap, 0, 1), newBeat = E.beat, bn = st.beats || 0;
+    const { g, n, R, S, st, dt, t, L, I, k } = E, loud = tLoud(R), gap0 = svBeat(E, st), ph0 = clamp(st.since / gap0, 0, 1), bn0 = st.beats || 0;
+    // tempo feel: the dancer counts its own beat — double time subdivides the song's beat, half/quarter time stretch it
+    const mult = [.5, 1, 2, 4][I("feel")], gap = gap0 * mult, vpos = (bn0 + ph0) / mult, bn = Math.floor(vpos), ph = vpos - bn, newBeat = bn !== (st.vb ?? -1); st.vb = bn;
     const H0 = S * L("size", .34, 1.0), U = H0, lw0 = Math.max(1, H0 * .0045) * L("weight", .5, 2.2), hue = n.hue, spread = k("spread") * 90, glow = k("glow");
     const dsel = I("dance"), bar = newBeat && bn > 0 && bn % 4 === 0;
     // ---- which dance (Mix it up alternates every few bars, blended)
@@ -111,24 +114,24 @@ const SERVE = { key: "serve", name: "Serve", fade: .55,
     const armL = L("armlen", .22, .5), roam = k("roam"), xr = Math.max(0, E.W * .5 / U - .2 - armL);
     if (bar && roam > .02 && Math.random() < .35 + .5 * roam) st.tgt = [(Math.random() * 2 - 1) * xr * roam, (Math.random() * 2 - 1) * .55 * roam];
     if (roam < .02) st.tgt = [0, 0];
-    { const Kw = L("walk", 4, 40), Cw = 2 * .95 * Math.sqrt(Kw); svSpr(st.pos.x, st.tgt[0], Kw, Cw, dt); svSpr(st.pos.z, st.tgt[1], Kw, Cw, dt); }
+    { const Kw = L("walk", 1.5, 40), Cw = 2 * .95 * Math.sqrt(Kw); svSpr(st.pos.x, st.tgt[0], Kw, Cw, dt); svSpr(st.pos.z, st.tgt[1], Kw, Cw, dt); }
     const vx = st.pos.x.v, vz = st.pos.z.v; st.moving = Math.hypot(vx, vz) > .12;
     // facing: yaw 0 looks at the room (+z), π is the back. While walking, face the way you go.
     if (st.moving) st.yawT = Math.atan2(vx, vz);
     else if (bar && Math.random() < k("turns") * .8) { let fc = st.face; while (fc === st.face) fc = Math.floor(Math.random() * SV_FACES.length); st.face = fc; st.yawT = SV_FACES[fc]; }
     if (newBeat && k("spins") > .02 && R.kick * (.6 + loud) > 1.1 - .7 * k("spins") && t - st.spin > 2.5) { st.spin = t; st.yawT += TAU * (Math.random() < .5 ? 1 : -1); }
     // the spring chases the nearest equivalent angle, except during a spin (which adds a whole turn on purpose)
-    if (t - st.spin > .9) st.yawT = st.yaw.p + svAng(st.yawT - st.yaw.p); { const Ky = L("turnspeed", 6, 90); svSpr(st.yaw, st.yawT, Ky, 2 * .7 * Math.sqrt(Ky), dt); }
+    if (t - st.spin > .9) st.yawT = st.yaw.p + svAng(st.yawT - st.yaw.p); { const Ky = L("turnspeed", 2, 90); svSpr(st.yaw, st.yawT, Ky, 2 * .7 * Math.sqrt(Ky), dt); }
     const yaw = st.yaw.p, cy_ = Math.cos(yaw), sy_ = Math.sin(yaw);
     // ---- pose events: vogue poses every Beat / 2 beats / Bar; the duck walk kicks alternate every beat
-    const every = [1, 2, 4][I("posebeat")];
+    const every = [1, 2, 4, 8][I("posebeat")];
     if (newBeat) { st.kickFoot = bn % 2; if (bn % every === 0) { let p = st.pose; while (p === st.pose) p = Math.floor(Math.random() * SV_POSES.length); st.pose = p; st.poseT = t; st.nodT = (Math.random() - .5) * .6 * k("nod") * 2; st.leanT = (Math.random() - .5) * .6 * k("lean") * 2; st.poseMirror = Math.random() < .5;
         st.bendT = [(Math.random() - .5) * .9, (Math.random() - .5) * .5, (Math.random() - .5) * 1.2]; // side bend, twist, forward bend
         if (Math.random() < k("crosses") * .6) { st.cross = Math.random() < .5 ? -1 : 1; st.crossT = t; } else if (Math.random() < .5) st.cross = 0; }
       for (let i = 0; i < 2; i++) { const a = st.duckArm[i]; a[0] = (Math.random() - .5) * .3; a[1] = (Math.random() - .5) * .3; if (bn % 4 === i * 2 && Math.random() < k("flings") * 1.4) a[0] += .8 * (Math.random() > .5 ? 1 : .35); } }
     if (st.pose < 0) { st.pose = 0; st.nodT = 0; }
     // ---- flicks
-    const fpb = I("flicks"), fphase = Math.floor(ph * fpb) + bn * fpb;
+    const fpb = [.25, .5, 1, 2, 3, 4][I("flicks")], fphase = Math.floor((bn + ph) * fpb);
     const fmode = I("fdir"), frange = Math.PI * (.15 + .85 * k("wild")) * (.6 + .6 * loud);
     for (let i = 0; i < 2; i++) if (fphase !== st.fl[i]) { st.fl[i] = fphase; st.hdir[i] = -st.hdir[i];
       if (fmode === 0) st.hat[i] = { abs: false, a: svAng(st.hat[i].a + (Math.random() - .5) * 2 * frange + (Math.random() < .3 ? Math.PI : 0)) };
@@ -137,25 +140,25 @@ const SERVE = { key: "serve", name: "Serve", fade: .55,
       else st.hat[i] = { abs: false, a: (st.hat[i].a || 0) + (i ? 1 : -1) * frange * .7 }; }
     for (let i = 0; i < 2; i++) if (typeof st.hat[i] !== "object") st.hat[i] = { abs: false, a: 0 };
     if (newBeat) for (let i = 0; i < 2; i++) if (st.kickFoot === i || Math.random() < .3) st.ft[i] = (Math.random() - .5) * 1.6 * k("ankles");
-    const f0 = L("wspeed", 1.6, 7), K = Math.pow(TAU * f0, 2), zeta = L("rubber", .6, .05), C = 2 * zeta * Math.sqrt(K), Ka = Math.pow(TAU * f0 * .9, 2), Ca = 2 * Math.max(.12, zeta * 1.3) * Math.sqrt(Ka);
-    const fArm = L("armspeed", 1.2, 5), Karm = Math.pow(TAU * fArm, 2), Carm = 2 * L("armlag", .9, .18) * Math.sqrt(Karm), fLeg = L("legspeed", 1.5, 6), Kleg = Math.pow(TAU * fLeg, 2), Cleg = 2 * .8 * Math.sqrt(Kleg);
+    const f0 = L("wspeed", .7, 7), K = Math.pow(TAU * f0, 2), zeta = L("rubber", .6, .05), C = 2 * zeta * Math.sqrt(K), Ka = Math.pow(TAU * f0 * .9, 2), Ca = 2 * Math.max(.12, zeta * 1.3) * Math.sqrt(Ka);
+    const fArm = L("armspeed", .5, 5), Karm = Math.pow(TAU * fArm, 2), Carm = 2 * L("armlag", .9, .18) * Math.sqrt(Karm), fLeg = L("legspeed", .6, 6), Kleg = Math.pow(TAU * fLeg, 2), Cleg = 2 * .8 * Math.sqrt(Kleg);
     // ---- the skeleton in local space (figure units; x right, y down from the top of the head, z toward the room)
-    const bounce = svPop(ph * I("kicks"), k("bsnap")) * L("bounce", .02, .16) * (.5 + .5 * Math.min(1, R.energy)) * (1 + .4 * R.kick), vb = svPop(ph, .4) * L("vbounce", 0, .05) * (.4 + .6 * loud);
+    const kpb = [.5, 1, 2][I("kicks")], bounce = svPop((bn + ph) * kpb, k("bsnap")) * L("bounce", .02, .16) * (.5 + .5 * Math.min(1, R.energy)) * (1 + .4 * R.kick), vb = svPop(ph, .4) * L("vbounce", 0, .05) * (.4 + .6 * loud);
     const legL = L("leglen", .36, .56), thigh = legL / 2, shin = legL / 2, floor = .46 + legL, squatY = lerp(.46 + (legL - .46), lerp(floor - .24, floor - .07, k("squat")), duck), sway = Math.sin(t * Math.PI / gap * .5) * L("sway", 0, .06) * (1 - duck) * (.5 + loud);
     svSpr3(st.hip, [sway, squatY + lerp(vb, bounce, duck), 0], 900, 55, dt); const hipC = svP(st.hip);
     // torso: pelvis → waist → chest. The back is always arched (pelvis tipped forward, chest lifted and carried back); vogue adds a waist bend on each pose
-    const arch = L("arch", .25, 1), wb = k("waist") * (1 - duck); svSpr3(st.bend, [st.bendT[0] * wb, st.bendT[1] * wb, st.bendT[2] * wb + st.leanT * (1 - duck) + L("dlean", .1, .7) * duck], 60, 10, dt);
+    const arch = L("arch", .25, 1), wb = k("waist") * (1 - duck); { const Kb = L("posespeed", 6, 90); svSpr3(st.bend, [st.bendT[0] * wb, st.bendT[1] * wb, st.bendT[2] * wb + st.leanT * (1 - duck) + L("dlean", .1, .7) * duck], Kb, 2 * .65 * Math.sqrt(Kb), dt); }
     const sideB = st.bend.x.p, twist = st.bend.y.p, fwdB = st.bend.z.p;
     const waist = V3.add(hipC, [sideB * .06, -.15, .05 * arch + fwdB * .04]);
     const chest = V3.add(waist, [sideB * .12, -.17 + .02 * Math.abs(fwdB), -.1 * arch + fwdB * .14]);
     const shDir = [Math.cos(twist * .6), 0, -Math.sin(twist * .6)], body = k("body"), shW = L("shoulders", .07, .14) * lerp(.8, 1.3, body), hipW = L("hips", .04, .08) * lerp(1.35, .7, body), wW = L("waistw", .02, .075) * lerp(.85, 1.15, body), shL = V3.add(chest, shDir, -shW), shR = V3.add(chest, shDir, shW), hipL = V3.add(hipC, [-hipW, 0, -.02 * arch]), hipR = V3.add(hipC, [hipW, 0, -.02 * arch]), waistL = V3.add(waist, shDir, -wW), waistR = V3.add(waist, shDir, wW);
-    svSpr(st.nod, st.nodT * (1 - duck) + duck * .15 * Math.sin(t * 7), 60, 7, dt);
+    svSpr(st.nod, st.nodT * (1 - duck) + duck * .15 * Math.sin(t * TAU / gap) * k("nod"), 40, 7, dt);
     const neck = V3.add(chest, [sideB * .02, -.045, .02 * arch]), head = V3.add(neck, [sideB * .03 + st.nod.p * .03, -.062, .03 * arch + fwdB * .02]);
     // legs: vogue = planted, weight shifting, the odd cross; duck walk = squat with the knees forward and close, feet kicking forward in turn
     const feetT = [], poles = [], stance = L("stance", .05, .14);
     for (let i = 0; i < 2; i++) { const sd = i ? 1 : -1;
       const crossF = st.cross === sd ? svEaseIO(Math.min(1, (t - st.crossT) * 3)) : 0, vx_ = sd * stance - sd * (stance + .045) * crossF, vz_ = crossF * .1;
-      const kph = frac(ph * I("kicks")), kfoot = I("kicks") === 2 ? (bn * 2 + Math.floor(ph * 2)) % 2 : st.kickFoot, kickOn = kfoot === i, kc = kickOn ? Math.sin(Math.PI * clamp(kph / .7, 0, 1)) : 0;
+      const kph = frac((bn + ph) * kpb), kfoot = Math.floor((bn + ph) * kpb) % 2, kickOn = kfoot === i, kc = kickOn ? Math.sin(Math.PI * clamp(kph / .7, 0, 1)) : 0;
       const dx_ = sd * (.05 + .03 * loud), dz_ = .08 + kc * L("kreach", .05, .4), dy_ = floor - kc * L("kick", .02, .22);
       feetT.push([lerp(vx_, dx_, duck), lerp(floor - .015, dy_, duck), lerp(vz_, dz_, duck), 1 + kc * .9 * duck]);
       // knee bend direction: vogue knees forward (the crossing leg's inward), duck walk knees forward and a touch out
@@ -165,9 +168,9 @@ const SERVE = { key: "serve", name: "Serve", fade: .55,
     // arms
     const ua = armL * .51, fa = armL * .49, reach = L("reach", .5, 1.0) * (.7 + .4 * loud) * (1 + .15 * R.kick), pose = SV_POSES[st.pose](reach), handT = [];
     for (let i = 0; i < 2; i++) { const sd = i ? 1 : -1, sh = i ? shR : shL, pv = pose[st.poseMirror ? 1 - i : i], vog = V3.add(sh, [sd * pv[0] * (ua + fa), pv[1] * (ua + fa), pv[2] * (ua + fa)]);
-      const da = st.duckArm[i], dk = V3.add(sh, [sd * (.16 + da[0]) * (ua + fa) * .95, (.05 + da[1]) * (ua + fa) + .05 * Math.sin(t * 9 + i), .12]);
+      const da = st.duckArm[i], dk = V3.add(sh, [sd * (.16 + da[0]) * (ua + fa) * .95, (.05 + da[1]) * (ua + fa) + .05 * Math.sin(t * TAU / gap * 2 + i), .12]);
       handT.push(V3.mix(vog, dk, duck)); }
-    { const ps = L("posespeed", .35, 1.6); for (let i = 0; i < 2; i++) { const prevT = st.handPrev ? st.handPrev[i] : handT[i], u = Math.min(1, (t - st.poseT) * 3 * ps); if (!st.handFrom) st.handFrom = handT.map(h => h.slice()); if (st.poseT === t) st.handFrom[i] = prevT; handT[i] = V3.mix(st.handFrom[i], handT[i], svEaseIO(u)); } st.handPrev = handT.map(h => h.slice()); }
+    { const ps = L("posespeed", .15, 1.6); for (let i = 0; i < 2; i++) { const prevT = st.handPrev ? st.handPrev[i] : handT[i], u = Math.min(1, (t - st.poseT) * 3 * ps); if (!st.handFrom) st.handFrom = handT.map(h => h.slice()); if (st.poseT === t) st.handFrom[i] = prevT; handT[i] = V3.mix(st.handFrom[i], handT[i], svEaseIO(u)); } st.handPrev = handT.map(h => h.slice()); }
     // the hands chase their targets on a lagging spring, then are held within arm's length of the shoulder (no stretching off the body)
     const wrists = handT.map((h, i) => { const sh = i ? shR : shL, KK = lerp(Karm, K, k("rubber") * .35), CC = lerp(Carm, C, k("rubber") * .35); svSpr3(st.hands[i], h, KK, CC, dt); let w = svP(st.hands[i]); const d = V3.sub(w, sh), dl = V3.len(d); if (dl > ua + fa - .005) { w = V3.add(sh, d, (ua + fa - .005) / dl); st.hands[i].x.p = w[0]; st.hands[i].y.p = w[1]; st.hands[i].z.p = w[2]; } return w; });
     const eo = L("elbows", 0, 1), elbows = wrists.map((w, i) => svIK(i ? shR : shL, w, ua, fa, [(i ? 1 : -1) * (.1 + .9 * eo), .5 - .4 * eo, -.3 - .5 * eo]));
@@ -241,5 +244,5 @@ const SERVE = { key: "serve", name: "Serve", fade: .55,
     drawBody(J, hAng, fAng, 1, true);
     if (glow > .02) sprite(g, hue, J.head[0], J.head[1], U * .07 * J.head[2], .25 * glow * (1 + loud));
   } };
-NEW_TRAITS.push({ form: SERVE, char: "anchored", hue: 20, hy: .5, p: { roam: 0, size: .5, trails: .5, energy: .9 }, desc: "A ballroom dancer drawn as hollow geometric facets and posed in 3D: they turn to profile, show their back, spin on big hits and roam the stage with perspective. Vogues upright (arms thrown into new poses on the beat, waist bending, back always arched) or duck walks low and bouncing with the knees forward and the feet kicked out in turn; elbows and knees stay rigid while the wrists are pure rubber. Light sweeps across every facet, the hands leave ghost diamonds behind, and each kick stamps a dim copy of the pose." });
+NEW_TRAITS.push({ form: SERVE, char: "anchored", hue: 20, hy: .5, p: { chaos: .15, energy: .9, grace: .7, magnetism: 0, roam: 0, size: .5, social: .3, tempo: .45, trails: .5 }, desc: "A ballroom dancer drawn as hollow geometric facets and posed in 3D: they turn to profile, show their back, spin on big hits and roam the stage with perspective. Vogues upright (arms thrown into new poses on the beat, waist bending, back always arched) or duck walks low and bouncing with the knees forward and the feet kicked out in turn; elbows and knees stay rigid while the wrists are pure rubber. Light sweeps across every facet, the hands leave ghost diamonds behind, and each kick stamps a dim copy of the pose." });
 FORM[SERVE.key] = SERVE;

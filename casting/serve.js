@@ -36,7 +36,7 @@ const SV_POSES = [
 ];
 const SV_FACES = [0, 0, Math.PI / 4, -Math.PI / 4, Math.PI / 2, -Math.PI / 2, Math.PI, 3 * Math.PI / 4, -3 * Math.PI / 4]; // front, 3/4s, profiles, back
 const SERVE = { key: "serve", name: "Serve", fade: .55,
-  init: () => ({ hands: [svS3(), svS3()], ha: [svS0(), svS0()], fa: [svS0(), svS0()], feet: [svS3(), svS3()], hip: svS3(), bend: svS3(), nod: svS0(), yaw: svS0(), pos: { x: svS0(), z: svS0() }, pose: -1, poseT: 0, hat: [0, 0], hdir: [1, -1], pw: [{ w: 1.2, wt: 1.2, next: 0 }, { w: -.9, wt: -.9, next: 0 }], kickN: -1, ft: [0, 0], fl: [0, 0], trail: [[], []], freezes: [], prev: null, flare: {}, dCur: 1, dPrev: 1, dF: 1, sweep: 0, kickFoot: 0, cross: 0, crossT: 0, lastBeat: -1, duckArm: [[0, 0], [0, 0]], face: 0, tgt: [0, 0], moving: 0, yawT: 0, spin: -9, bendT: [0, 0, 0], nodT: 0, leanT: 0 }),
+  init: () => ({ hands: [svS3(), svS3()], ha: [svS0(), svS0()], fa: [svS0(), svS0()], feet: [svS3(), svS3()], hip: svS3(), bend: svS3(), nod: svS0(), yaw: svS0(), pos: { x: svS0(), z: svS0() }, pose: -1, poseT: 0, hat: [0, 0], hdir: [1, -1], ft: [0, 0], fl: [0, 0], trail: [[], []], freezes: [], prev: null, flare: {}, dCur: 1, dPrev: 1, dF: 1, sweep: 0, kickFoot: 0, cross: 0, crossT: 0, lastBeat: -1, duckArm: [[0, 0], [0, 0]], face: 0, tgt: [0, 0], moving: 0, yawT: 0, spin: -9, bendT: [0, 0, 0], nodT: 0, leanT: 0 }),
   shape: [
     { key: "dance", label: "Dance", min: 0, max: 2, def: 0, fmt: i => ["Mix it up", "Vogue", "Duck walk"][i], grp: "Dance" },
     { key: "feel", label: "Tempo feel", min: 0, max: 3, def: 2 / 3, fmt: i => ["Double time", "On the beat", "Half time", "Quarter time"][i], grp: "Dance" },
@@ -59,14 +59,11 @@ const SERVE = { key: "serve", name: "Serve", fade: .55,
     { key: "knees", label: "Knee spread", def: 0, grp: "Duck walk", when: g => g("dance") !== 1 },
     { key: "dlean", label: "Lean forward", def: 0.74, grp: "Duck walk", when: g => g("dance") !== 1 },
     { key: "flings", label: "Arm flings", def: 1, grp: "Duck walk", when: g => g("dance") !== 1 },
-    { key: "travel", label: "Travel per kick", def: .5, grp: "Duck walk", when: g => g("dance") !== 1 },
     { key: "body", label: "Body type", def: 0.52, cfmt: v => v < .15 ? "Feminine" : v < .4 ? "Femme-leaning" : v < .6 ? "Androgynous" : v < .85 ? "Masc-leaning" : "Masculine", grp: "Body" },
     { key: "waistw", label: "Waist", def: 0.25, grp: "Body" },
     { key: "arch", label: "Back arch", def: 1, grp: "Body" },
     { key: "flicks", label: "Flicks per beat", min: 0, max: 5, def: .4, fmt: i => ["¼×", "½×", "1×", "2×", "3×", "4×"][i], grp: "Hands" },
-    { key: "fdir", label: "Hand motion", min: 0, max: 4, def: 0, fmt: i => ["Pinwheel", "Flick anywhere", "Up and down", "Side to side", "Circles"][i], grp: "Hands" },
-    { key: "pinspeed", label: "Pinwheel speed", def: .35, grp: "Hands" },
-    { key: "pinwander", label: "Change of direction", def: .5, grp: "Hands" },
+    { key: "fdir", label: "Flick direction", min: 0, max: 3, def: 0, fmt: i => ["Anywhere", "Up and down", "Side to side", "Circles"][i], grp: "Hands" },
     { key: "wild", label: "Flick size", def: 0.99, grp: "Hands" },
     { key: "wspeed", label: "Wrist speed", def: .6, grp: "Hands" },
     { key: "rubber", label: "Rubber", def: 0.98, grp: "Hands" },
@@ -87,8 +84,7 @@ const SERVE = { key: "serve", name: "Serve", fade: .55,
     { key: "weight", label: "Line weight", def: 0.12, grp: "Body" },
     { key: "head", label: "Head size", def: 0.46, grp: "Body" },
     { key: "nod", label: "Head bob", def: 1, grp: "Body" },
-    { key: "headstyle", label: "Head", min: 0, max: 4, def: 0, fmt: i => ["Gem", "Visor bot", "Mannequin", "Diamond", "Facet afro"][i], grp: "Body" },
-    { key: "crest", label: "Hair / antenna", def: .4, grp: "Body" },
+    { key: "crest", label: "Hair crest", def: 0, grp: "Body" },
     { key: "roam", label: "Roam the stage", def: .5, grp: "Moving around" },
     { key: "walk", label: "Walk speed", def: .5, grp: "Moving around" },
     { key: "turns", label: "Turns", def: .6, grp: "Moving around" },
@@ -116,15 +112,12 @@ const SERVE = { key: "serve", name: "Serve", fade: .55,
     st.dF = Math.min(1, st.dF + dt * 1.6); const mixF = svEaseIO(st.dF), duck = lerp(st.dPrev === 2 ? 1 : 0, st.dCur === 2 ? 1 : 0, mixF);
     // ---- roaming the stage: a new spot every bar or so, walked to on a spring; facing follows the walk, otherwise a new facing is picked on bars
     const armL = L("armlen", .22, .5), roam = k("roam"), xr = Math.max(0, E.W * .5 / U - .2 - armL);
-    // vogue: wander to a new spot now and then. Duck walk: bounce forward in the direction you face, a step per kick (toward the room = bigger, away = smaller); turn at the edges
-    const duckNow = st.dCur === 2 && st.dF > .5, zr = .6 * Math.max(roam, .25);
-    if (duckNow) { const kpb0 = [.5, 1, 2][I("kicks")], kn = Math.floor((bn + ph) * kpb0); if (kn !== st.kickN) { st.kickN = kn; const step = L("travel", 0, .16), fx = Math.sin(st.yawT), fz = Math.cos(st.yawT); let nx = st.tgt[0] + fx * step, nz = st.tgt[1] + fz * step;
-        if (Math.abs(nx) > xr || Math.abs(nz) > zr) { nx = clamp(nx, -xr, xr); nz = clamp(nz, -zr, zr); const away = Math.atan2(-nx, -nz) + (Math.random() - .5) * 1.2; st.yawT = st.yaw.p + svAng(away - st.yaw.p); st.face = -1; } st.tgt = [nx, nz]; } }
-    else { if (bar && roam > .02 && Math.random() < .35 + .5 * roam) st.tgt = [(Math.random() * 2 - 1) * xr * roam, (Math.random() * 2 - 1) * .55 * roam]; if (roam < .02) st.tgt = [0, 0]; }
+    if (bar && roam > .02 && Math.random() < .35 + .5 * roam) st.tgt = [(Math.random() * 2 - 1) * xr * roam, (Math.random() * 2 - 1) * .55 * roam];
+    if (roam < .02) st.tgt = [0, 0];
     { const Kw = L("walk", 1.5, 40), Cw = 2 * .95 * Math.sqrt(Kw); svSpr(st.pos.x, st.tgt[0], Kw, Cw, dt); svSpr(st.pos.z, st.tgt[1], Kw, Cw, dt); }
     const vx = st.pos.x.v, vz = st.pos.z.v; st.moving = Math.hypot(vx, vz) > .12;
     // facing: yaw 0 looks at the room (+z), π is the back. While walking, face the way you go.
-    if (st.moving && !duckNow) st.yawT = Math.atan2(vx, vz);
+    if (st.moving) st.yawT = Math.atan2(vx, vz);
     else if (bar && Math.random() < k("turns") * .8) { let fc = st.face; while (fc === st.face) fc = Math.floor(Math.random() * SV_FACES.length); st.face = fc; st.yawT = SV_FACES[fc]; }
     if (newBeat && k("spins") > .02 && R.kick * (.6 + loud) > 1.1 - .7 * k("spins") && t - st.spin > 2.5) { st.spin = t; st.yawT += TAU * (Math.random() < .5 ? 1 : -1); }
     // the spring chases the nearest equivalent angle, except during a spin (which adds a whole turn on purpose)
@@ -140,16 +133,10 @@ const SERVE = { key: "serve", name: "Serve", fade: .55,
     // ---- flicks
     const fpb = [.25, .5, 1, 2, 3, 4][I("flicks")], fphase = Math.floor((bn + ph) * fpb);
     const fmode = I("fdir"), frange = Math.PI * (.15 + .85 * k("wild")) * (.6 + .6 * loud);
-    if (fmode === 0) {
-      // pinwheel: each hand turns slowly and continuously at its own speed, drifting and reversing on its own schedule, independent of the other
-      for (let i = 0; i < 2; i++) { const pw = st.pw[i], top = L("pinspeed", .3, 6) * (.7 + .6 * loud);
-        pw.next -= dt; if (pw.next <= 0) { pw.next = lerp(4, .6, k("pinwander")) * (.5 + Math.random()); pw.wt = (Math.random() < .5 ? -1 : 1) * top * (.25 + .75 * Math.random()); }
-        pw.w += (pw.wt - pw.w) * Math.min(1, dt * 1.5); if (typeof st.hat[i] !== "object" || st.hat[i].abs) st.hat[i] = { abs: true, a: (st.ha[i].p || 0) }; st.hat[i].a += pw.w * dt; }
-    } else
     for (let i = 0; i < 2; i++) if (fphase !== st.fl[i]) { st.fl[i] = fphase; st.hdir[i] = -st.hdir[i];
-      if (fmode === 1) st.hat[i] = { abs: false, a: svAng((st.hat[i].a || 0) + (Math.random() - .5) * 2 * frange + (Math.random() < .3 ? Math.PI : 0)) };
-      else if (fmode === 2) st.hat[i] = { abs: true, a: -Math.PI / 2 + st.hdir[i] * frange * .5 + (Math.random() - .5) * .4 };
-      else if (fmode === 3) st.hat[i] = { abs: true, a: (st.hdir[i] > 0 ? 0 : Math.PI) + (Math.random() - .5) * frange * .5 };
+      if (fmode === 0) st.hat[i] = { abs: false, a: svAng(st.hat[i].a + (Math.random() - .5) * 2 * frange + (Math.random() < .3 ? Math.PI : 0)) };
+      else if (fmode === 1) st.hat[i] = { abs: true, a: -Math.PI / 2 + st.hdir[i] * frange * .5 + (Math.random() - .5) * .4 };
+      else if (fmode === 2) st.hat[i] = { abs: true, a: (st.hdir[i] > 0 ? 0 : Math.PI) + (Math.random() - .5) * frange * .5 };
       else st.hat[i] = { abs: false, a: (st.hat[i].a || 0) + (i ? 1 : -1) * frange * .7 }; }
     for (let i = 0; i < 2; i++) if (typeof st.hat[i] !== "object") st.hat[i] = { abs: false, a: 0 };
     if (newBeat) for (let i = 0; i < 2; i++) if (st.kickFoot === i || Math.random() < .3) st.ft[i] = (Math.random() - .5) * 1.6 * k("ankles");
@@ -234,39 +221,14 @@ const SERVE = { key: "serve", name: "Serve", fade: .55,
         Q.push({ z: zOf(el, wr), fn: () => facet(el, wr, wBase * .8, hh(-.7 - .3 * i), al, F("fa" + i), .45) });
         const a = hA[i]; Q.push({ z: wr[3] + .02, fn: () => { const st2 = 1 + k("stretch") * .5 * Math.min(2.5, Math.abs(a.v) * .12), hs = hs0 * wr[2]; diamond(wr, a.p, hs * st2, hs * .45 / Math.sqrt(st2), hh(-1.1), al, F("fa" + i) + (live ? Math.min(1, Math.abs(a.v) * .08) : 0));
           if (live && glow > .02) sprite(g, hh(-1.1), wr[0], wr[1], hs * 1.6, (.12 + .5 * Math.min(1, Math.abs(a.v) * .06)) * glow * al); } }); }
-      // head: a few styles to try (Kennedy, Oct 21: the oval with a horn and a nose "wasn't giving"). Each shows which way it faces without a nose:
-      // the facets, visor, jaw or hairline slide across the head as it turns, and swap to the back when it faces away.
-      Q.push({ z: J.head[3], fn: () => { const s = J.head[2], lw = lw0 * s, a2 = al * depthAl(s), hr = U * L("head", .04, .075) * s, ha2 = Math.atan2(J.head[1] - J.neck[1], J.head[0] - J.neck[0]) + Math.PI / 2, style = I("headstyle"), ex = k("crest");
-        const fx = clamp((J.nose[0] - J.head[0]) / (hr * 1.05), -1, 1), front = J.nose[3] >= J.head[3] - 1e-6, side = Math.abs(fx), h0 = hh(0);
-        g.lineWidth = lw * 1.6; g.strokeStyle = hsl(h0, 90, 62, .85 * a2); g.beginPath(); g.moveTo(J.chest[0], J.chest[1]); g.lineTo(J.neck[0], J.neck[1]); g.lineTo(J.head[0], J.head[1]); g.stroke();
-        g.save(); g.translate(J.head[0], J.head[1]); g.rotate(ha2);
-        const ink = (pts, fill) => { poly(pts); g.fillStyle = `rgba(0,0,0,${.8 * al})`; g.fill(); g.fillStyle = hsl(h0, 90, 50, (fill ?? .1) * a2); g.fill(); g.lineWidth = lw * 3.2; g.strokeStyle = hsl(h0, 95, 60, .16 * a2); g.stroke(); g.lineWidth = lw; g.strokeStyle = hsl(h0, 95, 68, .92 * a2); g.stroke(); };
-        const inner = (segs, w = .6, al3 = .55) => { g.lineWidth = lw * w; g.strokeStyle = hsl(h0 + 20, 90, 75, al3 * a2); g.beginPath(); segs.forEach(([p, q]) => { g.moveTo(p[0], p[1]); g.lineTo(q[0], q[1]); }); g.stroke(); };
-        if (style === 0) { // gem: a tall cut stone; its crown point slides with the facing, so the facets turn
-          const V = []; for (let i = 0; i < 8; i++) { const an = -Math.PI / 2 + i / 8 * TAU; V.push([Math.cos(an) * hr * .88, Math.sin(an) * hr * 1.02]); } ink(V, .14);
-          const cp = [fx * hr * .45, -hr * .1 * (front ? 1 : -1)]; inner(V.map(v => [cp, v]).filter((_, i) => i % 2 === 0), .6, .55); inner([[V[1], V[7]], [V[3], V[5]]], .45, .4); spriteWhite(g, cp[0], cp[1], hr * .35, .3 * a2);
-          if (ex > .02) { const cl = hr * 1.6 * ex; g.beginPath(); g.moveTo(-hr * .22, -hr * .98); g.lineTo(0, -hr - cl); g.lineTo(hr * .22, -hr * .98); g.closePath(); g.fillStyle = hsl(h0 + 20, 90, 55, .25 * a2); g.fill(); g.lineWidth = lw; g.strokeStyle = hsl(h0 + 20, 95, 72, .9 * a2); g.stroke(); } }
-        else if (style === 1) { // visor bot: a rounded helmet with a glowing visor that slides across as it turns and is hidden from behind; an antenna on top
-          const w = hr * .92, h = hr * 1.05, r = hr * .3; g.beginPath(); g.moveTo(-w + r, -h); g.lineTo(w - r, -h); g.quadraticCurveTo(w, -h, w, -h + r); g.lineTo(w, h - r); g.quadraticCurveTo(w, h, w - r, h); g.lineTo(-w + r, h); g.quadraticCurveTo(-w, h, -w, h - r); g.lineTo(-w, -h + r); g.quadraticCurveTo(-w, -h, -w + r, -h); g.closePath();
-          g.fillStyle = `rgba(0,0,0,${.8 * al})`; g.fill(); g.fillStyle = hsl(h0, 90, 50, .12 * a2); g.fill(); g.lineWidth = lw * 3.2; g.strokeStyle = hsl(h0, 95, 60, .16 * a2); g.stroke(); g.lineWidth = lw; g.strokeStyle = hsl(h0, 95, 68, .92 * a2); g.stroke();
-          inner([[[-w, -h * .45], [w, -h * .45]], [[-w, h * .55], [w, h * .55]]], .5, .35);
-          if (front) { const vw = w * .8 * (1 - .75 * side), vx = fx * w * .55, vy = -h * .15; g.save(); g.beginPath(); g.rect(-w, -h, w * 2, h * 2); g.clip(); const gr = g.createLinearGradient(vx - vw, 0, vx + vw, 0); gr.addColorStop(0, hsl(h0 + 40, 100, 70, 0)); gr.addColorStop(.5, hsl(h0 + 40, 100, 80, .95 * a2)); gr.addColorStop(1, hsl(h0 + 40, 100, 70, 0)); g.fillStyle = gr; g.fillRect(vx - vw, vy - h * .14, vw * 2, h * .28); g.restore(); sprite(g, h0 + 40, vx, vy, vw * 1.2, .35 * a2 * (1 + loud)); }
-          else inner([[[-w * .5, -h * .2], [w * .5, -h * .2]], [[-w * .5, h * .1], [w * .5, h * .1]]], .5, .35);
-          if (ex > .02) { const cl = hr * 1.5 * ex; g.lineWidth = lw; g.strokeStyle = hsl(h0, 90, 70, .9 * a2); g.beginPath(); g.moveTo(fx * w * .3, -h); g.lineTo(fx * w * .3, -h - cl); g.stroke(); sprite(g, h0 + 40, fx * w * .3, -h - cl, hr * .35, .5 * a2 * (1 + R.kick)); g.fillStyle = hsl(h0 + 40, 100, 85, .95 * a2); g.beginPath(); g.arc(fx * w * .3, -h - cl, lw * 1.5, 0, TAU); g.fill(); } }
-        else if (style === 2) { // mannequin: a smooth featureless head with a chin, a jaw line and a hairline that swing across as it turns
-          g.beginPath(); g.moveTo(0, -hr); g.bezierCurveTo(hr * .95, -hr, hr * .95, hr * .35, hr * .3, hr * .95); g.quadraticCurveTo(0, hr * 1.08, -hr * .3, hr * .95); g.bezierCurveTo(-hr * .95, hr * .35, -hr * .95, -hr, 0, -hr); g.closePath();
-          g.fillStyle = `rgba(0,0,0,${.8 * al})`; g.fill(); g.fillStyle = hsl(h0, 90, 50, .1 * a2); g.fill(); g.lineWidth = lw * 3.2; g.strokeStyle = hsl(h0, 95, 60, .16 * a2); g.stroke(); g.lineWidth = lw; g.strokeStyle = hsl(h0, 95, 68, .92 * a2); g.stroke();
-          if (front) { g.lineWidth = lw * .6; g.strokeStyle = hsl(h0 + 20, 90, 75, .5 * a2); g.beginPath(); g.moveTo(fx * hr * .5 - hr * .55 * (1 - side * .6), hr * .35); g.quadraticCurveTo(fx * hr * .6, hr * 1.0, fx * hr * .5 + hr * .55 * (1 - side * .6), hr * .35); g.stroke(); }
-          g.lineWidth = lw * .8; g.strokeStyle = hsl(h0 + 30, 100, 85, .6 * a2); g.beginPath(); g.ellipse(-fx * hr * .35 * (front ? 1 : -1), -hr * .35, hr * .7, hr * .55 * (1 - .4 * side), 0, Math.PI, TAU); g.stroke();
-          if (ex > .02) { const cl = hr * 1.2 * ex; g.lineWidth = lw * .9; g.strokeStyle = hsl(h0 + 30, 95, 75, .8 * a2); g.beginPath(); for (let i = -2; i <= 2; i++) { g.moveTo(i * hr * .28, -hr * .9); g.quadraticCurveTo(i * hr * .4 - fx * hr * .3, -hr - cl * .6, i * hr * .2 - fx * hr * .5, -hr - cl); } g.stroke(); } }
-        else if (style === 3) { // diamond: a kite head in the body's own language; the cross line slides with the facing
-          const V = [[0, -hr * 1.05], [hr * .72, -hr * .15], [0, hr * 1.0], [-hr * .72, -hr * .15]]; ink(V, .12); inner([[V[0], V[2]], [[fx * hr * .3, -hr * .15], V[1]], [[fx * hr * .3, -hr * .15], V[3]]], .6, .55); if (front) spriteWhite(g, fx * hr * .3, -hr * .15, hr * .3, .3 * a2);
-          if (ex > .02) { const cl = hr * 1.6 * ex; g.beginPath(); g.moveTo(-hr * .2, -hr * .95); g.lineTo(0, -hr - cl); g.lineTo(hr * .2, -hr * .95); g.closePath(); g.lineWidth = lw; g.strokeStyle = hsl(h0 + 20, 95, 72, .9 * a2); g.stroke(); } }
-        else { // facet afro: an oval head inside a ring of small kites fanning all round, bigger with the hair slider, breathing with the bass
-          const n = 14, rad = hr * (1.25 + 1.3 * ex) * (1 + .08 * R.bass); for (let i = 0; i < n; i++) { const an = Math.PI * .78 + i / (n - 1) * Math.PI * 1.44, ca = Math.cos(an), sa = Math.sin(an) * 1.05, A = [ca * hr * .85, sa * hr * .95], B = [ca * rad, sa * rad], w = hr * .16, pts = kite(A, B, w, .55); g.beginPath(); pts.forEach((p, j) => j ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); g.closePath(); g.fillStyle = hsl(h0 + 25 + i * 3, 90, 50, .12 * a2); g.fill(); g.lineWidth = lw * .9; g.strokeStyle = hsl(h0 + 25 + i * 3, 95, 70, .85 * a2); g.stroke(); g.lineWidth = lw * .45; g.strokeStyle = hsl(h0 + 25, 90, 80, .4 * a2); g.beginPath(); g.moveTo(A[0], A[1]); g.lineTo(B[0], B[1]); g.stroke(); }
-          g.beginPath(); g.ellipse(0, 0, hr * .85, hr, 0, 0, TAU); g.fillStyle = `rgba(0,0,0,${.8 * al})`; g.fill(); g.fillStyle = hsl(h0, 90, 50, .1 * a2); g.fill(); g.lineWidth = lw * 3.2; g.strokeStyle = hsl(h0, 95, 60, .16 * a2); g.stroke(); g.lineWidth = lw; g.strokeStyle = hsl(h0, 95, 68, .92 * a2); g.stroke();
-          if (front) { g.lineWidth = lw * .6; g.strokeStyle = hsl(h0 + 20, 90, 75, .5 * a2); g.beginPath(); g.moveTo(fx * hr * .5 - hr * .5 * (1 - side * .6), hr * .4); g.quadraticCurveTo(fx * hr * .55, hr * .95, fx * hr * .5 + hr * .5 * (1 - side * .6), hr * .4); g.stroke(); } }
+      // head: a hollow oval (dark inside, so what's behind it hides), a crest; a nose wedge shows which way it faces
+      Q.push({ z: J.head[3], fn: () => { const s = J.head[2], lw = lw0 * s, a2 = al * depthAl(s), hr = U * L("head", .04, .075) * s, ha2 = Math.atan2(J.head[1] - J.neck[1], J.head[0] - J.neck[0]) + Math.PI / 2;
+        g.lineWidth = lw * 1.6; g.strokeStyle = hsl(hh(0), 90, 62, .85 * a2); g.beginPath(); g.moveTo(J.chest[0], J.chest[1]); g.lineTo(J.neck[0], J.neck[1]); g.lineTo(J.head[0], J.head[1]); g.stroke();
+        g.save(); g.translate(J.head[0], J.head[1]); g.rotate(ha2); g.beginPath(); g.ellipse(0, 0, hr * .85, hr, 0, 0, TAU); g.fillStyle = `rgba(0,0,0,${.75 * al})`; g.fill(); g.fillStyle = hsl(hh(0), 90, 50, .1 * a2); g.fill(); g.lineWidth = lw * 3.2; g.strokeStyle = hsl(hh(0), 95, 60, .16 * a2); g.stroke(); g.lineWidth = lw; g.strokeStyle = hsl(hh(0), 95, 68, .92 * a2); g.stroke(); g.lineWidth = lw * .55; g.strokeStyle = hsl(hh(0) + 30, 100, 90, .6 * a2); g.beginPath(); g.ellipse(0, 0, hr * .85, hr, 0, Math.PI * 1.05, Math.PI * 1.6); g.stroke();
+        if (k("crest") > .02) { const cl = hr * 3.2 * k("crest"); g.beginPath(); g.moveTo(-hr * .25, -hr * .95); g.lineTo(0, -hr - cl); g.lineTo(hr * .25, -hr * .95); g.lineTo(0, -hr * .7); g.closePath(); g.fillStyle = hsl(hh(0) + 20, 90, 55, .25 * a2); g.fill(); g.lineWidth = lw; g.strokeStyle = hsl(hh(0) + 20, 95, 72, .9 * a2); g.stroke(); }
         g.restore(); } });
+      Q.push({ z: J.nose[3], fn: () => { const s = J.head[2], hr = U * L("head", .04, .075) * s, dx = J.nose[0] - J.head[0], dy = J.nose[1] - J.head[1], d = Math.hypot(dx, dy); if (d < hr * .3) return; const ux = dx / d, uy = dy / d, b = [J.head[0] + ux * hr * .7, J.head[1] + uy * hr * .7], tip = [J.head[0] + ux * hr * 1.15, J.head[1] + uy * hr * 1.15];
+        inkPoly([b, [b[0] - uy * hr * .14, b[1] + ux * hr * .14], tip, [b[0] + uy * hr * .14, b[1] - ux * hr * .14]], hh(0) + 20, al * depthAl(s), 0, lw0 * s, .2); } });
       Q.sort((a, b) => a.z - b.z); g.lineJoin = "round"; g.lineCap = "round"; Q.forEach(q => q.fn()); };
     // ---- flick echoes: ghost diamonds tracing each hand, drifting and fading; more when loud
     if (k("echo") > .02) { const maxN = Math.round(L("echolen", 6, 40) * (.4 + .6 * loud + .4 * R.kick));

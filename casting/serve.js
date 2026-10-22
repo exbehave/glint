@@ -15,7 +15,7 @@ const V3 = { add: (a, b, s = 1) => [a[0] + b[0] * s, a[1] + b[1] * s, a[2] + b[2
 // two-bone IK in 3D: the joint bends toward `pole`; returns the joint
 function svIK(A, B, l1, l2, pole) { const d = V3.sub(B, A), dist = clamp(V3.len(d), .001, l1 + l2 - .001), dir = V3.norm(d), a = (l1 * l1 + dist * dist - l2 * l2) / (2 * dist), h = Math.sqrt(Math.max(0, l1 * l1 - a * a));
   let perp = V3.sub(pole, V3.mul(dir, V3.dot(pole, dir))); if (V3.len(perp) < 1e-4) perp = [dir[1], -dir[0], 0]; perp = V3.norm(perp); return V3.add(V3.add(A, dir, a), perp, h); }
-function svBeat(E, st) { st.since = (st.since ?? 9) + E.dt; if (E.beat) { if (st.since > .22 && st.since < 2.2) st.gap = lerp(st.gap ?? .5, st.since, .4); st.since = 0; st.beats = (st.beats || 0) + 1; st.hit = 1; } st.hit = Math.max(0, (st.hit || 0) - E.dt * 3); return clamp(st.gap ?? .5, .25, 1.8); }
+function svBeat(E, st) { st.since = (st.since ?? 9) + E.dt; const gp = clamp(st.gap ?? .5, .25, 1.8); if (!E.beat && st.since > gp * 1.05) { st.since -= gp; st.beats = (st.beats || 0) + 1; st.idleBeat = true; } else if (E.beat) st.idleBeat = false; if (E.beat) { if (st.since > .22 && st.since < 2.2) st.gap = lerp(st.gap ?? .5, st.since, .4); st.since = 0; st.beats = (st.beats || 0) + 1; st.hit = 1; } st.hit = Math.max(0, (st.hit || 0) - E.dt * 3); return clamp(st.gap ?? .5, .25, 1.8); }
 const svAng = a => Math.atan2(Math.sin(a), Math.cos(a));
 // vogue arm poses, relative to each shoulder in local units (x outward, y down, z toward the room), scaled by reach where marked
 const SV_POSES = [
@@ -31,6 +31,9 @@ const SV_POSES = [
   r => [[1.0 * r, -.95 * r, 0], [1.0 * r, -.95 * r, 0]],              // V: both up and out
   r => [[.15, .95, .05], [-.05, -.75, .3]],                            // one hanging, one up by the head
   r => [[.95 * r, .15, .1], [-.3, .5, -.05]],                          // one out, one on the hip
+  r => [[.55, -.55, .05], [.55, .45, .05]],                            // Egyptian: one forearm up, one down, both out
+  r => [[.6, -.1, .05], [.6, -.1, .05]],                                // Egyptian: both forearms out level
+  r => [[.3, -.75, .05], [.65, .2, .05]],                               // Egyptian: one up by the ear, one out low
   r => [[.3, -.3, .9 * r], [.3, -.3, .9 * r]],                         // both reaching straight at the room
   r => [[.2, -1.0 * r, -.4], [.95 * r, -.2, .4]],                      // one up and back, one out and forward
 ];
@@ -63,7 +66,8 @@ const SERVE = { key: "serve", name: "Serve", fade: .55,
     { key: "waistw", label: "Waist", def: 0.25, grp: "Body" },
     { key: "arch", label: "Back arch", def: 1, grp: "Body" },
     { key: "flicks", label: "Flicks per beat", min: 0, max: 5, def: .4, fmt: i => ["¼×", "½×", "1×", "2×", "3×", "4×"][i], grp: "Hands" },
-    { key: "fdir", label: "Flick direction", min: 0, max: 3, def: 0, fmt: i => ["Anywhere", "Up and down", "Side to side", "Circles"][i], grp: "Hands" },
+    { key: "fdir", label: "Hand motion", min: 0, max: 4, def: 0, fmt: i => ["Clock hands", "Flick anywhere", "Up and down", "Side to side", "Circles"][i], grp: "Hands" },
+    { key: "outward", label: "Hands point outward", def: .55, grp: "Hands" },
     { key: "wild", label: "Flick size", def: 0.99, grp: "Hands" },
     { key: "wspeed", label: "Wrist speed", def: .6, grp: "Hands" },
     { key: "rubber", label: "Rubber", def: 0.98, grp: "Hands" },
@@ -133,17 +137,23 @@ const SERVE = { key: "serve", name: "Serve", fade: .55,
     // ---- flicks
     const fpb = [.25, .5, 1, 2, 3, 4][I("flicks")], fphase = Math.floor((bn + ph) * fpb);
     const fmode = I("fdir"), frange = Math.PI * (.15 + .85 * k("wild")) * (.6 + .6 * loud);
+    if (fmode === 0) {
+      // clock hands: each hand, on its own clock, picks a new position anywhere around the dial and sweeps there smoothly
+      // (never a jittery wedge); the dial is centered on "away from the body", Egyptian style, and Hands point outward
+      // decides how often it lands near that than anywhere else
+      for (let i = 0; i < 2; i++) { st.hcl ||= [0, 0]; st.hcl[i] -= dt; if (st.hcl[i] <= 0) { const per = gap / Math.max(.25, fpb); st.hcl[i] = per * (.55 + .9 * Math.random()); const bias = k("outward"), spreadA = Math.PI * (1 - .85 * bias * bias); st.hat[i] = { abs: false, out: true, a: (Math.random() - .5) * 2 * spreadA * (Math.random() < .35 + .65 * (1 - bias) ? 1 : .35) }; } }
+    } else
     for (let i = 0; i < 2; i++) if (fphase !== st.fl[i]) { st.fl[i] = fphase; st.hdir[i] = -st.hdir[i];
-      if (fmode === 0) st.hat[i] = { abs: false, a: svAng(st.hat[i].a + (Math.random() - .5) * 2 * frange + (Math.random() < .3 ? Math.PI : 0)) };
-      else if (fmode === 1) st.hat[i] = { abs: true, a: -Math.PI / 2 + st.hdir[i] * frange * .5 + (Math.random() - .5) * .4 };
-      else if (fmode === 2) st.hat[i] = { abs: true, a: (st.hdir[i] > 0 ? 0 : Math.PI) + (Math.random() - .5) * frange * .5 };
+      if (fmode === 1) st.hat[i] = { abs: false, a: svAng((st.hat[i].a || 0) + (Math.random() - .5) * 2 * frange + (Math.random() < .3 ? Math.PI : 0)) };
+      else if (fmode === 2) st.hat[i] = { abs: true, a: -Math.PI / 2 + st.hdir[i] * frange * .5 + (Math.random() - .5) * .4 };
+      else if (fmode === 3) st.hat[i] = { abs: true, a: (st.hdir[i] > 0 ? 0 : Math.PI) + (Math.random() - .5) * frange * .5 };
       else st.hat[i] = { abs: false, a: (st.hat[i].a || 0) + (i ? 1 : -1) * frange * .7 }; }
     for (let i = 0; i < 2; i++) if (typeof st.hat[i] !== "object") st.hat[i] = { abs: false, a: 0 };
     if (newBeat) for (let i = 0; i < 2; i++) if (st.kickFoot === i || Math.random() < .3) st.ft[i] = (Math.random() - .5) * 1.6 * k("ankles");
     const f0 = L("wspeed", .7, 7), K = Math.pow(TAU * f0, 2), zeta = L("rubber", .6, .05), C = 2 * zeta * Math.sqrt(K), Ka = Math.pow(TAU * f0 * .9, 2), Ca = 2 * Math.max(.12, zeta * 1.3) * Math.sqrt(Ka);
     const fArm = L("armspeed", .5, 5), Karm = Math.pow(TAU * fArm, 2), Carm = 2 * L("armlag", .9, .18) * Math.sqrt(Karm), fLeg = L("legspeed", .6, 6), Kleg = Math.pow(TAU * fLeg, 2), Cleg = 2 * .8 * Math.sqrt(Kleg);
     // ---- the skeleton in local space (figure units; x right, y down from the top of the head, z toward the room)
-    const kpb = [.5, 1, 2][I("kicks")], bounce = svPop((bn + ph) * kpb, k("bsnap")) * L("bounce", .02, .16) * (.5 + .5 * Math.min(1, R.energy)) * (1 + .4 * R.kick), vb = svPop(ph, .4) * L("vbounce", 0, .05) * (.4 + .6 * loud);
+    const kpb = [.5, 1, 2][I("kicks")], bounce = svPop((bn + ph) * kpb, k("bsnap")) * L("bounce", .02, .16) * (.7 + .3 * Math.min(1, R.energy)) * (1 + .4 * R.kick), vb = svPop(ph, .4) * L("vbounce", 0, .05) * (.7 + .3 * loud);
     const legL = L("leglen", .36, .56), thigh = legL / 2, shin = legL / 2, floor = .46 + legL, squatY = lerp(.46 + (legL - .46), lerp(floor - .24, floor - .07, k("squat")), duck), sway = Math.sin(t * Math.PI / gap * .5) * L("sway", 0, .06) * (1 - duck) * (.5 + loud);
     svSpr3(st.hip, [sway, squatY + lerp(vb, bounce, duck), 0], 900, 55, dt); const hipC = svP(st.hip);
     // torso: pelvis → waist → chest. The back is always arched (pelvis tipped forward, chest lifted and carried back); vogue adds a waist bend on each pose
@@ -166,7 +176,7 @@ const SERVE = { key: "serve", name: "Serve", fade: .55,
     const ankles = feetT.map((ft, i) => { svSpr3(st.feet[i], ft, Kleg, Cleg, dt); const p = svP(st.feet[i]); p.push(ft[3]); return p; });
     const knees = ankles.map((a, i) => svIK(i ? hipR : hipL, a, thigh, shin, poles[i]));
     // arms
-    const ua = armL * .51, fa = armL * .49, reach = L("reach", .5, 1.0) * (.7 + .4 * loud) * (1 + .15 * R.kick), pose = SV_POSES[st.pose](reach), handT = [];
+    const ua = armL * .51, fa = armL * .49, reach = L("reach", .5, 1.0) * (.8 + .3 * loud) * (1 + .15 * R.kick), pose = SV_POSES[st.pose](reach), handT = [];
     for (let i = 0; i < 2; i++) { const sd = i ? 1 : -1, sh = i ? shR : shL, pv = pose[st.poseMirror ? 1 - i : i], vog = V3.add(sh, [sd * pv[0] * (ua + fa), pv[1] * (ua + fa), pv[2] * (ua + fa)]);
       const da = st.duckArm[i], dk = V3.add(sh, [sd * (.16 + da[0]) * (ua + fa) * .95, (.05 + da[1]) * (ua + fa) + .05 * Math.sin(t * TAU / gap * 2 + i), .12]);
       handT.push(V3.mix(vog, dk, duck)); }
@@ -180,7 +190,7 @@ const SERVE = { key: "serve", name: "Serve", fade: .55,
     const J = { head: proj(head), neck: proj(neck), shL: proj(shL), shR: proj(shR), chest: proj(chest), waist: proj(waist), hipL: proj(hipL), hipR: proj(hipR), hipC: proj(hipC), waistL: proj(waistL), waistR: proj(waistR), elbows: elbows.map(proj), wrists: wrists.map(proj), knees: knees.map(proj), ankles: ankles.map(a => { const q = proj(a); q.push(a[3]); return q; }), nose: proj(V3.add(head, [0, .01, .055])) };
     // hand and foot angles ride their own springs (the flick), in the screen plane
     const hAng = [], fAng = [];
-    for (let i = 0; i < 2; i++) { const fdir = Math.atan2(J.wrists[i][1] - J.elbows[i][1], J.wrists[i][0] - J.elbows[i][0]), s = st.ha[i]; s.p = fdir + svAng(s.p - fdir); const ht = st.hat[i].abs ? st.hat[i].a : fdir + st.hat[i].a; s.p = ht + svAng(s.p - ht); svSpr(s, ht, K * 1.4, C * .8, dt); hAng.push(s);
+    for (let i = 0; i < 2; i++) { const fdir = Math.atan2(J.wrists[i][1] - J.elbows[i][1], J.wrists[i][0] - J.elbows[i][0]), s = st.ha[i]; s.p = fdir + svAng(s.p - fdir); const sh2 = i ? J.shR : J.shL, odir = Math.atan2(J.wrists[i][1] - sh2[1], J.wrists[i][0] - sh2[0]), ht = st.hat[i].abs ? st.hat[i].a : (st.hat[i].out ? odir : fdir) + st.hat[i].a; s.p = ht + svAng(s.p - ht); svSpr(s, ht, K * (st.hat[i].out ? .6 : 1.4), st.hat[i].out ? 2 * Math.max(.45, zeta) * Math.sqrt(K * .6) : C * .8, dt); hAng.push(s);
       const sdir = Math.atan2(J.ankles[i][1] - J.knees[i][1], J.ankles[i][0] - J.knees[i][0]), a = st.fa[i]; a.p = sdir + svAng(a.p - sdir); svSpr(a, sdir + st.ft[i] + (i ? 1 : -1) * lerp(-.1, .3, duck) * .5 * Math.cos(yaw), Ka, Ca, dt); fAng.push(a); }
     // velocities → flare
     const prev = st.prev, vel = (key, p) => prev && prev[key] ? Math.hypot(p[0] - prev[key][0], p[1] - prev[key][1]) / Math.max(dt, 1e-3) / U : 0;

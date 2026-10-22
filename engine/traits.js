@@ -138,14 +138,19 @@ const JACK = { key: "jack", name: "Jack-o'-lantern", fade: .75, init: () => ({ z
   draw(E) { const { g, n, R, S, st, dt, t, L, I, k } = E; st.z ??= 0; st.turn ??= 0; st.fl ??= []; const hk = I("teeth") + "/" + k("menace").toFixed(3); if (st.hk !== hk) { st.hk = hk; st.holes = jackHoles(I("teeth"), k("menace")); } const holes = st.holes, depth = I("depth"), every = I("every") === 1, nx = I("next"), loud = tLoud(R), hue = n.hue, chue = hue + k("warm") * 120 - 10;
     const flick = lerp(1, .55 + .25 * Math.sin(t * 13.1) + .15 * Math.sin(t * 29.7 + 1) + .1 * Math.sin(t * 5.3) + .25 * R.kick, k("flicker")), unit = S * L("size", .1, .3) * (1 + .06 * R.kick);
     // Droste zoom: which hole we fly into, and its child map a = r·e^(iθ), placed at the hole's center
-    const ORD = [[0, 1, 2, 3], [1, 0, 2, 3], [0, 1, 3, 2], [3, 2, 1, 0]][I("order")]; st.rnd ??= 1; const ord = every ? ORD.filter(h => h !== 3) : ORD, hs = I("hole"); if (every && st.rnd === 3) st.rnd = 2; const ti = nx === 0 ? ord[st.turn % ord.length] : nx === 1 ? st.rnd : every && hs === 3 ? 2 : hs, th = holes[ti], ang = (k("twist") - .5) * 1.4, CH = L("fill", .9, 1.8), ar = th.r * CH;
-    st.z += dt * L("zoom", 0, .45) * (1 + 3 * k("kickzoom") * R.kick + loud); if (st.z >= 1) { st.z -= 1; st.turn++; let r = st.rnd; while (r === st.rnd) r = Math.floor(Math.random() * (every ? 3 : 4)); st.rnd = r; }
+    // each level of pumpkin has its own next hole: level i is the one we'll be flying into i loops from now, so when a loop ends
+    // the pumpkin that becomes the big one already has its little one in the right carving (no jump halfway through)
+    st.z += dt * L("zoom", 0, .45) * (1 + 3 * k("kickzoom") * R.kick + loud); if (st.z >= 1) { st.z -= 1; st.turn++; if (st.q) st.q.shift(); }
+    const ORD = [[0, 1, 2, 3], [1, 0, 2, 3], [0, 1, 3, 2], [3, 2, 1, 0]][I("order")], ord = every ? ORD.filter(h => h !== 3) : ORD, hs = I("hole");
+    st.q ??= []; while (st.q.length < 8) { const last = st.q.length ? st.q[st.q.length - 1] : -1; let r = last; while (r === last) r = Math.floor(Math.random() * 4); st.q.push(r); }
+    const tgt = i => { if (nx === 0) return ord[(st.turn + i) % ord.length]; const v = nx === 1 ? st.q[Math.min(i, 7)] : hs; return every && v === 3 ? 2 : v; };
+    const ti = tgt(0), th = holes[ti], ang = (k("twist") - .5) * 1.4, CH = L("fill", .9, 1.8), ar = th.r * CH;
     const z = st.z, A = [ar * Math.cos(ang), ar * Math.sin(ang)], cm = (p, q) => [p[0] * q[0] - p[1] * q[1], p[0] * q[1] + p[1] * q[0]], om = [1 - A[0], -A[1]], d2 = om[0] * om[0] + om[1] * om[1],
       Q = cm([th.cx, th.cy], [om[0] / d2, -om[1] / d2]), wm = Math.pow(ar, -z), W = [wm * Math.cos(-ang * z), wm * Math.sin(-ang * z)], WQ = cm(W, Q);
     const sweep = Math.sin(t * .7) * .25 * k("sweep") + Math.sin(t * 1.9) * .08 * k("sweep"), cand = [sweep, .18 + .03 * Math.sin(t * 7)];
     const path = pts => { g.beginPath(); pts.forEach((p, i) => i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); g.closePath(); };
     const ribsN = Math.round(lerp(3, 9, k("ribs")));
-    function level(i, sc, alpha, hot) { if (alpha <= .01 || sc < 3) return; const lw = 1 / sc;
+    function level(i, sc, alpha, hot) { if (sc < 3) return; /* a faded parent still draws its children */ const lw = 1 / sc;
       // pumpkin body: a lobed outline, inner rib arcs, a stem
       const out = []; for (let q = 0; q <= 120; q++) { const a = q / 120 * TAU, lobe = 1 - .07 * (1 - Math.abs(Math.cos(a * ribsN / 2))), wob = 1 + .03 * R.bass * Math.sin(a * 3 + t * 2 + i); out.push([Math.cos(a) * 1.15 * lobe * wob, Math.sin(a) * .95 * lobe * wob]); }
       g.lineJoin = g.lineCap = "round";
@@ -165,8 +170,8 @@ const JACK = { key: "jack", name: "Jack-o'-lantern", fade: .75, init: () => ({ z
       holes.forEach((h, hi) => { g.save(); path(h.pts); g.clip(); const fa = alpha * alpha;
         const gr = g.createRadialGradient(cand[0], cand[1], 0, cand[0], cand[1], 1.1); gr.addColorStop(0, hsl(chue + 20, 100, 66, .5 * flick * fa)); gr.addColorStop(.6, hsl(chue, 100, 48, .22 * flick * fa)); gr.addColorStop(1, hsl(chue - 10, 100, 35, .08 * fa)); g.fillStyle = gr; g.fillRect(-1.3, -1.3, 2.6, 2.6); g.restore();
         // the child pumpkin overfills its carving and is clipped to it; as the screen-filling parent fades out, that clip widens so the child arrives whole
-        const deep = hi === ti ? i < depth : every && hi !== 3 && i < Math.min(depth, 2);
-        if (deep) { const grow = hot && hi === ti ? 1 + 3 * (1 - alpha) : 1, ca = hi === ti ? A : [h.r * CH * Math.cos(ang), h.r * CH * Math.sin(ang)]; g.save(); path(h.pts.map(p => [h.cx + (p[0] - h.cx) * grow, h.cy + (p[1] - h.cy) * grow])); g.clip();
+        const tg = tgt(i), deep = hi === tg ? i < depth : every && hi !== 3 && i < Math.min(depth, 2);
+        if (deep) { const grow = hot && hi === tg ? 1 + 3 * (1 - alpha) : 1, ca = [h.r * CH * Math.cos(ang), h.r * CH * Math.sin(ang)]; g.save(); path(h.pts.map(p => [h.cx + (p[0] - h.cx) * grow, h.cy + (p[1] - h.cy) * grow])); g.clip();
           g.transform(ca[0], ca[1], -ca[1], ca[0], h.cx, h.cy); level(i + 1, sc * Math.hypot(ca[0], ca[1]), 1, false); g.restore(); }
         g.lineWidth = 2 * lw; g.strokeStyle = hsl(chue + 25, 100, 72, .9 * alpha); path(h.pts); g.stroke(); });
       // flame tongues licking out of the mouth on hits

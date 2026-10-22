@@ -284,15 +284,18 @@ const MEDUSA = { key: "medusa", name: "Medusa", fade: .6, init: () => ({ sn: [],
     g.lineCap = g.lineJoin = "round";
     const body = (pts, stroke, fill, lw1) => { g.beginPath(); pts.forEach((p, i) => i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); if (fill) { g.closePath(); g.fillStyle = fill; g.fill(); } if (stroke) { g.lineWidth = lw1 * 3.2; g.strokeStyle = stroke(.18); g.stroke(); g.lineWidth = lw1; g.strokeStyle = stroke(.9); g.stroke(); } };
     // ---- snakes (drawn first, so the face sits in front of their roots)
-    // roots ring her head from the jaw on one side, over the crown, to the jaw on the other (270°); the low ones hang outward and down
-    const crown = (a, row) => { const sa = Math.sin(a); return [cx + Math.cos(a) * u * .4 * (row ? .8 : 1) * (sa > 0 ? .95 : 1), cy - u * .02 + sa * u * (sa > 0 ? .42 : .5) * (row ? .82 : 1)]; };
-    for (let i = 0; i < N; i++) { const sn = st.sn[i], a0 = lerp(Math.PI * .75, Math.PI * 2.25, N === 1 ? .5 : i / (N - 1)), root = crown(a0, i % 2), sh = hue + (i / Math.max(1, N - 1) - .5) * 140 * k("spread");
+    // roots sit across the top of her scalp, in two staggered rows
+    const crown = (a, row) => [cx + Math.cos(a) * u * .36 * (row ? .78 : 1), cy - u * .02 + Math.sin(a) * u * .46 * (row ? .8 : 1)];
+    for (let i = 0; i < N; i++) { const sn = st.sn[i], f = N === 1 ? .5 : i / (N - 1), a0 = lerp(Math.PI + .5, Math.PI * 2 - .5, f), gS = Math.abs(f - .5) * 2, aim = Math.PI * 1.5 + (f - .5) * 2 * Math.PI * .75 * (1 + .15 * gS * gS), root = crown(a0, i % 2), sh = hue + (i / Math.max(1, N - 1) - .5) * 140 * k("spread");
       // springs: rear rises with loudness (cobra pose), strike is a kick that lunges and settles
       const rt = clamp(loud * 1.3 * k("rear") + R.kick * .3 * k("rear"), 0, 1); sn.rv += ((rt - sn.r) * 60 - sn.rv * 9) * dt; sn.r += sn.rv * dt; sn.sv += (-sn.s * 90 - sn.sv * 8) * dt; sn.s += sn.sv * dt;
       sn.tt -= dt * (1 + 3 * R.hat) * (.2 + 1.6 * k("tongues")); if (sn.tt <= 0) { sn.tg = 1; sn.tt = .6 + Math.random() * 3; } sn.tg = Math.max(0, sn.tg - dt * 3);
-      const M = 26, len = u * L("length", .45, 1.25) * (1 + .3 * sn.r + .35 * k("lunge") * Math.max(0, sn.s)), ds = len / M, wr = L("writhe", .05, 1.1) * (1 - .55 * clamp(sn.r, 0, 1)), sp = 1.6 + 2.5 * loud;
-      const pts = [root]; let ang = a0; for (let q = 1; q <= M; q++) { const s = q / M, up = Math.PI * 1.5 + (a0 - Math.PI * 1.5) * .45, cobra = clamp(sn.r, 0, 1.2) * Math.max(0, s - .55) * 2.2;
-        ang = a0 + wr * (Math.sin(s * sn.fq - t * sp + sn.ph) * (.35 + s) + .35 * Math.sin(s * 2.1 + t * .7 + sn.ph * 2)) + (up - a0) * .25 * clamp(sn.r, 0, 1) + cobra * (up - ang) * .5; const p = pts[q - 1]; pts.push([p[0] + Math.cos(ang) * ds, p[1] + Math.sin(ang) * ds]); }
+      const M = 26, len = u * L("length", .45, 1.25) * (1 + .5 * gS * gS) * (1 + .3 * sn.r + .35 * k("lunge") * Math.max(0, sn.s)), ds = len / M, wr = L("writhe", .05, 1.1) * (1 - .55 * clamp(sn.r, 0, 1)), sp = 1.6 + 2.5 * loud;
+      // every snake grows out of her scalp; side snakes leave heading outward, then droop and curve down like heavy hair toward their aim
+      // (down to 45 degrees below level on each side). Loud parts lift them back toward a cobra pose.
+      const aimE = lerp(aim, a0, .45 * clamp(sn.r, 0, 1));
+      const pts = [root]; let ang = a0; for (let q = 1; q <= M; q++) { const s = q / M, up = Math.PI * 1.5 + (a0 - Math.PI * 1.5) * .45, cobra = clamp(sn.r, 0, 1.2) * Math.max(0, s - .55) * 2.2, bend = s * s * (3 - 2 * s);
+        ang = lerp(a0, aimE, bend) + wr * (Math.sin(s * sn.fq - t * sp + sn.ph) * (.25 + .8 * s) + .3 * Math.sin(s * 2.1 + t * .7 + sn.ph * 2)) + (up - a0) * .2 * clamp(sn.r, 0, 1) * s + cobra * (up - ang) * .5; const p = pts[q - 1]; pts.push([p[0] + Math.cos(ang) * ds, p[1] + Math.sin(ang) * ds]); }
       const wmax = u * L("thick", .018, .06), W = s => wmax * (.25 + .75 * Math.pow(Math.sin(Math.PI * (.08 + .8 * s)), .7)), Lf = [], Rt = [];
       for (let q = 0; q <= M; q++) { const a = pts[Math.max(0, q - 1)], b = pts[Math.min(M, q + 1)], dx = b[0] - a[0], dy = b[1] - a[1], d = Math.hypot(dx, dy) || 1, nx = -dy / d, ny = dx / d, w = W(q / M); Lf.push([pts[q][0] + nx * w, pts[q][1] + ny * w]); Rt.push([pts[q][0] - nx * w, pts[q][1] - ny * w]); }
       const outline = Lf.concat(Rt.slice().reverse()); body(outline, a => hsl(sh, 95, 60, a), hsl(sh, 90, 30, .35), lw);

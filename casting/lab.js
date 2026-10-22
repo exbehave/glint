@@ -359,8 +359,12 @@ async function connectStore() {
   if (!db) { setStatus("Notes can't be saved in this view. Open it from claude.ai while signed in.", true); disableReview(); return; }
   setStatus("Notes save for Claude to read.");
   db.collection("reviews").onSnapshot(snap => {
+    // cut items drop out of the list when notes arrive, so keep pointing at the same item (by id), not the same position
+    const before = cur(), was = lab.wantKey || (before && docId(before)); lab.wantKey = null;
     snap.docs.forEach(d => { reviews[d.id] = d.data(); });
     snap.docChanges().forEach(ch => { if (ch.type === "removed") delete reviews[ch.doc.id]; });
+    const list = itemsForShown(lab.mode), at = list.findIndex(it => docId(it) === was);
+    if (at >= 0 && at !== lab.idx[lab.mode]) { lab.idx[lab.mode] = at; renderAll(); } else if (lab.idx[lab.mode] >= list.length) { lab.idx[lab.mode] = list.length - 1; renderAll(); } else renderHead();
     renderStrip(); if (!dirty) renderReview(); else $("#saved-at").textContent = "Unsaved changes";
 
   }, err => setStatus("Lost the connection to saved notes (" + err.code + "). Reload the page.", true));
@@ -390,9 +394,9 @@ $("#load-saved").addEventListener("click", () => {
   lab.partner = !!s.partner; restart(); renderAll();
 });
 
-function remember() { dirty = false; pendingVerdict = null; try { localStorage.setItem("casting.pos2", JSON.stringify({ mode: lab.mode, idx: lab.idx })); } catch (_) {} }
+function remember() { dirty = false; pendingVerdict = null; try { localStorage.setItem("casting.pos2", JSON.stringify({ mode: lab.mode, idx: lab.idx, key: cur() ? docId(cur()) : null })); } catch (_) {} }
 
-try { const pos = JSON.parse(localStorage.getItem("casting.pos2") || "null"); if (pos && pos.idx) { lab.mode = ["reworks", "forms", "chars", "lenses", "traits"].includes(pos.mode) ? pos.mode : "reworks"; lab.idx.lenses = clamp(pos.idx.lenses | 0, 0, LENSES.length - 1); lab.idx.traits = clamp(pos.idx.traits | 0, 0, NEW_TRAITS.length - 1); lab.idx.reworks = clamp(pos.idx.reworks | 0, 0, REWORKS.length - 1); lab.idx.forms = clamp(pos.idx.forms | 0, 0, FORMS.length - 1); lab.idx.chars = clamp(pos.idx.chars | 0, 0, CHARS.length - 1); } } catch (_) {}
+try { const pos = JSON.parse(localStorage.getItem("casting.pos2") || "null"); if (pos && pos.idx) { lab.wantKey = pos.key || null; lab.mode = ["reworks", "forms", "chars", "lenses", "traits"].includes(pos.mode) ? pos.mode : "reworks"; lab.idx.lenses = clamp(pos.idx.lenses | 0, 0, LENSES.length - 1); lab.idx.traits = clamp(pos.idx.traits | 0, 0, NEW_TRAITS.length - 1); lab.idx.reworks = clamp(pos.idx.reworks | 0, 0, REWORKS.length - 1); lab.idx.forms = clamp(pos.idx.forms | 0, 0, FORMS.length - 1); lab.idx.chars = clamp(pos.idx.chars | 0, 0, CHARS.length - 1); } } catch (_) {}
 syncMusicUI("Silence · idle motion only");
 go(lab.idx[lab.mode]);
 resize(); requestAnimationFrame(frame);

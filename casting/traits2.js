@@ -260,7 +260,85 @@ const JACK = { key: "jack", name: "Jack-o'-lantern", fade: .75, init: () => ({ z
     const zf = Math.min(.6, Math.log(2) / -Math.log(ar)), a0 = z < zf ? 1 : Math.pow(1 - (z - zf) / (1 - zf), 1.5); level(0, unit * wm, a0, true);
     g.restore(); sprite(g, chue, n.x, n.y + unit * .2, unit * 1.6, .18 * flick); } };
 
+/* ---- Medusa (Oct 21, 2026; Kennedy picked it from the Fever Dream slate): a face crowned with neon snakes. Each snake is a tapered,
+   scaled body riding its own springs: it writhes when quiet, rears up like a cobra when loud, and strikes on kicks (random, a wave
+   around the crown, or all at once). Forked tongues flick. Her eyes hold turning stone spirals; on big hits a cracked "turn to stone"
+   ring sweeps out from her gaze. ---- */
+const MEDUSA = { key: "medusa", name: "Medusa", fade: .6, init: () => ({ sn: [], pulses: [], spin: 0, wave: 0, last: -1, flash: 0, hiss: 0 }),
+  shape: [{ key: "size", label: "Size", def: .55, grp: "Face" }, { key: "stone", label: "Stone eyes", def: .6, grp: "Face" }, { key: "glow", label: "Eye glow", def: .6, grp: "Face" }, { key: "swirl", label: "Spiral speed", def: .4, grp: "Face" },
+    { key: "count", label: "Snakes", min: 4, max: 16, def: .5, slide: true, fmt: i => String(i), grp: "Snakes" }, { key: "length", label: "Length", def: .5, grp: "Snakes" }, { key: "thick", label: "Thickness", def: .5, grp: "Snakes" }, { key: "writhe", label: "Writhe", def: .6, grp: "Snakes" }, { key: "rear", label: "Rear up when loud", def: .7, grp: "Snakes" },
+    { key: "scales", label: "Scales", def: .6, grp: "Snakes" }, { key: "tongues", label: "Tongue flicks", def: .5, grp: "Snakes" }, { key: "spread", label: "Snake color spread", def: .3, grp: "Snakes" },
+    { key: "strike", label: "Strikes", def: .5, grp: "Strikes" }, { key: "order", label: "Who strikes", min: 0, max: 2, def: 0, fmt: i => ["Random", "Wave around the crown", "All at once"][i], grp: "Strikes" }, { key: "lunge", label: "Lunge", def: .5, grp: "Strikes" },
+    { key: "pulse", label: "Stone pulse", def: .5, grp: "Stone gaze" }, { key: "reach", label: "Pulse reach", def: .6, grp: "Stone gaze" }, { key: "cracks", label: "Cracks", def: .5, grp: "Stone gaze" }],
+  draw(E) { const { g, n, R, S, st, dt, t, L, I, k } = E, loud = tLoud(R), u = S * L("size", .22, .5), hue = n.hue, cx = n.x, cy = n.y + u * .18, N = I("count"), lw = Math.max(1, u * .006);
+    st.spin += dt * L("swirl", .2, 3) * (1 + loud + R.kick); st.flash = Math.max(0, st.flash - dt * 2.5); st.hiss += (loud + R.kick * .6 - st.hiss) * Math.min(1, dt * 6);
+    while (st.sn.length < N) st.sn.push({ r: 0, rv: 0, s: 0, sv: 0, ph: Math.random() * 9, fq: 4 + Math.random() * 3, tg: 0, tt: 1 + Math.random() * 3 });
+    // strikes: on kicks, pick who lunges (variety: random never repeats, the wave walks around the crown)
+    if (E.beat && Math.random() < .2 + .8 * k("strike")) { const mode = I("order"), hit = i => { st.sn[i].sv += 9 + 9 * R.kick; };
+      if (mode === 2) { if (loud > .35 || Math.random() < .3) for (let i = 0; i < N; i++) hit(i); else { st.wave = (st.wave + 1) % N; hit(st.wave); } }
+      else if (mode === 1) { st.wave = (st.wave + 1) % N; hit(st.wave); if (loud > .5) hit((st.wave + Math.floor(N / 2)) % N); }
+      else { let i = st.last; while (i === st.last && N > 1) i = Math.floor(Math.random() * N); st.last = i; hit(i); if (loud > .55) { let j = i; while (j === i) j = Math.floor(Math.random() * N); hit(j); } } }
+    // stone pulse: big hits send a cracked ring out from her gaze
+    st.pc = (st.pc || 0) - dt; if (k("pulse") > .02 && E.beat && st.pc <= 0 && R.kick * (.6 + loud) > 1.05 - .75 * k("pulse")) { st.pulses.push({ a: 0, seed: Math.random() * 99 }); st.flash = 1; st.pc = lerp(4, .9, k("pulse")); }
+    st.pulses.forEach(p => { p.a += dt * (.5 + .5 * k("reach")); }); st.pulses = st.pulses.filter(p => p.a < 1);
+    g.lineCap = g.lineJoin = "round";
+    const body = (pts, stroke, fill, lw1) => { g.beginPath(); pts.forEach((p, i) => i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); if (fill) { g.closePath(); g.fillStyle = fill; g.fill(); } if (stroke) { g.lineWidth = lw1 * 3.2; g.strokeStyle = stroke(.18); g.stroke(); g.lineWidth = lw1; g.strokeStyle = stroke(.9); g.stroke(); } };
+    // ---- snakes (drawn first, so the face sits in front of their roots)
+    const crown = (a, row) => [cx + Math.cos(a) * u * .4 * (row ? .8 : 1), cy - u * .02 + Math.sin(a) * u * .5 * (row ? .82 : 1)];
+    for (let i = 0; i < N; i++) { const sn = st.sn[i], a0 = lerp(-Math.PI + .12, -.12, N === 1 ? .5 : i / (N - 1)), root = crown(a0, i % 2), sh = hue + (i / Math.max(1, N - 1) - .5) * 140 * k("spread");
+      // springs: rear rises with loudness (cobra pose), strike is a kick that lunges and settles
+      const rt = clamp(loud * 1.3 * k("rear") + R.kick * .3 * k("rear"), 0, 1); sn.rv += ((rt - sn.r) * 60 - sn.rv * 9) * dt; sn.r += sn.rv * dt; sn.sv += (-sn.s * 90 - sn.sv * 8) * dt; sn.s += sn.sv * dt;
+      sn.tt -= dt * (1 + 3 * R.hat) * (.2 + 1.6 * k("tongues")); if (sn.tt <= 0) { sn.tg = 1; sn.tt = .6 + Math.random() * 3; } sn.tg = Math.max(0, sn.tg - dt * 3);
+      const M = 26, len = u * L("length", .45, 1.25) * (1 + .3 * sn.r + .35 * k("lunge") * Math.max(0, sn.s)), ds = len / M, wr = L("writhe", .05, 1.1) * (1 - .55 * clamp(sn.r, 0, 1)), sp = 1.6 + 2.5 * loud;
+      const pts = [root]; let ang = a0; for (let q = 1; q <= M; q++) { const s = q / M, up = -Math.PI / 2 + (a0 + Math.PI / 2) * .45, cobra = clamp(sn.r, 0, 1.2) * Math.max(0, s - .55) * 2.2;
+        ang = a0 + wr * (Math.sin(s * sn.fq - t * sp + sn.ph) * (.35 + s) + .35 * Math.sin(s * 2.1 + t * .7 + sn.ph * 2)) + (up - a0) * .25 * clamp(sn.r, 0, 1) + cobra * (up - ang) * .5; const p = pts[q - 1]; pts.push([p[0] + Math.cos(ang) * ds, p[1] + Math.sin(ang) * ds]); }
+      const wmax = u * L("thick", .018, .06), W = s => wmax * (.25 + .75 * Math.pow(Math.sin(Math.PI * (.08 + .8 * s)), .7)), Lf = [], Rt = [];
+      for (let q = 0; q <= M; q++) { const a = pts[Math.max(0, q - 1)], b = pts[Math.min(M, q + 1)], dx = b[0] - a[0], dy = b[1] - a[1], d = Math.hypot(dx, dy) || 1, nx = -dy / d, ny = dx / d, w = W(q / M); Lf.push([pts[q][0] + nx * w, pts[q][1] + ny * w]); Rt.push([pts[q][0] - nx * w, pts[q][1] - ny * w]); }
+      const outline = Lf.concat(Rt.slice().reverse()); body(outline, a => hsl(sh, 95, 60, a), hsl(sh, 90, 30, .35), lw);
+      // scales: chevrons pointing toward the head, a spine highlight
+      const every = Math.max(1, Math.round(lerp(4, 1, k("scales")))); g.lineWidth = lw * .7; g.strokeStyle = hsl(sh + 20, 90, 65, .5 + .3 * k("scales"));
+      g.beginPath(); for (let q = 1; q + every < M; q += every) { const q2 = q + every; g.moveTo(Lf[q][0], Lf[q][1]); g.lineTo(Rt[q2][0], Rt[q2][1]); g.moveTo(Rt[q][0], Rt[q][1]); g.lineTo(Lf[q2][0], Lf[q2][1]); } g.stroke();
+      g.lineWidth = lw * .6; g.strokeStyle = hsl(sh + 40, 100, 80, .55); g.beginPath(); pts.slice(2, M - 1).forEach((p, q) => q ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); g.stroke();
+      // head: a wedge with bright eyes, mouth opening on strikes; forked tongue
+      const hp = pts[M], hd = Math.atan2(pts[M][1] - pts[M - 2][1], pts[M][0] - pts[M - 2][0]), hl = wmax * 4.2, hw = wmax * 2.1, open = clamp(sn.s * 1.2 + .25 * st.hiss, 0, .7);
+      g.save(); g.translate(hp[0], hp[1]); g.rotate(hd);
+      g.beginPath(); g.moveTo(-hl * .15, -hw * .7); g.quadraticCurveTo(hl * .3, -hw * 1.3, hl * .9, -hw * .4 - open * hw); g.lineTo(hl * .62, 0); g.lineTo(hl * .9, hw * .4 + open * hw); g.quadraticCurveTo(hl * .3, hw * 1.3, -hl * .15, hw * .7); g.closePath();
+      g.fillStyle = hsl(sh, 90, 26, .6); g.fill(); g.lineWidth = lw * 3.2; g.strokeStyle = hsl(sh, 100, 62, .18); g.stroke(); g.lineWidth = lw; g.strokeStyle = hsl(sh, 100, 64, .95); g.stroke();
+      g.lineWidth = lw * .6; g.strokeStyle = hsl(sh + 30, 90, 70, .5); g.beginPath(); g.moveTo(hl * .1, -hw * .55); g.quadraticCurveTo(hl * .35, -hw * .2, hl * .1, 0); g.quadraticCurveTo(hl * .35, hw * .2, hl * .1, hw * .55); g.stroke();
+      [-1, 1].forEach(sd => { spriteWhite(g, hl * .45, sd * hw * .55, hw * .7, .5 + .4 * st.flash); g.fillStyle = "rgba(255,255,255,.95)"; g.beginPath(); g.ellipse(hl * .45, sd * hw * .55, hw * .2, hw * .13, sd * .4, 0, TAU); g.fill(); g.fillStyle = "rgba(0,0,0,.9)"; g.beginPath(); g.ellipse(hl * .46, sd * hw * .55, hw * .05, hw * .12, 0, 0, TAU); g.fill(); });
+      if (sn.tg > 0 || open > .3) { const tl = hl * (.6 + .8 * Math.max(sn.tg, open)), fk = hl * .2; g.lineWidth = lw * .9; g.strokeStyle = hsl(350, 100, 65, .95); g.beginPath(); g.moveTo(hl * .55, 0); g.lineTo(hl * .55 + tl, Math.sin(t * 40 + i) * hw * .15); g.lineTo(hl * .55 + tl + fk, -fk * .6); g.moveTo(hl * .55 + tl, Math.sin(t * 40 + i) * hw * .15); g.lineTo(hl * .55 + tl + fk, fk * .6); g.stroke(); }
+      g.restore(); }
+    // ---- face: sculpted outline, brows, nose, lips that part to hiss; dark inside so the snakes' roots tuck behind
+    const face = []; for (let q = 0; q <= 80; q++) { const a = q / 80 * TAU, sa = Math.sin(a), x = Math.cos(a) * u * .42 * (1 - .32 * Math.pow(Math.max(0, sa), 2.2)), y = sa * u * (sa > 0 ? .62 : .5); face.push([cx + x, cy + y]); }
+    [-1, 1].forEach(sd => { const nk = [[cx + sd * u * .2, cy + u * .48], [cx + sd * u * .19, cy + u * .78], [cx + sd * u * .42, cy + u * .92], [cx + sd * u * .75, cy + u * .98]]; g.beginPath(); g.moveTo(nk[0][0], nk[0][1]); g.quadraticCurveTo(nk[1][0], nk[1][1], nk[2][0], nk[2][1]); g.quadraticCurveTo(cx + sd * u * .6, cy + u * .93, nk[3][0], nk[3][1]); g.lineWidth = lw * 4; g.strokeStyle = hsl(hue, 90, 55, .15); g.stroke(); g.lineWidth = lw * 1.2; g.strokeStyle = hsl(hue, 90, 60, .8); g.stroke();
+      g.lineWidth = lw * .8; g.strokeStyle = hsl(hue, 80, 55, .45); g.beginPath(); g.moveTo(cx + sd * u * .06, cy + u * 1.0); g.quadraticCurveTo(cx + sd * u * .2, cy + u * .93, cx + sd * u * .36, cy + u * .97); g.stroke(); });
+    body(face, a => hsl(hue, 90, 62, a), "rgba(0,0,0,.88)", lw * 1.3);
+    // cheekbone shading and jaw rim light
+    g.lineWidth = lw * .8; g.strokeStyle = hsl(hue, 80, 55, .35); [-1, 1].forEach(sd => { g.beginPath(); g.moveTo(cx + sd * u * .36, cy + u * .02); g.quadraticCurveTo(cx + sd * u * .26, cy + u * .2, cx + sd * u * .14, cy + u * .26); g.stroke(); });
+    // eyes: almond, slanted down toward the nose; iris = turning stone spiral; brows pinch with loudness
+    const stoneSat = lerp(90, 6, k("stone")), eg = L("glow", .2, 1.2) * (1 + st.flash * 1.5);
+    [-1, 1].forEach(sd => { const ex = cx + sd * u * .17, ey = cy - u * .06, ew = u * .13, eh = u * .055 * (1 + .25 * st.hiss), tilt = sd * .18;
+      g.save(); g.translate(ex, ey); g.rotate(tilt); const eye = []; for (let q = 0; q <= 30; q++) { const v = q / 30 * 2 - 1; eye.push([v * ew, -eh * (1 - v * v)]); } for (let q = 30; q >= 0; q--) { const v = q / 30 * 2 - 1; eye.push([v * ew, eh * .8 * (1 - v * v)]); }
+      g.save(); g.beginPath(); eye.forEach((p, q) => q ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); g.closePath(); g.clip(); const ir = eh * 1.05;
+      for (let a = 0; a < 6; a++) { g.beginPath(); for (let q = 0; q <= 30; q++) { const s = q / 30, th = st.spin * sd + a / 6 * TAU + s * 4.5, r = ir * s; q ? g.lineTo(Math.cos(th) * r, Math.sin(th) * r) : g.moveTo(0, 0); } g.lineWidth = lw * .7; g.strokeStyle = hsl(hue + a * 8, stoneSat, 70, .9); g.stroke(); }
+      g.lineWidth = lw * .9; g.strokeStyle = hsl(hue, stoneSat, 80, .9); g.beginPath(); g.arc(0, 0, ir, 0, TAU); g.stroke(); g.fillStyle = "rgba(0,0,0,.95)"; g.beginPath(); g.ellipse(0, 0, ir * .14, ir * (.75 - .5 * st.hiss), 0, 0, TAU); g.fill();
+      g.restore(); sprite(g, hue, 0, 0, ew * 1.6, .25 * eg); spriteWhite(g, 0, 0, ir * 1.4, .25 * eg * (.3 + st.flash));
+      body(eye, a => hsl(hue, 95, 70, a), null, lw); g.lineWidth = lw * 1.6; g.strokeStyle = hsl(hue, 95, 66, .9); g.beginPath(); g.moveTo(sd * ew * .7, -eh * .55); g.quadraticCurveTo(sd * ew * 1.1, -eh * .7, sd * ew * 1.45, -eh * 1.5); g.stroke(); g.restore();
+      const by = ey - u * .1 - u * .02 * st.hiss; g.lineWidth = lw * 1.4; g.strokeStyle = hsl(hue, 90, 62, .85); g.beginPath(); g.moveTo(cx + sd * u * .3, by - u * .02); g.quadraticCurveTo(cx + sd * u * .2, by - u * .04, cx + sd * u * .07, by + u * .025 + u * .02 * st.hiss); g.stroke(); });
+    g.lineWidth = lw; g.strokeStyle = hsl(hue, 85, 60, .7); g.beginPath(); g.moveTo(cx - u * .02, cy - u * .02); g.quadraticCurveTo(cx - u * .035, cy + u * .12, cx - u * .045, cy + u * .17); g.quadraticCurveTo(cx, cy + u * .2, cx + u * .045, cy + u * .17); g.stroke();
+    const my = cy + u * .32, mw = u * .15, op = u * (.008 + .05 * st.hiss); g.lineWidth = lw * 1.2; g.strokeStyle = hsl(hue + 330, 95, 65, .9);
+    g.beginPath(); g.moveTo(cx - mw, my); g.quadraticCurveTo(cx - mw * .5, my - u * .045 - op * .3, cx, my - u * .02 - op * .3); g.quadraticCurveTo(cx + mw * .5, my - u * .045 - op * .3, cx + mw, my); g.quadraticCurveTo(cx, my - op * .1, cx - mw, my); g.stroke();
+    g.beginPath(); g.moveTo(cx - mw, my); g.quadraticCurveTo(cx, my + u * .06 + op, cx + mw, my); g.stroke();
+    { const lg = g.createLinearGradient(0, my - u * .05, 0, my + u * .07); lg.addColorStop(0, hsl(hue + 330, 95, 55, .45)); lg.addColorStop(1, hsl(hue + 330, 95, 35, .25)); g.fillStyle = lg; g.beginPath(); g.moveTo(cx - mw, my); g.quadraticCurveTo(cx - mw * .5, my - u * .045 - op * .3, cx, my - u * .02 - op * .3); g.quadraticCurveTo(cx + mw * .5, my - u * .045 - op * .3, cx + mw, my); g.quadraticCurveTo(cx, my + u * .06 + op, cx - mw, my); g.fill(); spriteWhite(g, cx + mw * .25, my + u * .03 + op * .5, u * .025, .35); }
+    if (op > u * .02) { g.fillStyle = hsl(hue + 330, 90, 20, .8); g.beginPath(); g.moveTo(cx - mw * .8, my); g.quadraticCurveTo(cx, my - op * .2, cx + mw * .8, my); g.quadraticCurveTo(cx, my + op, cx - mw * .8, my); g.fill(); }
+    // ---- stone pulse: a jagged ring of cracked light rolling out from her gaze, with short fractures off its edge
+    st.pulses.forEach(p => { const R0 = u * .2 + p.a * Math.max(E.W, E.H) * L("reach", .35, .9), al = Math.sin(Math.PI * Math.min(1, p.a * 1.2)) * .8, ring = [], nc = Math.round(lerp(0, 40, k("cracks")));
+      for (let q = 0; q <= 120; q++) { const a = q / 120 * TAU, j = 1 + .06 * Math.sin(a * 13 + p.seed) + .04 * Math.sin(a * 31 + p.seed * 2); ring.push([cx + Math.cos(a) * R0 * j, cy - u * .06 + Math.sin(a) * R0 * j * .85]); }
+      g.lineWidth = lw * 5; g.strokeStyle = hsl(hue, 10, 75, al * .15); g.beginPath(); ring.forEach((q, i) => i ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1])); g.stroke(); g.lineWidth = lw * 1.2; g.strokeStyle = hsl(hue, 12, 88, al); g.stroke();
+      g.lineWidth = lw * .8; for (let c = 0; c < nc; c++) { const q0 = Math.floor((c * 37.7 + p.seed * 13) % 120), [x0, y0] = ring[q0], a = Math.atan2(y0 - cy, x0 - cx), l0 = u * (.04 + .08 * ((c * 7.3 + p.seed) % 1)); g.strokeStyle = hsl(hue, 8, 85, al * .7); g.beginPath(); g.moveTo(x0, y0); g.lineTo(x0 + Math.cos(a + .4) * l0 * .5, y0 + Math.sin(a + .4) * l0 * .5); g.lineTo(x0 + Math.cos(a - .2) * l0, y0 + Math.sin(a - .2) * l0); g.stroke(); } }); } };
+
 NEW_TRAITS.push(
+  { form: MEDUSA, char: "anchored", hue: 150, hy: .52, p: { roam: 0, size: .5, trails: .5, energy: .9 }, desc: "A face crowned with neon snakes that writhe when it's quiet, rear up like cobras when it's loud and strike on kicks. Her eyes hold turning stone spirals; big hits send a cracked turn-to-stone ring rolling out from her gaze." },
   { form: JACK, char: "anchored", hue: 28, hy: .5, p: { chaos: .27, energy: .92, grace: 1, magnetism: 0, roam: 0, size: .25, social: .3, tempo: .45, trails: .93 }, desc: "A carved, menacing jack-o'-lantern. Every carving holds a smaller lit one, and the view zooms forever into one of them while the candle throws beams through the holes and flames lick out of the grin on hits." },
   { form: MURMUR, char: "anchored", hue: 200, hy: .5, p: { roam: .02, size: .6, trails: .45 }, desc: "A few hundred birds flocking as one body, steering toward a wandering target. Hits can send the whole flock turning." },
   { form: EMBERS, char: "anchored", hue: 25, hy: .5, p: { roam: .02, size: .6, trails: .4 }, desc: "Sparks rising from the bottom edge, twinkling and drifting on the wind. Hits throw a handful more into the air." },

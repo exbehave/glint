@@ -2,7 +2,7 @@
    smooth, muscular neon outline after Kennedy's reference image (a friend's Claude-made take on Serve): traps, round deltoids
    overlapping the torso, bulging biceps, pecs and a six-pack, V-lines, big quads and calves, a smooth egg head, one color gradient
    head to toe and a glow on the floor. Serve itself (engine/serve.js) is untouched: this file reuses its helpers (svBeat, svIK,
-   springs, SV_POSES, SV_FACES, SERVE.init), so it must load after serve.js. Working name until Kennedy picks one. ---- */
+   springs, SV_POSES, SV_FACES, SERVE.init), so it must load after serve.js. Name kept by Kennedy. ---- */
 const SERVE2 = { key: "serve2", name: "Serve (muscle)", fade: .55,
   init: SERVE.init,
   shape: [

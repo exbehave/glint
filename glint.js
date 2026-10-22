@@ -32,6 +32,7 @@ const VISUALS = [
   ["blink", { char: "anchored", hue: 220, hy: .43, p: { roam: .02, size: .6, trails: .5 }, shape: { lashlen: .59 } }],
   ["gyro", { char: "anchored", hue: 185, hy: .5, p: { roam: .02, size: .55, trails: .45 }, shape: {} }],
   ["jack", { char: "anchored", hue: 28, hy: .5, p: { chaos: .27, energy: .92, grace: 1, magnetism: 0, roam: 0, size: .25, social: .3, tempo: .45, trails: .93 }, shape: {} }],
+  ["serve", { char: "anchored", hue: 20, hy: .5, p: { chaos: .15, energy: .9, grace: .7, magnetism: 0, roam: 0, size: .5, social: .3, tempo: .45, trails: .5 }, shape: {} }],
   ["crew", { char: "anchored", hue: 300, hy: .9, p: { roam: .03, energy: .8, tempo: .6 }, shape: {} }]
 ];
 const VIS = Object.fromEntries(VISUALS);

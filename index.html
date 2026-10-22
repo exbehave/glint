@@ -16,8 +16,12 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500&family=IBM+Plex+Mono:wght@400&display=swap">
 <script>
-// Phones get the remote instead: the computer plays, the phone drives (Kennedy's decision, Oct 21, 2026). ?here=1 opts out.
-if (matchMedia("(pointer: coarse)").matches && Math.min(screen.width, screen.height) < 700 && !/[?&]here=1/.test(location.search)) location.replace("remote.html?from=" + (location.pathname.includes("theater") ? "theater" : "studio"));
+// Phones get the remote instead: the computer plays, the phone drives (Kennedy's decision, Oct 21, 2026).
+// Except the admin: Kennedy gets the full Studio on the phone, with or without a computer (Oct 22, 2026).
+// glint.js sets glint.studioHere when an admin signs in; ?here=1 opts in (and remembers it).
+(function () { var here = /[?&]here=1/.test(location.search), keep = false;
+  try { if (here) localStorage.setItem("glint.studioHere", "1"); keep = localStorage.getItem("glint.studioHere") === "1"; } catch (_) {}
+  if (matchMedia("(pointer: coarse)").matches && Math.min(screen.width, screen.height) < 700 && !here && !keep) location.replace("remote.html?from=studio"); })();
 </script>
 <link rel="stylesheet" href="glint.css">
 </head>
@@ -25,7 +29,7 @@ if (matchMedia("(pointer: coarse)").matches && Math.min(screen.width, screen.hei
 <div class="wrap">
   <header class="top">
     <div class="mark">GLINT</div>
-    <div class="row"><span class="remote-code" id="remote-code" hidden></span><button class="btn icon-btn" id="undo" type="button" title="Undo (⌘Z)" aria-label="Undo" disabled>↶</button><button class="btn icon-btn" id="redo" type="button" title="Redo (⇧⌘Z)" aria-label="Redo" disabled>↷</button><button class="btn" id="cycle">Cycle my personas</button><button class="btn play-btn" id="play">Play full screen</button></div>
+    <div class="row"><span class="remote-code" id="remote-code" hidden></span><a class="btn" id="to-remote" href="remote.html?from=studio" hidden>Control my computer</a><button class="btn icon-btn" id="undo" type="button" title="Undo (⌘Z)" aria-label="Undo" disabled>↶</button><button class="btn icon-btn" id="redo" type="button" title="Redo (⇧⌘Z)" aria-label="Redo" disabled>↷</button><button class="btn" id="cycle">Cycle my personas</button><button class="btn play-btn" id="play">Play full screen</button></div>
   </header>
 
   <div class="main">

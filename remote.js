@@ -76,7 +76,10 @@ function syncAdmin() { const set = (id, v, fmt) => { const inp = document.getEle
 $("#a-post").addEventListener("click", () => { const n = $("#a-name").value.trim(); if (!n) { $("#a-name").focus(); return; } send({ cmd: "post", name: n }); $("#a-name").value = ""; });
 
 /* ---------- account pairing: sign in here, and the phone finds the computer this account has open ---------- */
-function authUI(m) { $("#auth-msg").textContent = m || ""; $("#auth-form").hidden = !!user; $("#auth-find").hidden = !user; $("#auth-out").hidden = !user; $("#auth-sub").textContent = user ? GlintAccount.name(user) : ""; GlintAccount.gate(sb, user); $("#auth-help").hidden = !!user; }
+function authUI(m) { $("#auth-msg").textContent = m || ""; $("#auth-form").hidden = !!user; $("#auth-find").hidden = !user; $("#auth-out").hidden = !user; $("#auth-sub").textContent = user ? GlintAccount.name(user) : ""; GlintAccount.gate(sb, user); $("#auth-help").hidden = !!user; checkAdmin(); }
+// The admin can also run the full Studio right here, computer or not.
+let adminFor = null;
+async function checkAdmin() { const b = $("#auth-studio"); if (!user) { b.hidden = true; adminFor = null; return; } if (adminFor === user.id) return; adminFor = user.id; try { const { data } = await sb.from("glint_roles").select("role").eq("user_id", user.id).maybeSingle(); b.hidden = !(data && data.role === "admin"); } catch (_) { b.hidden = true; } }
 async function findRoom(quiet) {
   if (!sb || !user) return; if (!quiet) authUI("Looking for your computer…");
   const { data } = await sb.from("glint_rooms").select("code,page,seen_at").eq("user_id", user.id).maybeSingle();

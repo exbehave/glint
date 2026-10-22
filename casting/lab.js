@@ -264,7 +264,8 @@ function renderControls() {
   if (it.kind === "form" || it.kind === "rework" || it.kind === "trait") {
     const [s, c] = section("Shape", it.kind === "rework" ? "this take" : it.kind === "trait" ? "its own settings" : "unique to this form");
     (f.shape || []).forEach(sh => { if (sh.text) { const row = document.createElement("div"); row.className = "ctl"; row.innerHTML = `<div class="ctl-top"><label for="sh-${sh.key}">${esc(sh.label)}</label></div><textarea id="sh-${sh.key}" class="words" rows="2"></textarea>`; const ta = row.querySelector("textarea"); ta.value = t.shape[sh.key] ?? sh.def; ta.addEventListener("input", () => { t.shape[sh.key] = ta.value; }); c.append(row); return; }
-      const mn = sh.min ?? 0, mx = sh.max ?? 1, steps = mn === 0 && mx === 1 ? 0 : mx - mn;
+      // two-choice settings (min 0, max 1 with labels) are steps too, not a percent slider; matches the Studio
+      const mn = sh.min ?? 0, mx = sh.max ?? 1, steps = mn === 0 && mx === 1 && !sh.fmt ? 0 : mx - mn;
       const v0 = t.shape[sh.key] ?? sh.def ?? .5;
       const fmt = v => { if (sh.cfmt) return sh.cfmt(v); if (!steps) return pct(v); const n = Math.round(lerp(mn, mx, v)); return sh.fmt ? sh.fmt(n) : String(n); };
       c.append(slider("sh-" + sh.key, sh.label, "", 0, 1, steps ? 1 / steps : .01, v0, fmt, v => { t.shape[sh.key] = v; })); });

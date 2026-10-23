@@ -36,7 +36,7 @@
     items.forEach(it => { const b = document.createElement("button"); b.type = "button"; b.className = "rec";
       const th = it.thumbs && it.thumbs.length ? it.thumbs[Math.min(it.thumbs.length - 1, 2)].img : it.thumb0 && it.thumb0.img ? it.thumb0.img : "";
       const g = (it.labels || []).filter(l => l.kind === "good").length, bd = (it.labels || []).filter(l => l.kind === "bad").length;
-      b.innerHTML = `${th ? `<img src="${esc(th)}" alt="">` : `<img alt="">`}<div><b>${esc(it.name)}</b><small>${fmt(it.duration)} · ${esc(it.device || "")}${it.local ? " · on this device" : ""}${it.cloud ? " · synced" : ""}</small></div><div class="tags">${g ? `<span class="tag g">${g} good</span>` : ""}${bd ? `<span class="tag b">${bd} bad</span>` : ""}${(it.labels || []).some(l => l.kind === "note") ? `<span class="tag">${(it.labels || []).filter(l => l.kind === "note").length} comments</span>` : ""}${!(it.labels || []).length ? `<span class="tag">unlabeled</span>` : ""}</div>`;
+      b.innerHTML = `${th ? `<img src="${esc(th)}" alt="">` : `<img alt="">`}<div><b>${esc(it.name)}</b><small>${fmt(it.duration)} · ${esc(it.device || "")}${it.local ? " · on this device" : ""}${it.cloud ? " · synced" : ""}</small></div><div class="tags">${g ? `<span class="tag g">${g} good</span>` : ""}${bd ? `<span class="tag b">${bd} bad</span>` : ""}${(it.labels || []).some(l => l.kind === "note") ? `<span class="tag">${(it.labels || []).filter(l => l.kind === "note").length} comments</span>` : ""}${(it.labels || []).some(l => l.ink) ? `<span class="tag">${(it.labels || []).filter(l => l.ink).length} drawings</span>` : ""}${!(it.labels || []).length ? `<span class="tag">unlabeled</span>` : ""}</div>`;
       b.addEventListener("click", () => open(it)); list.append(b); });
   }
 
@@ -95,7 +95,7 @@
   }
 
   // ---- marking: one frame (Good / Bad / Comment), or a stretch (start here … end here: Good / Bad)
-  function markUI() { const on = !!open_; $("#mark").hidden = on; $("#good").hidden = !on; $("#bad").hidden = !on; $("#cancel").hidden = !on; $("#marking").hidden = !on; $("#frame-row").hidden = on; if (on) $("#marking").textContent = "MARKING FROM " + fmtP(open_.a); }
+  function markUI() { const on = !!open_; $("#mark").hidden = on; $("#good").hidden = !on; $("#bad").hidden = !on; $("#cancel").hidden = !on; $("#marking").hidden = !on; $("#frame-row").hidden = on || drawing; $("#draw-row").hidden = on; if (on) $("#marking").textContent = "MARKING FROM " + fmtP(open_.a); }
   const addLabel = l => { cur.labels = (cur.labels || []).concat([Object.assign({ note: $("#note").value.trim(), at: new Date().toISOString() }, l)]).sort((x, y) => x.a - y.a); $("#note").value = ""; renderMarks(); saveLabels(); };
   $("#mark").addEventListener("click", () => { open_ = { a: now() }; markUI(); });
   $("#cancel").addEventListener("click", () => { open_ = null; markUI(); draw(); });
@@ -104,11 +104,53 @@
   $("#good").addEventListener("click", () => finish("good")); $("#bad").addEventListener("click", () => finish("bad"));
   const frameMark = kind => { setPlay(false); if (kind === "note" && !$("#note").value.trim()) { $("#note").focus(); $("#v-msg").textContent = "Type your comment in the note box, then tap Comment."; return; } const t = +now().toFixed(3); addLabel({ a: t, b: t, kind }); };
   $("#fgood").addEventListener("click", () => frameMark("good")); $("#fbad").addEventListener("click", () => frameMark("bad")); $("#fnote").addEventListener("click", () => frameMark("note"));
+  // ---- drawing on a frame: pens for Good (green), Bad (red) and Comment (white). Strokes are stored in video-frame
+  // coordinates (0–1 across and down the picture, not the box around it), so they line up on any screen size.
+  // Each saved drawing is a mark at that instant: kind good / bad / note, or "mixed" when it holds more than one pen,
+  // plus the body parts it touches when the recording knows where the joints were.
+  const INKC = { good: "#9fdcb3", bad: "#e39a9a", note: "#f2f2f6" }, inkC = $("#ink"), ix = inkC.getContext("2d"), player = $("#player");
+  let drawing = false, pen = "good", draft = [], stroke = null;
+  const frameBox = () => { const r = player.getBoundingClientRect(), vw = cur && cur.hasVideo && v.videoWidth ? v.videoWidth : 16, vh = cur && cur.hasVideo && v.videoHeight ? v.videoHeight : 10, sc = Math.min(r.width / vw, r.height / vh), w = vw * sc, h = vh * sc; return { r, x: (r.width - w) / 2, y: (r.height - h) / 2, w, h }; };
+  const toFrame = e => { const b = frameBox(); return [+((e.clientX - b.r.left - b.x) / b.w).toFixed(3), +((e.clientY - b.r.top - b.y) / b.h).toFixed(3)]; };
+  function setDraw(on) { drawing = on; if (on) setPlay(false); player.classList.toggle("drawing", on); $("#draw").setAttribute("aria-pressed", on); $("#pens").hidden = !on; $("#frame-row").hidden = on || !!open_; if (!on) draft = []; }
+  $("#draw").addEventListener("click", () => setDraw(!drawing));
+  document.querySelectorAll("[data-pen]").forEach(b => b.addEventListener("click", () => { pen = b.dataset.pen; document.querySelectorAll("[data-pen]").forEach(x => x.setAttribute("aria-pressed", x === b)); }));
+  inkC.addEventListener("pointerdown", e => { if (!drawing) return; e.preventDefault(); inkC.setPointerCapture(e.pointerId); stroke = { k: pen, p: [toFrame(e)] }; draft.push(stroke); });
+  inkC.addEventListener("pointermove", e => { if (!stroke) return; const q = toFrame(e), l = stroke.p[stroke.p.length - 1]; if (Math.hypot(q[0] - l[0], q[1] - l[1]) > .004) stroke.p.push(q); });
+  const endStroke = () => { if (stroke && stroke.p.length === 1) stroke.p.push([stroke.p[0][0] + .001, stroke.p[0][1]]); stroke = null; };
+  inkC.addEventListener("pointerup", endStroke); inkC.addEventListener("pointercancel", endStroke);
+  $("#ink-undo").addEventListener("click", () => { draft.pop(); });
+  // which body part a stroke is on: the joint nearest its middle, at the recorded moment closest to this frame
+  const PART = { hd: "head", sc: "chest", e0: "elbow", e1: "elbow", w0: "hand", w1: "hand", k0: "knee", k1: "knee", a0: "foot", a1: "foot" };
+  function partsAt(t, strokes) {
+    const rows = cur.data && cur.data.rows; if (!rows || !rows.length) return [];
+    let lo = 0, hi = rows.length - 1; while (lo < hi) { const m = (lo + hi) >> 1; if (rows[m].t < t) lo = m + 1; else hi = m; }
+    const row = rows[lo], joints = []; for (const id in row.L || {}) { const j = row.L[id].d && row.L[id].d.j; if (j) for (const k in j) joints.push([k, j[k]]); }
+    if (!joints.length) return [];
+    const out = new Set(); strokes.forEach(st => { const cx = st.p.reduce((a, q) => a + q[0], 0) / st.p.length, cy = st.p.reduce((a, q) => a + q[1], 0) / st.p.length;
+      let best = null, bd = 1e9; joints.forEach(([k, q]) => { const d = Math.hypot(q[0] - cx, q[1] - cy); if (d < bd) { bd = d; best = k; } });
+      if (best && bd < .14) { const side = /[01]$/.test(best) ? (joints.find(([k]) => k === best.slice(0, 1) + (best.endsWith("0") ? "1" : "0")) || [0, [0]])[1][0] < (joints.find(([k]) => k === best)[1][0]) ? " (right on screen)" : " (left on screen)" : ""; out.add(PART[best] + side); } });
+    return [...out]; }
+  $("#ink-save").addEventListener("click", () => { if (!draft.length) { $("#v-msg").textContent = "Draw on the picture first."; return; }
+    const kinds = [...new Set(draft.map(d => d.k))], t = +now().toFixed(3), parts = partsAt(t, draft);
+    addLabel({ a: t, b: t, kind: kinds.length > 1 ? "mixed" : kinds[0], ink: draft.map(d => ({ k: d.k, p: d.p })), parts }); draft = []; setDraw(false); });
+  function paintInk() {
+    const b = frameBox(), dpr = Math.min(2, devicePixelRatio || 1), W2 = Math.round(b.r.width * dpr), H2 = Math.round(b.r.height * dpr);
+    if (inkC.width !== W2 || inkC.height !== H2) { inkC.width = W2; inkC.height = H2; }
+    ix.setTransform(dpr, 0, 0, dpr, 0, 0); ix.clearRect(0, 0, b.r.width, b.r.height); if (!cur) return;
+    const t = now(), show = (cur.labels || []).filter(l => l.ink && (Math.abs(t - l.a) < .12 || (l.b > l.a && t >= l.a && t <= l.b))).flatMap(l => l.ink).concat(draft);
+    ix.lineCap = ix.lineJoin = "round";
+    show.forEach(st => { ix.beginPath(); st.p.forEach((q, i) => { const x = b.x + q[0] * b.w, y = b.y + q[1] * b.h; i ? ix.lineTo(x, y) : ix.moveTo(x, y); });
+      ix.strokeStyle = INKC[st.k] || "#fff"; ix.shadowColor = INKC[st.k] || "#fff"; ix.shadowBlur = 8; ix.lineWidth = 3; ix.stroke(); ix.shadowBlur = 0; });
+  }
+  (function inkLoop() { requestAnimationFrame(inkLoop); paintInk(); })();
+
   function renderMarks() {
     const box = $("#marks"); box.innerHTML = ""; bandKey = ""; draw();
     if (!(cur.labels || []).length) { box.innerHTML = `<span class="desc">No marks yet. Pause on a moment and tap This frame: Good, Bad or Comment; or tap Start a stretch here, play or scrub to where it ends, and tap End here: Good or Bad. Pinch the timeline (or tap +) to zoom in; then drag it under the playhead to land on the exact frame.</span>`; return; }
     cur.labels.forEach((l, i) => { const r = document.createElement("div"); r.className = "mark-row"; const frame = !(l.b > l.a);
-      r.innerHTML = `<button class="when" type="button">${frame ? fmtP(l.a) : fmtP(l.a) + "–" + fmtP(l.b)}</button><div><span class="kind ${l.kind}">${l.kind === "note" ? "comment" : l.kind}${frame ? " · frame" : ""}</span> <span class="txt">${esc(l.note)}</span></div><button class="x" type="button" aria-label="Remove this mark">×</button>`;
+      const dots = l.ink ? [...new Set(l.ink.map(d => d.k))].map(k => `<i class="dot" style="background:${INKC[k]}"></i>`).join("") : "";
+      r.innerHTML = `<button class="when" type="button">${frame ? fmtP(l.a) : fmtP(l.a) + "–" + fmtP(l.b)}</button><div><span class="kind ${l.kind}">${dots}${l.kind === "note" ? "comment" : l.kind}${l.ink ? " · drawing" : frame ? " · frame" : ""}</span> <span class="txt">${esc(l.note)}</span>${l.parts && l.parts.length ? ` <span class="parts">on: ${esc(l.parts.join(", "))}</span>` : ""}</div><button class="x" type="button" aria-label="Remove this mark">×</button>`;
       r.querySelector(".when").addEventListener("click", () => { setPlay(false); seek(l.a); });
       r.querySelector(".x").addEventListener("click", () => { if (!confirm("Remove this mark?")) return; cur.labels.splice(i, 1); renderMarks(); saveLabels(); });
       box.append(r); });
@@ -136,7 +178,7 @@
       v.onloadedmetadata = () => { if (!isFinite(v.duration)) { v.currentTime = 1e7; v.ontimeupdate = () => { v.ontimeupdate = null; v.currentTime = 0; }; } }; }
     else { from = "thumbnails only (the video stayed on the device that recorded it)"; clock.t = 0; showStill(); }
     $("#t-src").textContent = from;
-    buildStrip(); zoom = 1; setZoom(1);
+    buildStrip(); zoom = 1; setZoom(1); setDraw(false);
     open_ = null; markUI(); renderMarks(); $("#v-msg").textContent = "";
   }
   $("#v-back").addEventListener("click", () => { setPlay(false); cur = null; $("#view").hidden = true; $("#pick").hidden = false; loadList(); });

@@ -1,7 +1,7 @@
 {
  "shape": {
   "ankles": 0.37,
-  "arch": 0.76,
+  "arch": 0.73,
   "armlag": 0.26,
   "armlen": 1,
   "armspeed": 0.73,
@@ -10,22 +10,24 @@
   "bsnap": 0.85,
   "crosses": 0.42,
   "dance": 0,
+  "ddevery": 1,
   "ddhold": 0.428571428571429,
   "ddrop": 1,
   "ddsens": 1,
-  "defn": 0.48,
+  "defn": 0.35,
   "dlean": 1,
   "dropbars": 0.428571428571429,
   "dropduck": 0.34,
-  "echo": 0.71,
+  "duckvogue": 0.77,
+  "echo": 0.29,
   "echolen": 1,
   "egypt": 0.16,
   "elbows": 0,
   "fdir": 0.25,
   "feel": 0.6666666666666666,
   "flicks": 0,
-  "flings": 0.98,
-  "floor": 0.64,
+  "flings": 0.68,
+  "floor": 0.28,
   "foot": 1,
   "freeze": 0.16,
   "glow": 1,
@@ -34,15 +36,15 @@
   "hold": 0.428571428571429,
   "kick": 1,
   "kicks": 0.5,
-  "kneel": 0.55,
-  "kneelbars": 0.333333333333333,
+  "kneel": 0.32,
+  "kneelbars": 0.666666666666667,
   "knees": 0,
   "kreach": 0.74,
   "lean": 1,
   "legspeed": 0.23,
   "loudduck": 0.58,
-  "mixbars": 0.428571428571429,
-  "muscle": 0.77,
+  "mixbars": 0.285714285714286,
+  "muscle": 0.3,
   "nod": 0.97,
   "oglow": 1,
   "outward": 1,
@@ -50,15 +52,15 @@
   "persp": 0.99,
   "posebeat": 0,
   "posespeed": 0.45,
-  "ratio": 0.5,
+  "ratio": 0.25,
   "reach": 1,
   "roam": 0.49,
   "roll": 0.62,
   "rubber": 1,
   "settle": 0.72,
-  "size": 0.31,
+  "size": 0.48,
   "spins": 0.61,
-  "spread": 1,
+  "spread": 0,
   "squat2": 0.51,
   "stance": 0.03,
   "stretch": 1,
@@ -68,13 +70,13 @@
   "turnspeed": 0.27,
   "vbounce": 1,
   "waist": 1,
-  "waistw": 0.97,
+  "waistw": 0,
   "walk": 0.93,
   "weight": 0.24,
-  "width": 0.27,
+  "width": 0.58,
   "wild": 0.52,
-  "wiper": 0.78,
-  "wspeed": 0.65
+  "wiper": 0.77,
+  "wspeed": 0.43
  },
  "p": {
   "roam": 0,
@@ -87,8 +89,9 @@
   "trails": 0.5,
   "magnetism": 0
  },
+ "hue": 285,
  "color": {
-  "by": "time",
+  "by": "loud",
   "pal": "acid",
   "flow": "glide",
   "mode": "palette",
@@ -206,41 +209,31 @@
    "beats": 3
   },
   "sh.turnspeed": {
-   "hi": 0.34,
-   "lo": 0,
+   "hi": 0.4,
+   "lo": 0.17,
    "pat": "sine",
    "secs": 6,
    "sync": true,
-   "beats": 4
+   "beats": 3
   }
  },
  "links": [
   {
-   "src": "kick",
+   "amt": 0.25,
    "dst": "flicks",
-   "amt": 0.25
+   "src": "kick"
   },
   {
-   "src": "bass",
-   "dst": "sway",
-   "amt": 0.3
+   "amt": 0.55,
+   "dst": "freeze",
+   "src": "bass"
   },
   {
-   "src": "mid",
-   "dst": "over",
-   "amt": 0.35
-  },
-  {
-   "src": "high",
-   "dst": "echo",
-   "amt": 0.3
-  },
-  {
-   "src": "loud",
-   "dst": "arch",
-   "amt": 0.25
+   "amt": 0.21,
+   "dst": "",
+   "src": "loud"
   }
  ],
- "focus": 0.6,
- "saved": "Kennedy Studio default, Oct 23 2026 00:08 CT; links set Oct 23 01:15 (Kennedy said try them)"
+ "focus": 0.57,
+ "saved": "Kennedy Studio default, Oct 23 2026 01:50 CT"
 }

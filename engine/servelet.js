@@ -56,6 +56,31 @@ const SL_POSES = [
   { k: "31a", n: "Deep dip: one behind the head, one reaching past the knee", f: r => [[-.2, -.95, -.2], [.3, 1.05, .35]] },
   { k: "31b", n: "Dip: one straight up, one down to the knee", f: r => [[.1, -1.1 * r, .05], [.25, .95, .25]] },
 ];
+// death drop endings: [lead arm, other arm], each [x outward from that shoulder, y down, z toward the room] in arm lengths, in
+// the room's frame (she is lying back, so "up" is the sky and "back over the head" is -z). Oct 23: sent to Kennedy to pick by number.
+const SL_DD_ENDS = [
+  { n: "Reach for the sky", f: [[.15, -1, .15], [1, .2, 0]] },
+  { n: "Surrender: both arms thrown back on the floor", f: [[.35, .15, -.95], [.35, .15, -.95]] },
+  { n: "Swoon: back of the hand to the forehead", f: [[-.2, -.35, -.45], [1, .2, .1]] },
+  { n: "Hand on the heart, other to the sky", f: [[.15, -1, .1], [-.4, -.3, .15]] },
+  { n: "Wrists crossed to the sky", f: [[-.12, -1, .15], [-.12, -1, .15]] },
+  { n: "Hide the eyes", f: [[-.35, -.4, -.35], [.95, .2, .1]] },
+  { n: "Sprawl: arms wide on the floor", f: [[1, .2, -.1], [1, .2, -.1]] },
+  { n: "Caught myself: one hand propped behind, one up", f: [[.35, .25, -.6], [.2, -1, .2]] },
+  { n: "Frame the face", f: [[-.25, -.5, -.35], [-.25, -.5, -.35]] },
+  { n: "Chase the foot", f: [[.1, -.75, .65], [.3, .15, -.9]] },
+  { n: "Lounge: hands behind the head", f: [[-.2, -.2, -.7], [-.2, -.2, -.7]] },
+  { n: "Flick to the room", f: [[.6, -.75, .5], [.25, .2, .8]] },
+];
+const SL_DD_PICK = []; // Kennedy's picks (indexes into SL_DD_ENDS); empty = Random uses them all
+// the bent leg: [ankle x, y, z, knee pole x, y, z]
+const SL_DD_LEGS = [
+  (sd, fl, L, sh) => [sd * .24, fl - .02, -.1, sd, 0, .3],      // A: splayed out to the side, knee out, foot behind
+  (sd, fl, L, sh) => [sd * .06, fl - .03, -.3, sd * .3, -.25, 1], // B: tucked under, knee forward, shin folded back under the body
+  (sd, fl, L, sh) => [sd * .3, fl - .24, -.3, sd * .6, -.3, -1], // C: wrong way: knee bent backward, foot kicked up behind
+  (sd, fl, L, sh) => [sd * .4, fl - .2, .02, sd, .45, 0],         // D: knee jammed down to the side, shin sticking up
+];
+const SL_DD_LEG = 1;
 const SERVELET_DROP = new Set(["crest", "fdir", "head", "headstyle", "hand", "outward", "prism", "split", "sweep", "weight", "width", "wild"]);
 const SERVELET = { key: "servelet", name: "Servelet", fade: .55, init: SERVE.init,
   shape: [...SERVE.shape.filter(s => !SERVELET_DROP.has(s.key)).map(s => s.key === "squat" ? { key: "squat2", label: "Squat depth", def: .75, grp: "Duck walk", when: s.when } : s),
@@ -75,6 +100,7 @@ const SERVELET = { key: "servelet", name: "Servelet", fade: .55, init: SERVE.ini
     { key: "ddrop", label: "Death drop", min: 0, max: 3, def: 1 / 3, fmt: v => ["Off", "Beat drops", "Loud hits", "Every 8 bars"][v], grp: "Floor work" },
     { key: "ddsens", label: "Drop sensitivity", def: .5, grp: "Floor work", when: g => [1, 2].includes(g("ddrop")) },
     { key: "ddhold", label: "Stay down for", min: 1, max: 8, def: 2 / 7, fmt: v => v + (v > 1 ? " beats" : " beat"), slide: true, grp: "Floor work" },
+    { key: "ddend", label: "Ending pose", min: 0, max: 12, def: 0, fmt: v => v ? v + ". " + SL_DD_ENDS[v - 1].n : "Random", slide: true, grp: "Floor work" },
     { key: "ddnow", label: "Death drop now", button: true, grp: "Floor work" },
     { key: "wiper", label: "Wiper sweeps", def: .6, grp: "Duck walk" },
     { key: "weight", label: "Outline weight", def: .35, grp: "Look" },
@@ -96,7 +122,7 @@ const SERVELET = { key: "servelet", name: "Servelet", fade: .55, init: SERVE.ini
       // beat drop: fast loudness jumps well above the slow average → duck walk now, for Drop duck walk for bars
       if (k("dropduck") > .02 && st.dCur === 1 && drop > .5 - .4 * k("dropduck") && st.ls < .55 && t - (st.dropT ?? -9) > 6) { st.dropT = t; st.dPrev = 1; st.dCur = 2; st.dF = 0; st.segStart = bn; st.dropUntil = bn + I("dropbars") * 4; } }
     else if (st.dCur !== dsel) { st.dPrev = st.dCur; st.dCur = dsel; st.dF = 0; }
-    st.dF = Math.min(1, st.dF + dt * 1.6); const mixF = svEaseIO(st.dF), duck0 = lerp(st.dPrev === 2 ? 1 : 0, st.dCur === 2 ? 1 : 0, mixF); st.kn ||= { on: false, f: 0, until: 0, back: 1 }; const KNs = st.kn; if (bar && !st.dd && duck0 < .5) { if (KNs.on && bn >= KNs.until) KNs.on = false; else if (!KNs.on && k("kneel") > .02 && Math.random() < k("kneel") * .45) { KNs.on = true; KNs.until = bn + I("kneelbars") * 4; KNs.back = Math.random() < .5 ? 0 : 1; st.yawT = st.yaw.p + svAng((Math.random() < .5 ? 1 : -1) * (.45 + Math.random() * .5) - st.yaw.p); } } if (st.dCur === 2 && duck0 > .5) KNs.on = false; KNs.f = clamp(KNs.f + (KNs.on ? 1 : -1) * dt * 1.5, 0, 1); const KN = svEaseIO(KNs.f); const rawL = R.raw || 0; st.dslow = lerp(st.dslow ?? rawL, rawL, 1 - Math.exp(-dt / 6)); st.dfast = lerp(st.dfast ?? rawL, rawL, 1 - Math.exp(-dt / .25)); st.sinceDD = (st.sinceDD ?? 99) + dt; const ddw = I("ddrop"), dsens = L("ddsens", .75, 1.35); if (st.dfast < st.dslow * .62 * dsens) st.brk = (st.brk || 0) + dt; else st.brk = Math.max(0, (st.brk || 0) - dt * .4); let fireDD = false; { const req = E.node && E.node.shape && E.node.shape.ddnow; if (req && req !== st.ddReq) { if (st.ddReq != null || Date.now() - req < 3000) fireDD = true; } st.ddReq = req || st.ddReq || 0; } if (!st.dd && st.sinceDD > 4) { if (E.beat && R.raw != null) { if (ddw === 1 && st.brk > .8 && st.dfast > st.dslow * (1.12 / dsens)) fireDD = true; if (ddw === 2 && st.dfast > st.dslow * (1.5 / dsens)) fireDD = true; } if (ddw === 3 && newBeat && bn > 0 && bn % 32 === 0) fireDD = true; } if (fireDD && !st.dd) { st.dd = { t: 0, front: Math.random() < .5 ? 0 : 1, lead: Math.random() < .5 ? 0 : 1 }; st.brk = 0; KNs.on = false; st.yawT = st.yaw.p + svAng((Math.random() < .5 ? 1 : -1) * (1.0 + Math.random() * .35) - st.yaw.p); st.hat = [{ style: "up", b: 1.35, a: 0 }, { style: "up", b: 1.2, a: 0 }]; } let DD = 0, DA = 0, DL = 0, DP = 0; if (st.dd) { const D = st.dd, prep = .42, fall = .26, hold = I("ddhold") * gap, rise = .95; D.t += dt; if (D.t < prep) { const u = D.t / prep; DA = svEaseIO(u); DP = Math.sin(Math.PI * u); } else if (D.t < prep + fall) { const u = (D.t - prep) / fall; DD = u * u; DA = 1; DL = u; } else if (D.t < prep + fall + hold) { DD = 1; DA = 1; DL = 1 + .25 * Math.min(1, R.kick); } else if (D.t < prep + fall + hold + rise) { const u = svEaseIO((D.t - prep - fall - hold) / rise); DD = 1 - u; DA = 1 - u; DL = 1 - u; } else { st.dd = null; st.sinceDD = 0; st.hcl = [0, 0]; } } const duck = duck0 * (1 - Math.max(KN, DD));
+    st.dF = Math.min(1, st.dF + dt * 1.6); const mixF = svEaseIO(st.dF), duck0 = lerp(st.dPrev === 2 ? 1 : 0, st.dCur === 2 ? 1 : 0, mixF); st.kn ||= { on: false, f: 0, until: 0, back: 1 }; const KNs = st.kn; if (bar && !st.dd && duck0 < .5) { if (KNs.on && bn >= KNs.until) KNs.on = false; else if (!KNs.on && k("kneel") > .02 && Math.random() < k("kneel") * .45) { KNs.on = true; KNs.until = bn + I("kneelbars") * 4; KNs.back = Math.random() < .5 ? 0 : 1; st.yawT = st.yaw.p + svAng((Math.random() < .5 ? 1 : -1) * (.45 + Math.random() * .5) - st.yaw.p); } } if (st.dCur === 2 && duck0 > .5) KNs.on = false; KNs.f = clamp(KNs.f + (KNs.on ? 1 : -1) * dt * 1.5, 0, 1); const KN = svEaseIO(KNs.f); const rawL = R.raw || 0; st.dslow = lerp(st.dslow ?? rawL, rawL, 1 - Math.exp(-dt / 6)); st.dfast = lerp(st.dfast ?? rawL, rawL, 1 - Math.exp(-dt / .25)); st.sinceDD = (st.sinceDD ?? 99) + dt; const ddw = I("ddrop"), dsens = L("ddsens", .75, 1.35); if (st.dfast < st.dslow * .62 * dsens) st.brk = (st.brk || 0) + dt; else st.brk = Math.max(0, (st.brk || 0) - dt * .4); let fireDD = false; { const req = E.node && E.node.shape && E.node.shape.ddnow; if (req && req !== st.ddReq) { if (st.ddReq != null || Date.now() - req < 3000) fireDD = true; } st.ddReq = req || st.ddReq || 0; } if (!st.dd && st.sinceDD > 4) { if (E.beat && R.raw != null) { if (ddw === 1 && st.brk > .8 && st.dfast > st.dslow * (1.12 / dsens)) fireDD = true; if (ddw === 2 && st.dfast > st.dslow * (1.5 / dsens)) fireDD = true; } if (ddw === 3 && newBeat && bn > 0 && bn % 32 === 0) fireDD = true; } if (fireDD && !st.dd) { const ep = I("ddend"), picks = SL_DD_PICK.length ? SL_DD_PICK : SL_DD_ENDS.map((_, j) => j); st.dd = { t: 0, front: Math.random() < .5 ? 0 : 1, lead: Math.random() < .5 ? 0 : 1, end: st.forceEnd ?? (ep > 0 ? ep - 1 : picks[Math.floor(Math.random() * picks.length)]) }; st.brk = 0; KNs.on = false; st.yawT = st.yaw.p + svAng((Math.random() < .5 ? 1 : -1) * (1.0 + Math.random() * .35) - st.yaw.p); st.hat = [{ style: "up", b: 1.35, a: 0 }, { style: "up", b: 1.2, a: 0 }]; } let DD = 0, DA = 0, DL = 0, DP = 0, LU = 0, HU = 0; if (st.dd) { const D = st.dd, prep = .35, fall = .4, hold = Math.max(.8, I("ddhold") * gap), rise = .6; D.t += dt; D.hold = hold; if (D.t < prep) { const u = D.t / prep; DA = svEaseIO(u) * .6; DP = Math.sin(Math.PI * u); } else if (D.t < prep + fall) { const u = (D.t - prep) / fall; DD = u * u; DA = .6 + .4 * u; DL = u * u; } else if (D.t < prep + fall + hold) { const u = (D.t - prep - fall) / hold; DD = 1; DA = 1; DL = 1 + .1 * svEaseIO(u); LU = svEaseIO(u); HU = svEaseIO(Math.min(1, u * 1.1)); } else if (D.t < prep + fall + hold + rise) { const u = svEaseIO((D.t - prep - fall - hold) / rise); DD = 1 - u; DA = 1 - u; DL = 1.1 * (1 - u); LU = 1 - u; HU = 1 - u; } else { st.dd = null; st.sinceDD = 0; st.hcl = [0, 0]; } } const duck = duck0 * (1 - Math.max(KN, DD));
     // ---- roaming the stage: a new spot every bar or so, walked to on a spring; facing follows the walk, otherwise a new facing is picked on bars
     const armL = L("armlen", .22, .5), roam = k("roam"), xr = Math.max(0, E.W * .5 / U - .2 - armL);
     if (bar && !st.dd && KN < .05 && roam > .02 && Math.random() < .35 + .5 * roam) st.tgt = [(Math.random() * 2 - 1) * xr * roam, (Math.random() * 2 - 1) * .55 * roam];
@@ -138,35 +164,35 @@ const SERVELET = { key: "servelet", name: "Servelet", fade: .55, init: SERVE.ini
     // ---- the skeleton in local space (figure units; x right, y down from the top of the head, z toward the room)
     const kpb = [.5, 1, 2][I("kicks")], bounce = svPop((bn + ph) * kpb, k("bsnap")) * L("bounce", .02, .16) * (.7 + .3 * Math.min(1, R.energy)) * (1 + .4 * R.kick), vb = svPop(ph, .4) * L("vbounce", 0, .05) * (.7 + .3 * loud);
     const legL = L("leglen", .36, .56), thigh = legL / 2, shin = legL / 2, floor = .46 + legL, squatY = lerp(.46 + (legL - .46), floor - (q => q < .75 ? lerp(.4, .24, q / .75) : lerp(.24, .19, (q - .75) / .25))(k("squat2")), duck), sway = Math.sin(t * Math.PI / gap * .5) * L("sway", 0, .06) * (1 - duck) * (.5 + loud);
-    svSpr3(st.hip, [sway * (1 - KN) * (1 - DD), lerp(lerp(squatY + lerp(vb, bounce, duck), floor - thigh * .97 + vb * .5, KN), floor - .055, DD) - .025 * DP, -.03 * KN], 900, 55, dt); const hipC = svP(st.hip);
+    svSpr3(st.hip, [sway * (1 - KN) * (1 - DD), lerp(lerp(squatY + lerp(vb, bounce, duck), floor - thigh * .97 + vb * .5, KN), floor - .05, DD) - .025 * DP, -.03 * KN - .08 * DD], 900, 55, dt); const hipC = svP(st.hip);
     // torso: pelvis → waist → chest. The back is always arched (pelvis tipped forward, chest lifted and carried back); vogue adds a waist bend on each pose
-    const arch = L("arch", .25, 1), wb = k("waist") * (1 - duck); { const Kb = L("posespeed", 6, 90); svSpr3(st.bend, [st.bendT[0] * wb, st.bendT[1] * wb, st.bendT[2] * wb + st.leanT * (1 - duck) + L("dlean", .1, .7) * duck - 1.0 * DL], Kb, 2 * .65 * Math.sqrt(Kb), dt); }
+    const arch = L("arch", .25, 1), wb = k("waist") * (1 - duck); { const Kb = L("posespeed", 6, 90); svSpr3(st.bend, [st.bendT[0] * wb, st.bendT[1] * wb, st.bendT[2] * wb + st.leanT * (1 - duck) + L("dlean", .1, .7) * duck], Kb, 2 * .65 * Math.sqrt(Kb), dt); }
     const sideB = st.bend.x.p, twist = st.bend.y.p, fwdB = st.bend.z.p;
-    const waist = V3.add(hipC, [sideB * .06, -.15, .05 * arch + fwdB * .04]);
-    const chest = V3.add(waist, [sideB * .12, -.17 + .02 * Math.abs(fwdB), -.1 * arch + fwdB * .14]);
+    const PA = DL * 1.22, RB = (v, f) => { if (!PA) return v; const a = PA * f, c = Math.cos(a), s_ = Math.sin(a); return [v[0], v[1] * c - v[2] * s_, v[2] * c + v[1] * s_]; }; const waist = V3.add(hipC, RB([sideB * .06, -.15, .05 * arch + fwdB * .04], .6));
+    const chest = V3.add(waist, RB([sideB * .12, -.17 + .02 * Math.abs(fwdB), -.1 * arch + fwdB * .14], 1));
     const shDir = [Math.cos(twist * .6), 0, -Math.sin(twist * .6)], body = k("body"), shW = L("shoulders", .07, .14) * lerp(.8, 1.3, body), hipW = L("hips", .04, .08) * lerp(1.35, .7, body), wW = L("waistw", .02, .075) * lerp(.85, 1.15, body), shL = V3.add(chest, shDir, -shW), shR = V3.add(chest, shDir, shW), hipL = V3.add(hipC, [-hipW, 0, -.02 * arch]), hipR = V3.add(hipC, [hipW, 0, -.02 * arch]), waistL = V3.add(waist, shDir, -wW), waistR = V3.add(waist, shDir, wW);
     svSpr(st.nod, st.nodT * (1 - duck) + duck * .15 * Math.sin(t * TAU / gap) * k("nod"), 40, 7, dt);
-    const neck = V3.add(chest, [sideB * .02, -.045, .02 * arch]), head = V3.add(neck, [sideB * .03 + st.nod.p * .03, -.062 + .015 * DL, .03 * arch + fwdB * .02 - .04 * DL]);
+    const neck = V3.add(chest, RB([sideB * .02, -.045, .02 * arch], 1.3)), head = V3.add(neck, RB([sideB * .03 + st.nod.p * .03, -.062, .03 * arch + fwdB * .02], 1.6));
     // legs: vogue = planted, weight shifting, the odd cross; duck walk = squat with the knees forward and close, feet kicking forward in turn
     const feetT = [], poles = [], stance = L("stance", .05, .14);
     for (let i = 0; i < 2; i++) { const sd = i ? 1 : -1;
       const crossF = st.cross === sd ? svEaseIO(Math.min(1, (t - st.crossT) * 3)) : 0, vx_ = sd * stance - sd * (stance + .045) * crossF, vz_ = crossF * .1;
       const kph = frac((bn + ph) * kpb), kfoot = Math.floor((bn + ph) * kpb) % 2, kickOn = kfoot === i, kc = kickOn ? Math.sin(Math.PI * clamp(kph / .7, 0, 1)) : 0;
       const dx_ = sd * (.05 + .03 * loud), dz_ = .08 + kc * L("kreach", .05, .4), dy_ = floor - kc * L("kick", .02, .22);
-      const KB = KNs.back === i, FR = st.dd ? st.dd.front === i : i === 1, f0_ = [lerp(vx_, dx_, duck), lerp(floor - .015, dy_, duck), lerp(vz_, dz_, duck)], kF_ = KB ? [sd * .07, floor - .01, -shin * .92] : [sd * .09, floor - .015, .2], dF_ = FR ? [sd * .05, floor - .03, legL * .93] : [sd * .14, floor - .02, -shin * .8]; feetT.push([0, 1, 2].map(j => lerp(lerp(f0_[j], kF_[j], KN), dF_[j], DD)).concat([lerp(1 + kc * .9 * duck, 1, Math.max(KN, DD))]));
+      const KB = KNs.back === i, FR = st.dd ? st.dd.front === i : i === 1, f0_ = [lerp(vx_, dx_, duck), lerp(floor - .015, dy_, duck), lerp(vz_, dz_, duck)], kF_ = KB ? [sd * .07, floor - .01, -shin * .92] : [sd * .09, floor - .015, .2], phi_ = lerp(.06, .66, LU), BL_ = SL_DD_LEGS[st.ddLegV ?? SL_DD_LEG](sd, floor, legL, shin), dF_ = FR ? [sd * .05, floor - .05 - legL * .97 * Math.sin(phi_), -.08 + legL * .97 * Math.cos(phi_)] : BL_.slice(0, 3); feetT.push([0, 1, 2].map(j => lerp(lerp(f0_[j], kF_[j], KN), dF_[j], DD)).concat([lerp(1 + kc * .9 * duck, 1, Math.max(KN, DD))]));
       // knee bend direction: vogue knees forward (the crossing leg's inward), duck walk knees forward and a touch out
-      poles.push(V3.mix(V3.mix(V3.mix([sd * (crossF ? -.6 : .25), 0, 1], [sd * L("knees", .05, 1.2), 0, 1], duck), KB ? [sd * .1, .4, 1] : [sd * .15, -.3, 1], KN), FR ? [0, -1, .15] : [sd, .35, .15], DD)); }
+      poles.push(V3.mix(V3.mix(V3.mix([sd * (crossF ? -.6 : .25), 0, 1], [sd * L("knees", .05, 1.2), 0, 1], duck), KB ? [sd * .1, .4, 1] : [sd * .15, -.3, 1], KN), FR ? [0, -1, .15] : BL_.slice(3, 6), DD)); }
     const ankles = feetT.map((ft, i) => { svSpr3(st.feet[i], ft, Kleg * (st.dd ? 9 : 1), Cleg * (st.dd ? 3 : 1), dt); const p = svP(st.feet[i]); p.push(ft[3]); return p; });
-    const knees = ankles.map((a, i) => svIK(i ? hipR : hipL, a, thigh, shin, poles[i]));
+    const knees = ankles.map((a, i) => svIK(i ? hipR : hipL, a, thigh, shin, poles[i])).map(q => st.dd ? [q[0], Math.min(q[1], floor - .025), q[2]] : q);
     // arms
     const ua = armL * .51, fa = armL * .49, reach = L("reach", .5, 1.0) * (.8 + .3 * loud) * (1 + .15 * R.kick), pose = SL_POSES[st.pose % SL_POSES.length].f(reach), handT = [];
     for (let i = 0; i < 2; i++) { const sd = i ? 1 : -1, sh = i ? shR : shL, pv = pose[st.poseMirror ? 1 - i : i], vog = V3.add(sh, [sd * pv[0] * (ua + fa), pv[1] * (ua + fa), pv[2] * (ua + fa)]);
       const da = st.duckArm[i], dk = V3.add(sh, [sd * (.16 + da[0]) * (ua + fa) * .95, (.05 + da[1]) * (ua + fa) + lerp(.05 * Math.sin(t * TAU / gap * 2 + i), bounce * .5, ST), .12]);
       const WP = k("wiper"), DV = k("duckvogue"), wA = WP * (Math.PI / 2.6) * Math.cos(Math.PI * (bn + ph)), wR = (ua + fa) * .5, base = V3.mix(vog, dk, duck * (1 - DV)), fin = WP > .01 ? V3.add(base, [Math.sin(wA) * wR * duck, ((1 - Math.cos(wA)) * wR - WP * .25 * wR) * duck, 0]) : base; handT.push(fin); }
     { const ps = L("posespeed", .15, 1.6); for (let i = 0; i < 2; i++) { const prevT = st.handPrev ? st.handPrev[i] : handT[i], u = Math.min(1, (t - st.poseT) * 3 * ps * (st.tt === "over" ? .5 : 1)); if (!st.handFrom) st.handFrom = handT.map(h => h.slice()); if (st.poseT === t) st.handFrom[i] = prevT; const SW = k("swish"); if (st.poseT === t && i === 0) { const q = Math.random(), sn = .12 + .35 * (1 - SW); st.tt = Math.random() < k("over") * .6 ? "over" : q < sn ? "snap" : q < sn + (1 - sn) * .55 ? "arc" : "wiper"; st.ttLead = Math.random() < .5 ? 0 : 1; } const TT = st.tt || "arc"; if (TT === "snap") handT[i] = V3.mix(st.handFrom[i], handT[i], svEaseIO(Math.min(1, u * 1.6))); else { const e0 = svEaseIO(u), c1 = 1.2 * SW, ob = u >= 1 ? 1 : 1 + (c1 + 1) * Math.pow(u - 1, 3) + c1 * Math.pow(u - 1, 2), e = lerp(e0, ob, Math.min(1, SW * 1.2)); const shp = i ? shR : shL, a0 = V3.sub(st.handFrom[i], shp), a1 = V3.sub(handT[i], shp), r0 = V3.len(a0), r1 = V3.len(a1), dir = V3.norm(V3.mix(V3.norm(a0), V3.norm(a1), e)), rad = lerp(r0, r1, e) + SW * .28 * (ua + fa) * Math.sin(Math.PI * Math.min(1, Math.max(0, e))); let hp = V3.mix(V3.mix(st.handFrom[i], handT[i], e), V3.add(shp, dir, rad), Math.max(.35, SW)); if (TT === "over") { const sd2 = i ? 1 : -1, ap = V3.add(shp, i === st.ttLead ? [sd2 * .1, -1.12, .14] : [sd2 * .95, .45, .2], ua + fa), P0 = st.handFrom[i], P2 = handT[i], ue = Math.min(1, Math.max(0, e)), Cc = [0, 1, 2].map(j => 2 * ap[j] - .5 * (P0[j] + P2[j])); hp = [0, 1, 2].map(j => (1 - ue) * (1 - ue) * P0[j] + 2 * ue * (1 - ue) * Cc[j] + ue * ue * P2[j] + (e - ue) * (P2[j] - P0[j])); } if (TT === "wiper") { const sw = Math.sin(TAU * Math.min(1, u)) * (1 - Math.min(1, u)) * (.35 + .4 * SW) * (ua + fa); hp = V3.add(hp, [(i ? 1 : -1) * sw, -Math.abs(sw) * .35, 0]); } handT[i] = hp; } } st.handPrev = handT.map(h => h.slice()); { const RL = k("roll"), dd = V3.len(V3.sub(handT[0], handT[1])), near = .5 * (ua + fa); if (RL > .01 && dd < near) { const amt = (1 - dd / near) * RL, phi = Math.PI * (bn + ph), rr = .1 * (ua + fa) * amt; for (let i = 0; i < 2; i++) handT[i] = V3.add(handT[i], [Math.cos(phi + i * Math.PI) * rr, Math.sin(phi + i * Math.PI) * rr, Math.sin(phi * .5 + i) * rr * .5]); } } }
-    if (DA > 0) for (let i = 0; i < 2; i++) { const sd = i ? 1 : -1, sh = i ? shR : shL, ld = st.dd && st.dd.lead === i; handT[i] = V3.mix(handT[i], V3.add(sh, ld ? [sd * .35, -.92, -.45] : [sd * .95, .1, .2], ua + fa), DA); if (st.dd) st.hcl[i] = 9; }
+    if (DA > 0) for (let i = 0; i < 2; i++) { const sd = i ? 1 : -1, sh = i ? shR : shL, ld = st.dd && st.dd.lead === i; const EP = SL_DD_ENDS[st.dd ? st.dd.end % SL_DD_ENDS.length : 0].f, ev = ld ? EP[0] : EP[1], fl = ld ? [.3, -.95, .1] : [.8, -.5, .1], tv = [0, 1, 2].map(j => lerp(fl[j], ev[j], HU)); handT[i] = V3.mix(handT[i], V3.add(sh, [sd * tv[0], tv[1], tv[2]], ua + fa), DA); if (st.dd) st.hcl[i] = 9; }
     // the hands chase their targets on a lagging spring, then are held within arm's length of the shoulder (no stretching off the body)
-    const wrists = handT.map((h, i) => { const sh = i ? shR : shL, KK = lerp(Karm, K, k("rubber") * .35), CC = lerp(lerp(Carm, C, k("rubber") * .35), 2 * .95 * Math.sqrt(KK), ST); svSpr3(st.hands[i], h, KK, CC, dt); let w = svP(st.hands[i]); const d = V3.sub(w, sh), dl = V3.len(d); if (dl > ua + fa - .005) { w = V3.add(sh, d, (ua + fa - .005) / dl); st.hands[i].x.p = w[0]; st.hands[i].y.p = w[1]; st.hands[i].z.p = w[2]; } return w; });
+    const wrists = handT.map((h, i) => { const sh = i ? shR : shL, KK = lerp(Karm, K, k("rubber") * .35), CC = lerp(lerp(Carm, C, k("rubber") * .35), 2 * .95 * Math.sqrt(KK), ST); svSpr3(st.hands[i], h, KK, CC, dt); let w = svP(st.hands[i]); const d = V3.sub(w, sh), dl = V3.len(d); if (dl > ua + fa - .005) { w = V3.add(sh, d, (ua + fa - .005) / dl); st.hands[i].x.p = w[0]; st.hands[i].y.p = w[1]; st.hands[i].z.p = w[2]; } if (st.dd && w[1] > floor - .02) w = [w[0], floor - .02, w[2]]; return w; });
     const eo = L("elbows", 0, 1), elbows = wrists.map((w, i) => svIK(i ? shR : shL, w, ua, fa, [(i ? 1 : -1) * (.1 + .9 * eo), .5 - .4 * eo, -.3 - .5 * eo]));
     // ---- world space: turn by yaw, move to the spot on the stage; then project with perspective
     const f = L("persp", 7, 2.2), px = st.pos.x.p, pz = st.pos.z.p;
@@ -243,7 +269,7 @@ const SERVELET = { key: "servelet", name: "Servelet", fade: .55, init: SERVE.ini
       [J.head, J.neck, J.shL, J.shR, J.chest, J.waist, J.hipL, J.hipR, J.hipC, ...J.elbows, ...J.wrists, ...J.knees, ...J.ankles].forEach(add); const pad = U * .2; return [x0 - pad, y0 - pad, x1 + pad, y1 + pad]; };
     const segDist = (p, A, B) => { const dx = B[0] - A[0], dy = B[1] - A[1], l2 = dx * dx + dy * dy || 1, u = clamp(((p[0] - A[0]) * dx + (p[1] - A[1]) * dy) / l2, 0, 1); return Math.hypot(p[0] - A[0] - dx * u, p[1] - A[1] - dy * u); };
     // ink one mask: dark fill, glow, then the outline ring colored head to toe
-    const ink = (paint, J, al, bb, yTop, yBot, holes) => {
+    const ink = (paint, J, al, bb, yTop, yBot, holes, gAx) => {
       const ox = bb[0], oy = bb[1], Wc = Math.max(2, Math.ceil((bb[2] - bb[0]) * DPRg)), Hc = Math.max(2, Math.ceil((bb[3] - bb[1]) * DPRg));
       const ma = ensure(MK.a, Wc, Hc), mb = ensure(MK.b, Wc, Hc);
       ma.setTransform(1, 0, 0, 1, 0, 0); ma.globalCompositeOperation = "source-over"; ma.clearRect(0, 0, Wc, Hc); ma.setTransform(DPRg, 0, 0, DPRg, -ox * DPRg, -oy * DPRg); ma.fillStyle = "#fff"; paint(ma);
@@ -252,7 +278,7 @@ const SERVELET = { key: "servelet", name: "Servelet", fade: .55, init: SERVE.ini
       for (let i = 0; i < 12; i++) { const a = i / 12 * TAU; mb.drawImage(MK.a, Math.cos(a) * lw, Math.sin(a) * lw); }
       mb.globalCompositeOperation = "destination-out"; mb.drawImage(MK.a, 0, 0);
       (holes || []).forEach(([x, y, rr]) => { mb.beginPath(); mb.arc((x - ox) * DPRg, (y - oy) * DPRg, rr * DPRg, 0, TAU); mb.fill(); });
-      const span = 60 + 260 * k("spread"), gr = mb.createLinearGradient(0, (yTop - oy) * DPRg, 0, (yBot - oy) * DPRg), hs = [0, .25, .5, .75, 1];
+      const span = 60 + 260 * k("spread"), gx = gAx || [0, yTop, 0, yBot], gr = mb.createLinearGradient((gx[0] - ox) * DPRg, (gx[1] - oy) * DPRg, (gx[2] - ox) * DPRg, (gx[3] - oy) * DPRg), hs = [0, .25, .5, .75, 1];
       hs.forEach(u => gr.addColorStop(u, hsl(hue + span * u, 95, 64, 1))); mb.globalCompositeOperation = "source-in"; mb.fillStyle = gr; mb.fillRect(0, 0, Wc, Hc);
       // dark fill (normal painting, so the body hides its own trail and anything drawn behind it in this layer)
       g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = "destination-out"; g.globalAlpha = .92 * al; g.drawImage(MK.a, ox * DPRg, oy * DPRg); g.restore();
@@ -263,6 +289,9 @@ const SERVELET = { key: "servelet", name: "Servelet", fade: .55, init: SERVE.ini
       return gr; };
     const drawBody = (J, hA, fA, al, live) => {
       const P = painters(J, hA, fA), bb = bboxOf(J), yTop = J.head[1] - U * .07 * J.head[2], yBot = Math.max(J.ankles[0][1], J.ankles[1][1]) + U * .02;
+      // lying back (the death drop) the head-to-toe colors follow the body's axis instead of straight down the screen
+      const wL = clamp(DL, 0, 1), fm = [(J.ankles[0][0] + J.ankles[1][0]) / 2, (J.ankles[0][1] + J.ankles[1][1]) / 2], axd = Math.hypot(fm[0] - J.head[0], fm[1] - J.head[1]) || 1, axn = [(fm[0] - J.head[0]) / axd, (fm[1] - J.head[1]) / axd];
+      const gAx = wL > .01 ? [lerp(J.head[0], J.head[0] - axn[0] * U * .07, 1), lerp(yTop, J.head[1] - axn[1] * U * .07, wL), lerp(J.head[0], fm[0] + axn[0] * U * .02, wL), lerp(yBot, fm[1] + axn[1] * U * .02, wL)] : null;
       // which chains cross in front of the body? (z toward the room, and overlapping the torso or the other leg on screen)
       const tz = (J.chest[3] + J.hipC[3]) / 2, tw = Math.max(Math.hypot(J.shR[0] - J.shL[0], J.shR[1] - J.shL[1]) * .5, U * .05 * J.chest[2]) + U * .02;
       const sep = [], base = [P.coreP];
@@ -273,8 +302,8 @@ const SERVELET = { key: "servelet", name: "Servelet", fade: .55, init: SERVE.ini
         if (on) sep.push({ z: cz, p: P.armP(i), sh: i ? J.shR : J.shL }); else base.push(P.armP(i)); }
       // legs always belong to the one outline (Kennedy, Oct 22: inking a leg on its own drew extra lines across the hips that flickered in turns)
       base.push(P.legP(0), P.legP(1));
-      const gr = ink(m => base.forEach(f => f(m)), J, al, bb, yTop, yBot);
-      sep.sort((a, b) => a.z - b.z).forEach(c => ink(c.p, J, al, bb, yTop, yBot, c.sh ? [[c.sh[0], c.sh[1], U * .036 * Mu * L("width", .8, 1.25) * c.sh[2] * 1.25]] : null));
+      const gr = ink(m => base.forEach(f => f(m)), J, al, bb, yTop, yBot, null, gAx);
+      sep.sort((a, b) => a.z - b.z).forEach(c => ink(c.p, J, al, bb, yTop, yBot, c.sh ? [[c.sh[0], c.sh[1], U * .036 * Mu * L("width", .8, 1.25) * c.sh[2] * 1.25]] : null, gAx));
       // anatomy lines: chest, abs and V-lines from the front; spine and shoulder blades from behind; they fade toward profile
       if (defn > .02) { const sw = Math.hypot(J.shR[0] - J.shL[0], J.shR[1] - J.shL[1]), wide = clamp(sw / (U * .2 * J.chest[2]) - .25, 0, 1), front = Math.cos(yaw) > 0, a3 = al * defn * wide * (.5 + .2 * loud);
         if (a3 > .02) { const C0 = J.chest, Hc = J.hipC, Wc = J.waist, ux = (J.shR[0] - J.shL[0]) / (sw || 1), uy = (J.shR[1] - J.shL[1]) / (sw || 1), at = (p, a, b) => [p[0] + ux * a + (Hc[0] - C0[0]) * b, p[1] + uy * a + (Hc[1] - C0[1]) * b], half = sw * .5;

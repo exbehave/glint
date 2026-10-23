@@ -59,7 +59,7 @@
       [J.head, J.neck, J.shL, J.shR, J.chest, J.waist, J.hipL, J.hipR, J.hipC, ...J.elbows, ...J.wrists, ...J.knees, ...J.ankles].forEach(add); const pad = U * .2; return [x0 - pad, y0 - pad, x1 + pad, y1 + pad]; };
     const segDist = (p, A, B) => { const dx = B[0] - A[0], dy = B[1] - A[1], l2 = dx * dx + dy * dy || 1, u = clamp(((p[0] - A[0]) * dx + (p[1] - A[1]) * dy) / l2, 0, 1); return Math.hypot(p[0] - A[0] - dx * u, p[1] - A[1] - dy * u); };
     // ink one mask: dark fill, glow, then the outline ring colored head to toe
-    const ink = (paint, J, al, bb, yTop, yBot, holes) => {
+    const ink = (paint, J, al, bb, yTop, yBot, holes, gAx) => {
       const ox = bb[0], oy = bb[1], Wc = Math.max(2, Math.ceil((bb[2] - bb[0]) * DPRg)), Hc = Math.max(2, Math.ceil((bb[3] - bb[1]) * DPRg));
       const ma = ensure(MK.a, Wc, Hc), mb = ensure(MK.b, Wc, Hc);
       ma.setTransform(1, 0, 0, 1, 0, 0); ma.globalCompositeOperation = "source-over"; ma.clearRect(0, 0, Wc, Hc); ma.setTransform(DPRg, 0, 0, DPRg, -ox * DPRg, -oy * DPRg); ma.fillStyle = "#fff"; paint(ma);
@@ -68,7 +68,7 @@
       for (let i = 0; i < 12; i++) { const a = i / 12 * TAU; mb.drawImage(MK.a, Math.cos(a) * lw, Math.sin(a) * lw); }
       mb.globalCompositeOperation = "destination-out"; mb.drawImage(MK.a, 0, 0);
       (holes || []).forEach(([x, y, rr]) => { mb.beginPath(); mb.arc((x - ox) * DPRg, (y - oy) * DPRg, rr * DPRg, 0, TAU); mb.fill(); });
-      const span = 60 + 260 * k("spread"), gr = mb.createLinearGradient(0, (yTop - oy) * DPRg, 0, (yBot - oy) * DPRg), hs = [0, .25, .5, .75, 1];
+      const span = 60 + 260 * k("spread"), gx = gAx || [0, yTop, 0, yBot], gr = mb.createLinearGradient((gx[0] - ox) * DPRg, (gx[1] - oy) * DPRg, (gx[2] - ox) * DPRg, (gx[3] - oy) * DPRg), hs = [0, .25, .5, .75, 1];
       hs.forEach(u => gr.addColorStop(u, hsl(hue + span * u, 95, 64, 1))); mb.globalCompositeOperation = "source-in"; mb.fillStyle = gr; mb.fillRect(0, 0, Wc, Hc);
       // dark fill (normal painting, so the body hides its own trail and anything drawn behind it in this layer)
       g.save(); g.setTransform(1, 0, 0, 1, 0, 0); g.globalCompositeOperation = "destination-out"; g.globalAlpha = .92 * al; g.drawImage(MK.a, ox * DPRg, oy * DPRg); g.restore();
@@ -79,6 +79,9 @@
       return gr; };
     const drawBody = (J, hA, fA, al, live) => {
       const P = painters(J, hA, fA), bb = bboxOf(J), yTop = J.head[1] - U * .07 * J.head[2], yBot = Math.max(J.ankles[0][1], J.ankles[1][1]) + U * .02;
+      // lying back (the death drop) the head-to-toe colors follow the body's axis instead of straight down the screen
+      const wL = clamp(DL, 0, 1), fm = [(J.ankles[0][0] + J.ankles[1][0]) / 2, (J.ankles[0][1] + J.ankles[1][1]) / 2], axd = Math.hypot(fm[0] - J.head[0], fm[1] - J.head[1]) || 1, axn = [(fm[0] - J.head[0]) / axd, (fm[1] - J.head[1]) / axd];
+      const gAx = wL > .01 ? [lerp(J.head[0], J.head[0] - axn[0] * U * .07, 1), lerp(yTop, J.head[1] - axn[1] * U * .07, wL), lerp(J.head[0], fm[0] + axn[0] * U * .02, wL), lerp(yBot, fm[1] + axn[1] * U * .02, wL)] : null;
       // which chains cross in front of the body? (z toward the room, and overlapping the torso or the other leg on screen)
       const tz = (J.chest[3] + J.hipC[3]) / 2, tw = Math.max(Math.hypot(J.shR[0] - J.shL[0], J.shR[1] - J.shL[1]) * .5, U * .05 * J.chest[2]) + U * .02;
       const sep = [], base = [P.coreP];
@@ -89,8 +92,8 @@
         if (on) sep.push({ z: cz, p: P.armP(i), sh: i ? J.shR : J.shL }); else base.push(P.armP(i)); }
       // legs always belong to the one outline (Kennedy, Oct 22: inking a leg on its own drew extra lines across the hips that flickered in turns)
       base.push(P.legP(0), P.legP(1));
-      const gr = ink(m => base.forEach(f => f(m)), J, al, bb, yTop, yBot);
-      sep.sort((a, b) => a.z - b.z).forEach(c => ink(c.p, J, al, bb, yTop, yBot, c.sh ? [[c.sh[0], c.sh[1], U * .036 * Mu * L("width", .8, 1.25) * c.sh[2] * 1.25]] : null));
+      const gr = ink(m => base.forEach(f => f(m)), J, al, bb, yTop, yBot, null, gAx);
+      sep.sort((a, b) => a.z - b.z).forEach(c => ink(c.p, J, al, bb, yTop, yBot, c.sh ? [[c.sh[0], c.sh[1], U * .036 * Mu * L("width", .8, 1.25) * c.sh[2] * 1.25]] : null, gAx));
       // anatomy lines: chest, abs and V-lines from the front; spine and shoulder blades from behind; they fade toward profile
       if (defn > .02) { const sw = Math.hypot(J.shR[0] - J.shL[0], J.shR[1] - J.shL[1]), wide = clamp(sw / (U * .2 * J.chest[2]) - .25, 0, 1), front = Math.cos(yaw) > 0, a3 = al * defn * wide * (.5 + .2 * loud);
         if (a3 > .02) { const C0 = J.chest, Hc = J.hipC, Wc = J.waist, ux = (J.shR[0] - J.shL[0]) / (sw || 1), uy = (J.shR[1] - J.shL[1]) / (sw || 1), at = (p, a, b) => [p[0] + ux * a + (Hc[0] - C0[0]) * b, p[1] + uy * a + (Hc[1] - C0[1]) * b], half = sw * .5;

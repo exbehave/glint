@@ -1,10 +1,37 @@
 """Rebuild engine/servelet.js and casting/servelet.js: Serve classic's motion (sliced verbatim from engine/serve.js,
 between 'draw(E) {' and '// ---- drawing:') plus Servelet's own drawing in casting/servelet-draw.js.
 Run from the repo root: python3 casting/make_servelet.py"""
+# Servelet's own motion changes, applied to the copied motion (Kennedy's first rehearsal, Oct 22, 2026: "the hands jerk back and
+# forth instead of following through to new poses"; in the duck walk "the hands are giving puppet master, up and down, back and forth").
+MOTION_PATCHES = [
+  # arm lag used to lower the damping (Arm lag maxed = zeta .18, so the hands bounced back and forth past every target).
+  # Now lag means a softer, slower spring that still settles without bouncing.
+  ('fArm = L("armspeed", .5, 5), Karm = Math.pow(TAU * fArm, 2), Carm = 2 * L("armlag", .9, .18) * Math.sqrt(Karm)',
+   'fArm = L("armspeed", .5, 5), Karm = Math.pow(TAU * fArm, 2) * lerp(1, .3, k("armlag")), Carm = 2 * .95 * Math.sqrt(Karm)'),
+  ('KK = lerp(Karm, K, k("rubber") * .35), CC = lerp(Carm, C, k("rubber") * .35)',
+   'KK = lerp(Karm, K, k("rubber") * .35), CC = 2 * .95 * Math.sqrt(KK)'),
+  # duck walk arms: new targets once a bar (not every beat), flings still on their beat; no fast up-and-down wobble,
+  # the arms just ride the body's bounce
+  ('for (let i = 0; i < 2; i++) { const a = st.duckArm[i]; a[0] = (Math.random() - .5) * .3; a[1] = (Math.random() - .5) * .3; if (bn % 4 === i * 2 && Math.random() < k("flings") * 1.4) a[0] += .8 * (Math.random() > .5 ? 1 : .35); }',
+   'for (let i = 0; i < 2; i++) { const a = st.duckArm[i]; if (bn % 4 === 0 || a[3] == null) { a[3] = (Math.random() - .5) * .3; a[4] = (Math.random() - .5) * .3; } a[0] = a[3]; a[1] = a[4]; if (bn % 4 === i * 2 && Math.random() < k("flings") * 1.4) a[0] += .8 * (Math.random() > .5 ? 1 : .35); }'),
+  ('(.05 + da[1]) * (ua + fa) + .05 * Math.sin(t * TAU / gap * 2 + i), .12]',
+   '(.05 + da[1]) * (ua + fa) + bounce * .5, .12]'),
+  # follow-through: a hand's next angle is picked as the arm arrives at a new pose, so the wrist lands with one flick
+  ('st.hcl ||= [0, 0]; st.hcl[i] -= dt;',
+   'st.hcl ||= [0, 0]; if (st.poseT === t) st.hcl[i] = .85 / (3 * L("posespeed", .15, 1.6)); st.hcl[i] -= dt;'),
+  # while the hand travels, the wrist trails behind the motion (it "breaks" back), then flicks to its pose angle on arrival
+  ('s.p = ht + svAng(s.p - ht); svSpr(s, ht,',
+   'const pw = st.prev && st.prev["w" + i], spd = pw ? Math.hypot(J.wrists[i][0] - pw[0], J.wrists[i][1] - pw[1]) / Math.max(dt, 1e-3) / U : 0; let hT = ht; if (pw && spd > .25) { const trail = Math.atan2(pw[1] - J.wrists[i][1], pw[0] - J.wrists[i][0]); hT += svAng(trail - hT) * Math.min(.75, (spd - .25) * .5); } s.p = hT + svAng(s.p - hT); svSpr(s, hT,'),
+  ('K * (st.hat[i].out ? .6 : 1.4), st.hat[i].out ? 2 * Math.max(.45, zeta) * Math.sqrt(K * .6) : C * .8, dt)',
+   'K * (st.hat[i].out ? .6 : 1.4), 2 * .45 * Math.sqrt(K * (st.hat[i].out ? .6 : 1.4)), dt)'),
+]
 src = open("engine/serve.js").read()
 a = src.index("  draw(E) {\n") + len("  draw(E) {\n")
 b = src.index("    // ---- drawing:")
 motion = src[a:b]
+for old, new in MOTION_PATCHES:
+    assert motion.count(old) == 1, "motion patch no longer matches: " + old[:60]
+    motion = motion.replace(old, new)
 DROP = ["crest", "head", "headstyle", "hand", "prism", "split", "sweep", "weight", "width"]
 hdr = '''/* ================= Servelet (Oct 22, 2026, name picked by Kennedy) =================
    Serve classic's dancing (motion copied verbatim from engine/serve.js, which is frozen) on a realistic human body:

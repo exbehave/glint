@@ -49,7 +49,7 @@ const SERVELET = { key: "servelet", name: "Servelet", fade: .55, init: SERVE.ini
     if (newBeat) { st.kickFoot = bn % 2; if (bn % every === 0) { let p = st.pose; while (p === st.pose) p = Math.floor(Math.random() * SV_POSES.length); st.pose = p; st.poseT = t; st.nodT = (Math.random() - .5) * .6 * k("nod") * 2; st.leanT = (Math.random() - .5) * .6 * k("lean") * 2; st.poseMirror = Math.random() < .5;
         st.bendT = [(Math.random() - .5) * .9, (Math.random() - .5) * .5, (Math.random() - .5) * 1.2]; // side bend, twist, forward bend
         if (Math.random() < k("crosses") * .6) { st.cross = Math.random() < .5 ? -1 : 1; st.crossT = t; } else if (Math.random() < .5) st.cross = 0; }
-      for (let i = 0; i < 2; i++) { const a = st.duckArm[i]; a[0] = (Math.random() - .5) * .3; a[1] = (Math.random() - .5) * .3; if (bn % 4 === i * 2 && Math.random() < k("flings") * 1.4) a[0] += .8 * (Math.random() > .5 ? 1 : .35); } }
+      for (let i = 0; i < 2; i++) { const a = st.duckArm[i]; if (bn % 4 === 0 || a[3] == null) { a[3] = (Math.random() - .5) * .3; a[4] = (Math.random() - .5) * .3; } a[0] = a[3]; a[1] = a[4]; if (bn % 4 === i * 2 && Math.random() < k("flings") * 1.4) a[0] += .8 * (Math.random() > .5 ? 1 : .35); } }
     if (st.pose < 0) { st.pose = 0; st.nodT = 0; }
     // ---- flicks
     const fpb = [.25, .5, 1, 2, 3, 4][I("flicks")], fphase = Math.floor((bn + ph) * fpb);
@@ -58,7 +58,7 @@ const SERVELET = { key: "servelet", name: "Servelet", fade: .55, init: SERVE.ini
       // clock hands: each hand, on its own clock, picks a new position anywhere around the dial and sweeps there smoothly
       // (never a jittery wedge); the dial is centered on "away from the body", Egyptian style, and Hands point outward
       // decides how often it lands near that than anywhere else
-      for (let i = 0; i < 2; i++) { st.hcl ||= [0, 0]; st.hcl[i] -= dt; if (st.hcl[i] <= 0) { const per = gap / Math.max(.25, fpb); st.hcl[i] = per * (.55 + .9 * Math.random()); const bias = k("outward"), spreadA = Math.PI * (1 - .85 * bias * bias); st.hat[i] = { abs: false, out: true, a: (Math.random() - .5) * 2 * spreadA * (Math.random() < .35 + .65 * (1 - bias) ? 1 : .35) }; } }
+      for (let i = 0; i < 2; i++) { st.hcl ||= [0, 0]; if (st.poseT === t) st.hcl[i] = .85 / (3 * L("posespeed", .15, 1.6)); st.hcl[i] -= dt; if (st.hcl[i] <= 0) { const per = gap / Math.max(.25, fpb); st.hcl[i] = per * (.55 + .9 * Math.random()); const bias = k("outward"), spreadA = Math.PI * (1 - .85 * bias * bias); st.hat[i] = { abs: false, out: true, a: (Math.random() - .5) * 2 * spreadA * (Math.random() < .35 + .65 * (1 - bias) ? 1 : .35) }; } }
     } else
     for (let i = 0; i < 2; i++) if (fphase !== st.fl[i]) { st.fl[i] = fphase; st.hdir[i] = -st.hdir[i];
       if (fmode === 1) st.hat[i] = { abs: false, a: svAng((st.hat[i].a || 0) + (Math.random() - .5) * 2 * frange + (Math.random() < .3 ? Math.PI : 0)) };
@@ -68,7 +68,7 @@ const SERVELET = { key: "servelet", name: "Servelet", fade: .55, init: SERVE.ini
     for (let i = 0; i < 2; i++) if (typeof st.hat[i] !== "object") st.hat[i] = { abs: false, a: 0 };
     if (newBeat) for (let i = 0; i < 2; i++) if (st.kickFoot === i || Math.random() < .3) st.ft[i] = (Math.random() - .5) * 1.6 * k("ankles");
     const f0 = L("wspeed", .7, 7), K = Math.pow(TAU * f0, 2), zeta = L("rubber", .6, .05), C = 2 * zeta * Math.sqrt(K), Ka = Math.pow(TAU * f0 * .9, 2), Ca = 2 * Math.max(.12, zeta * 1.3) * Math.sqrt(Ka);
-    const fArm = L("armspeed", .5, 5), Karm = Math.pow(TAU * fArm, 2), Carm = 2 * L("armlag", .9, .18) * Math.sqrt(Karm), fLeg = L("legspeed", .6, 6), Kleg = Math.pow(TAU * fLeg, 2), Cleg = 2 * .8 * Math.sqrt(Kleg);
+    const fArm = L("armspeed", .5, 5), Karm = Math.pow(TAU * fArm, 2) * lerp(1, .3, k("armlag")), Carm = 2 * .95 * Math.sqrt(Karm), fLeg = L("legspeed", .6, 6), Kleg = Math.pow(TAU * fLeg, 2), Cleg = 2 * .8 * Math.sqrt(Kleg);
     // ---- the skeleton in local space (figure units; x right, y down from the top of the head, z toward the room)
     const kpb = [.5, 1, 2][I("kicks")], bounce = svPop((bn + ph) * kpb, k("bsnap")) * L("bounce", .02, .16) * (.7 + .3 * Math.min(1, R.energy)) * (1 + .4 * R.kick), vb = svPop(ph, .4) * L("vbounce", 0, .05) * (.7 + .3 * loud);
     const legL = L("leglen", .36, .56), thigh = legL / 2, shin = legL / 2, floor = .46 + legL, squatY = lerp(.46 + (legL - .46), lerp(floor - .24, floor - .07, k("squat")), duck), sway = Math.sin(t * Math.PI / gap * .5) * L("sway", 0, .06) * (1 - duck) * (.5 + loud);
@@ -95,11 +95,11 @@ const SERVELET = { key: "servelet", name: "Servelet", fade: .55, init: SERVE.ini
     // arms
     const ua = armL * .51, fa = armL * .49, reach = L("reach", .5, 1.0) * (.8 + .3 * loud) * (1 + .15 * R.kick), pose = SV_POSES[st.pose](reach), handT = [];
     for (let i = 0; i < 2; i++) { const sd = i ? 1 : -1, sh = i ? shR : shL, pv = pose[st.poseMirror ? 1 - i : i], vog = V3.add(sh, [sd * pv[0] * (ua + fa), pv[1] * (ua + fa), pv[2] * (ua + fa)]);
-      const da = st.duckArm[i], dk = V3.add(sh, [sd * (.16 + da[0]) * (ua + fa) * .95, (.05 + da[1]) * (ua + fa) + .05 * Math.sin(t * TAU / gap * 2 + i), .12]);
+      const da = st.duckArm[i], dk = V3.add(sh, [sd * (.16 + da[0]) * (ua + fa) * .95, (.05 + da[1]) * (ua + fa) + bounce * .5, .12]);
       handT.push(V3.mix(vog, dk, duck)); }
     { const ps = L("posespeed", .15, 1.6); for (let i = 0; i < 2; i++) { const prevT = st.handPrev ? st.handPrev[i] : handT[i], u = Math.min(1, (t - st.poseT) * 3 * ps); if (!st.handFrom) st.handFrom = handT.map(h => h.slice()); if (st.poseT === t) st.handFrom[i] = prevT; handT[i] = V3.mix(st.handFrom[i], handT[i], svEaseIO(u)); } st.handPrev = handT.map(h => h.slice()); }
     // the hands chase their targets on a lagging spring, then are held within arm's length of the shoulder (no stretching off the body)
-    const wrists = handT.map((h, i) => { const sh = i ? shR : shL, KK = lerp(Karm, K, k("rubber") * .35), CC = lerp(Carm, C, k("rubber") * .35); svSpr3(st.hands[i], h, KK, CC, dt); let w = svP(st.hands[i]); const d = V3.sub(w, sh), dl = V3.len(d); if (dl > ua + fa - .005) { w = V3.add(sh, d, (ua + fa - .005) / dl); st.hands[i].x.p = w[0]; st.hands[i].y.p = w[1]; st.hands[i].z.p = w[2]; } return w; });
+    const wrists = handT.map((h, i) => { const sh = i ? shR : shL, KK = lerp(Karm, K, k("rubber") * .35), CC = 2 * .95 * Math.sqrt(KK); svSpr3(st.hands[i], h, KK, CC, dt); let w = svP(st.hands[i]); const d = V3.sub(w, sh), dl = V3.len(d); if (dl > ua + fa - .005) { w = V3.add(sh, d, (ua + fa - .005) / dl); st.hands[i].x.p = w[0]; st.hands[i].y.p = w[1]; st.hands[i].z.p = w[2]; } return w; });
     const eo = L("elbows", 0, 1), elbows = wrists.map((w, i) => svIK(i ? shR : shL, w, ua, fa, [(i ? 1 : -1) * (.1 + .9 * eo), .5 - .4 * eo, -.3 - .5 * eo]));
     // ---- world space: turn by yaw, move to the spot on the stage; then project with perspective
     const f = L("persp", 7, 2.2), px = st.pos.x.p, pz = st.pos.z.p;
@@ -107,7 +107,7 @@ const SERVELET = { key: "servelet", name: "Servelet", fade: .55, init: SERVE.ini
     const J = { head: proj(head), neck: proj(neck), shL: proj(shL), shR: proj(shR), chest: proj(chest), waist: proj(waist), hipL: proj(hipL), hipR: proj(hipR), hipC: proj(hipC), waistL: proj(waistL), waistR: proj(waistR), elbows: elbows.map(proj), wrists: wrists.map(proj), knees: knees.map(proj), ankles: ankles.map(a => { const q = proj(a); q.push(a[3]); return q; }), nose: proj(V3.add(head, [0, .01, .055])) };
     // hand and foot angles ride their own springs (the flick), in the screen plane
     const hAng = [], fAng = [];
-    for (let i = 0; i < 2; i++) { const fdir = Math.atan2(J.wrists[i][1] - J.elbows[i][1], J.wrists[i][0] - J.elbows[i][0]), s = st.ha[i]; s.p = fdir + svAng(s.p - fdir); const sh2 = i ? J.shR : J.shL, odir = Math.atan2(J.wrists[i][1] - sh2[1], J.wrists[i][0] - sh2[0]), ht = st.hat[i].abs ? st.hat[i].a : (st.hat[i].out ? odir : fdir) + st.hat[i].a; s.p = ht + svAng(s.p - ht); svSpr(s, ht, K * (st.hat[i].out ? .6 : 1.4), st.hat[i].out ? 2 * Math.max(.45, zeta) * Math.sqrt(K * .6) : C * .8, dt); hAng.push(s);
+    for (let i = 0; i < 2; i++) { const fdir = Math.atan2(J.wrists[i][1] - J.elbows[i][1], J.wrists[i][0] - J.elbows[i][0]), s = st.ha[i]; s.p = fdir + svAng(s.p - fdir); const sh2 = i ? J.shR : J.shL, odir = Math.atan2(J.wrists[i][1] - sh2[1], J.wrists[i][0] - sh2[0]), ht = st.hat[i].abs ? st.hat[i].a : (st.hat[i].out ? odir : fdir) + st.hat[i].a; const pw = st.prev && st.prev["w" + i], spd = pw ? Math.hypot(J.wrists[i][0] - pw[0], J.wrists[i][1] - pw[1]) / Math.max(dt, 1e-3) / U : 0; let hT = ht; if (pw && spd > .25) { const trail = Math.atan2(pw[1] - J.wrists[i][1], pw[0] - J.wrists[i][0]); hT += svAng(trail - hT) * Math.min(.75, (spd - .25) * .5); } s.p = hT + svAng(s.p - hT); svSpr(s, hT, K * (st.hat[i].out ? .6 : 1.4), 2 * .45 * Math.sqrt(K * (st.hat[i].out ? .6 : 1.4)), dt); hAng.push(s);
       const sdir = Math.atan2(J.ankles[i][1] - J.knees[i][1], J.ankles[i][0] - J.knees[i][0]), a = st.fa[i]; a.p = sdir + svAng(a.p - sdir); svSpr(a, sdir + st.ft[i] + (i ? 1 : -1) * lerp(-.1, .3, duck) * .5 * Math.cos(yaw), Ka, Ca, dt); fAng.push(a); }
     // velocities → flare
     const prev = st.prev, vel = (key, p) => prev && prev[key] ? Math.hypot(p[0] - prev[key][0], p[1] - prev[key][1]) / Math.max(dt, 1e-3) / U : 0;
@@ -120,6 +120,11 @@ const SERVELET = { key: "servelet", name: "Servelet", fade: .55, init: SERVE.ini
     // then only its outer edge is inked: one continuous neon outline with no seams at the joints, a dark fill, and one
     // head-to-toe color gradient. An arm crossing in front of the chest (or a leg crossing in front of the other) is
     // inked on its own on top, so it doesn't melt into the outline. A few anatomy lines sit inside; a glow spot sits on the floor.
+    // feet: a heel and toes in 3D (local +z is the way the dancer faces), so the foot lies flat and turns with the body;
+    // only a kicking foot lifts its toes a little. (Kennedy's first rehearsal: the feet looked hyperextended, i.e. on tiptoe.)
+    { const fl = L("foot", .6, 1.6); J.heels = []; J.toes = [];
+      ankles.forEach((a, i) => { const sd = i ? 1 : -1, kc = clamp(((a[3] || 1) - 1) / .9, 0, 1);
+        J.heels.push(proj(V3.add(a, [0, .016, -.022 * fl]))); J.toes.push(proj(V3.add(a, [sd * .014 * fl, .018 - .035 * kc, .072 * fl]))); }); }
     const DPRg = (g.getTransform ? g.getTransform().a : 1) || 1, mus = k("muscle"), defn = k("defn"), oglow = k("oglow");
     const lwO = Math.max(1, U * .004) * L("weight", .6, 2.4); // outline width in CSS px at full size
     st.mk ||= { a: mk(8, 8), b: mk(8, 8), c: mk(8, 8) }; const MK = st.mk;
@@ -136,8 +141,7 @@ const SERVELET = { key: "servelet", name: "Servelet", fade: .55, init: SERVE.ini
       const legP = i => m => { const hp = i ? J.hipR : J.hipL, kn = J.knees[i], an = J.ankles[i];
         limb(m, hp, kn, r(R_.thigh[0], Mu * .95), r(R_.thigh[1], Mu), r(R_.quad * mus), .35);
         limb(m, kn, an, r(R_.shin[0], Mu), r(R_.shin[1]), r(R_.calf * (.5 + mus)), .28);
-        const fs = an[2] * L("foot", .6, 1.6), a = fA[i].p, fl = U * .07 * fs, ft = [an[0] + Math.cos(a) * fl, an[1] + Math.sin(a) * fl, an[2]];
-        limb(m, an, ft, r(.016), r(.009), 0, .5); };
+        if (J.heels) { limb(m, an, J.heels[i], r(.017), r(.014), 0, .5); limb(m, J.heels[i], J.toes[i], r(.014), r(.008), r(.003), .3); limb(m, an, J.toes[i], r(.015), r(.009), 0, .5); } };
       const armP = i => m => { const sh = i ? J.shR : J.shL, el = J.elbows[i], wr = J.wrists[i];
         limb(m, sh, el, r(R_.ua[0], Mu), r(R_.ua[1], Mu * .9), r(R_.bic * (.4 + mus)), .45);
         limb(m, el, wr, r(R_.fa[0], Mu * .95), r(R_.fa[1]), r(R_.fore * (.4 + mus)), .25);
@@ -172,7 +176,7 @@ const SERVELET = { key: "servelet", name: "Servelet", fade: .55, init: SERVE.ini
       [J.head, J.neck, J.shL, J.shR, J.chest, J.waist, J.hipL, J.hipR, J.hipC, ...J.elbows, ...J.wrists, ...J.knees, ...J.ankles].forEach(add); const pad = U * .2; return [x0 - pad, y0 - pad, x1 + pad, y1 + pad]; };
     const segDist = (p, A, B) => { const dx = B[0] - A[0], dy = B[1] - A[1], l2 = dx * dx + dy * dy || 1, u = clamp(((p[0] - A[0]) * dx + (p[1] - A[1]) * dy) / l2, 0, 1); return Math.hypot(p[0] - A[0] - dx * u, p[1] - A[1] - dy * u); };
     // ink one mask: dark fill, glow, then the outline ring colored head to toe
-    const ink = (paint, J, al, bb, yTop, yBot) => {
+    const ink = (paint, J, al, bb, yTop, yBot, holes) => {
       const ox = bb[0], oy = bb[1], Wc = Math.max(2, Math.ceil((bb[2] - bb[0]) * DPRg)), Hc = Math.max(2, Math.ceil((bb[3] - bb[1]) * DPRg));
       const ma = ensure(MK.a, Wc, Hc), mb = ensure(MK.b, Wc, Hc);
       ma.setTransform(1, 0, 0, 1, 0, 0); ma.globalCompositeOperation = "source-over"; ma.clearRect(0, 0, Wc, Hc); ma.setTransform(DPRg, 0, 0, DPRg, -ox * DPRg, -oy * DPRg); ma.fillStyle = "#fff"; paint(ma);
@@ -180,6 +184,7 @@ const SERVELET = { key: "servelet", name: "Servelet", fade: .55, init: SERVE.ini
       const lw = lwO * DPRg * (.6 + .4 * J.chest[2]); mb.setTransform(1, 0, 0, 1, 0, 0); mb.globalCompositeOperation = "source-over"; mb.clearRect(0, 0, Wc, Hc);
       for (let i = 0; i < 12; i++) { const a = i / 12 * TAU; mb.drawImage(MK.a, Math.cos(a) * lw, Math.sin(a) * lw); }
       mb.globalCompositeOperation = "destination-out"; mb.drawImage(MK.a, 0, 0);
+      (holes || []).forEach(([x, y, rr]) => { mb.beginPath(); mb.arc((x - ox) * DPRg, (y - oy) * DPRg, rr * DPRg, 0, TAU); mb.fill(); });
       const span = 60 + 260 * k("spread"), gr = mb.createLinearGradient(0, (yTop - oy) * DPRg, 0, (yBot - oy) * DPRg), hs = [0, .25, .5, .75, 1];
       hs.forEach(u => gr.addColorStop(u, hsl(hue + span * u, 95, 64, 1))); mb.globalCompositeOperation = "source-in"; mb.fillStyle = gr; mb.fillRect(0, 0, Wc, Hc);
       // dark fill (normal painting, so the body hides its own trail and anything drawn behind it in this layer)
@@ -198,11 +203,11 @@ const SERVELET = { key: "servelet", name: "Servelet", fade: .55, init: SERVE.ini
       st.armSep ||= [false, false];
       for (let i = 0; i < 2; i++) { const cz = (J.elbows[i][3] + J.wrists[i][3]) / 2, d = Math.min(segDist(J.wrists[i], J.chest, J.hipC), segDist(J.elbows[i], J.chest, J.hipC));
         let on = cz > tz + .02 && d < tw; if (live) { const was = st.armSep[i]; on = was ? (cz > tz - .02 && d < tw * 1.3) : on; st.armSep[i] = on; }
-        if (on) sep.push({ z: cz, p: P.armP(i) }); else base.push(P.armP(i)); }
+        if (on) sep.push({ z: cz, p: P.armP(i), sh: i ? J.shR : J.shL }); else base.push(P.armP(i)); }
       // legs always belong to the one outline (Kennedy, Oct 22: inking a leg on its own drew extra lines across the hips that flickered in turns)
       base.push(P.legP(0), P.legP(1));
       const gr = ink(m => base.forEach(f => f(m)), J, al, bb, yTop, yBot);
-      sep.sort((a, b) => a.z - b.z).forEach(c => ink(c.p, J, al, bb, yTop, yBot));
+      sep.sort((a, b) => a.z - b.z).forEach(c => ink(c.p, J, al, bb, yTop, yBot, c.sh ? [[c.sh[0], c.sh[1], U * .036 * Mu * L("width", .8, 1.25) * c.sh[2] * 1.25]] : null));
       // anatomy lines: chest, abs and V-lines from the front; spine and shoulder blades from behind; they fade toward profile
       if (defn > .02) { const sw = Math.hypot(J.shR[0] - J.shL[0], J.shR[1] - J.shL[1]), wide = clamp(sw / (U * .2 * J.chest[2]) - .25, 0, 1), front = Math.cos(yaw) > 0, a3 = al * defn * wide * (.5 + .2 * loud);
         if (a3 > .02) { const C0 = J.chest, Hc = J.hipC, Wc = J.waist, ux = (J.shR[0] - J.shL[0]) / (sw || 1), uy = (J.shR[1] - J.shL[1]) / (sw || 1), at = (p, a, b) => [p[0] + ux * a + (Hc[0] - C0[0]) * b, p[1] + uy * a + (Hc[1] - C0[1]) * b], half = sw * .5;

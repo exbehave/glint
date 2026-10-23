@@ -57,26 +57,26 @@ MOTION_PATCHES = [
    'st.dF = Math.min(1, st.dF + dt * 1.6); const mixF = svEaseIO(st.dF), duck0 = lerp(st.dPrev === 2 ? 1 : 0, st.dCur === 2 ? 1 : 0, mixF);'
    # kneeling vogue: on a bar, sometimes go down on one knee for a few bars and keep voguing with the arms
    ' st.wall = (st.wall || 0) + dt; st.kn ||= { on: false, f: 0, until: 0, back: 1 }; const KNs = st.kn;'
-   ' if (bar && !st.dd && st.ddPend == null && duck0 < .5) { if (KNs.on && bn >= KNs.until) KNs.on = false; else if (!KNs.on && k("kneel") > .02 && Math.random() < k("kneel") * .45) { KNs.on = true; KNs.until = bn + I("kneelbars") * 4; KNs.back = Math.random() < .5 ? 0 : 1; st.yawT = st.yaw.p + svAng((Math.random() < .5 ? 1 : -1) * (.45 + Math.random() * .5) - st.yaw.p); } }'
+   ' if (bar && !st.dd && duck0 < .5) { if (KNs.on && bn >= KNs.until) KNs.on = false; else if (!KNs.on && st.ddPend == null && k("kneel") > .02 && Math.random() < k("kneel") * .45) { KNs.on = true; KNs.until = bn + I("kneelbars") * 4; KNs.back = Math.random() < .5 ? 0 : 1; st.yawT = st.yaw.p + svAng((Math.random() < .5 ? 1 : -1) * (.45 + Math.random() * .5) - st.yaw.p); } }'
    ' if (st.dCur === 2 && duck0 > .5) KNs.on = false; KNs.f = clamp(KNs.f + (KNs.on ? 1 : -1) * dt * 1.5, 0, 1); const KN = svEaseIO(KNs.f);'
    # death drop: on beat drops (a quiet break, then a loud return on a kick), loud hits, every 8 bars, or the button
    ' const rawL = R.raw || 0; st.dslow = lerp(st.dslow ?? rawL, rawL, 1 - Math.exp(-dt / 6)); st.dfast = lerp(st.dfast ?? rawL, rawL, 1 - Math.exp(-dt / .25)); st.sinceDD = (st.sinceDD ?? 99) + dt;'
    ' const ddw = I("ddrop"), dsens = L("ddsens", .75, 1.35); if (st.dfast < st.dslow * .62 * dsens) st.brk = (st.brk || 0) + dt; else st.brk = Math.max(0, (st.brk || 0) - dt * .4);'
    ' let fireDD = false; { const req = E.node && E.node.shape && E.node.shape.ddnow; if (req && req !== st.ddReq) { if (st.ddReq != null || Date.now() - req < 3000) fireDD = true; } st.ddReq = req || st.ddReq || 0; }'
    ' if (!st.dd && st.sinceDD > 4) { if (E.beat && R.raw != null) { if (ddw === 1 && st.brk > .8 && st.dfast > st.dslow * (1.12 / dsens)) fireDD = true; if (ddw === 2 && st.dfast > st.dslow * (1.5 / dsens)) fireDD = true; } if (ddw === 3 && (st.ddAcc || 0) >= [4, 8, 16, 32][I("ddevery")] * 4) fireDD = true; } st.ddAcc = ddw === 3 && !st.dd && st.ddPend == null ? (st.ddAcc || 0) + dt / gap0 : 0;'
-   ' if (fireDD && !st.dd && st.ddPend == null && dsel !== 2) st.ddPend = st.wall; if (st.ddPend != null && !st.dd) { KNs.on = false; if (dsel === 0 && st.dCur === 2) { st.dPrev = 2; st.dCur = 1; st.dF = 0; st.segStart = bn; st.dropUntil = null; } if (st.wall - st.ddPend > 5) st.ddPend = null; }'
+   ' if (fireDD && !st.dd && st.ddPend == null && dsel !== 2) st.ddPend = st.wall; if (st.ddPend != null && !st.dd && st.wall - st.ddPend > 120) st.ddPend = null;'
    ' if (st.ddPend != null && !st.dd && duck0 < .03 && KNs.f < .03) { st.ddPend = null; const ep = I("ddend"), picks = SL_DD_PICK.length ? SL_DD_PICK : SL_DD_ENDS.map((_, j) => j); st.dd = { t: 0, front: Math.random() < .5 ? 0 : 1, lead: Math.random() < .5 ? 0 : 1, legMove: Math.floor(Math.random() * SL_DD_LEGUP.length), legV: SL_DD_LEG_POOL[Math.floor(Math.random() * SL_DD_LEG_POOL.length)], end: st.forceEnd ?? (ep > 0 ? ep - 1 : picks[Math.floor(Math.random() * picks.length)]) }; st.brk = 0; KNs.on = false; st.yawT = st.yaw.p + svAng((Math.random() < .5 ? 1 : -1) * (1.0 + Math.random() * .35) - st.yaw.p); st.hat = [{ style: "up", b: 1.35, a: 0 }, { style: "up", b: 1.2, a: 0 }]; }'
    # phases: wind up (rise, the arm sweeps up) → fall (gravity) → hold on the floor, arched back → rise
    # DD = how far down (hips on the floor), DL = how far the torso has fallen back, LU = the raised leg's climb, HU = the hands forming the ending pose
-   ' let DD = 0, DA = 0, DL = 0, DP = 0, LU = 0, HU = 0; if (st.dd) { const D = st.dd, prep = .35, fall = .4, hold = Math.max(.8, I("ddhold") * gap), rise = .6; D.t += dt; D.hold = hold;'
-   ' if (D.t < prep) { const u = D.t / prep; DA = svEaseIO(u) * .6; DP = Math.sin(Math.PI * u); }'
-   ' else if (D.t < prep + fall) { const u = (D.t - prep) / fall; DD = u * u; DA = .6 + .4 * u; DL = u * u; }'
+   ' let DD = 0, DA = 0, DL = 0, DP = 0, LU = 0, HU = 0; if (st.dd) { const D = st.dd, prep = .5, fall = .8, hold = Math.max(.8, I("ddhold") * gap), rise = .75; D.t += dt; D.hold = hold;'
+   ' if (D.t < prep) { const u = D.t / prep; DA = svEaseIO(u) * .7; DP = 1.6 * Math.sin(Math.PI * u); }'
+   ' else if (D.t < prep + fall) { const u = (D.t - prep) / fall; DD = u * u; DA = .7 + .3 * u; DL = Math.pow(u, .8); }'
    ' else if (D.t < prep + fall + hold) { const u = (D.t - prep - fall) / hold; DD = 1; DA = 1; DL = 1 + .18 * svEaseIO(u); LU = svEaseIO(u); HU = svEaseIO(Math.min(1, u * 1.1)); }'
    ' else if (D.t < prep + fall + hold + rise) { const u = svEaseIO((D.t - prep - fall - hold) / rise); DD = 1 - u; DA = 1 - u; DL = 1.18 * (1 - u); LU = 1 - u; HU = 1 - u; }'
    ' else { st.dd = null; st.sinceDD = 0; st.hcl = [0, 0]; } }'
    ' const duck = duck0 * (1 - Math.max(KN, DD));'),
   # no dance switches while a drop is waiting or happening
-  ('if (newBeat && bn - st.segStart >= segLen)', 'if (newBeat && bn - st.segStart >= segLen && !st.dd && st.ddPend == null)'),
+  ('if (newBeat && bn - st.segStart >= segLen)', 'if (newBeat && bn - st.segStart >= segLen && !st.dd && (st.ddPend == null || st.dCur === 2))'),
   ('if (k("dropduck") > .02 && st.dCur === 1 &&', 'if (k("dropduck") > .02 && st.dCur === 1 && !st.dd && st.ddPend == null &&'),
   # once down nothing breathes: the vogue bends, lean and head nod straighten out, and automated arm length / elbows hold still
   ('const armL = L("armlen", .22, .5)', 'const armL = st.dd ? (st.dd.armL ??= L("armlen", .22, .5)) : L("armlen", .22, .5)'),
@@ -122,12 +122,24 @@ MOTION_PATCHES = [
    'if (TT === "over") { const sd2 = i ? 1 : -1, ap = V3.add(shp, i === st.ttLead ? [sd2 * .1, -1.12, .14] : [sd2 * .95, .45, .2], ua + fa), P0 = st.handFrom[i], P2 = handT[i], ue = Math.min(1, Math.max(0, e)), Cc = [0, 1, 2].map(j => 2 * ap[j] - .5 * (P0[j] + P2[j])); hp = [0, 1, 2].map(j => (1 - ue) * (1 - ue) * P0[j] + 2 * ue * (1 - ue) * Cc[j] + ue * ue * P2[j] + (e - ue) * (P2[j] - P0[j])); } if (TT === "wiper") {'),
   # death drop arms: one thrown up and back, the other out low; both hands flicked back
   ('    // the hands chase their targets on a lagging spring',
-   '    if (DA > 0) for (let i = 0; i < 2; i++) { const sd = i ? 1 : -1, sh = i ? shR : shL, ld = st.dd && st.dd.lead === i; const EP = SL_DD_ENDS[st.dd ? st.dd.end % SL_DD_ENDS.length : 0].f, ev = ld ? EP[0] : EP[1], fl = ld ? [.3, -.95, .1] : [.8, -.5, .1], tv = [0, 1, 2].map(j => lerp(fl[j], ev[j], HU)); handT[i] = V3.mix(handT[i], V3.add(sh, [sd * tv[0], tv[1], tv[2]], ua + fa), DA); if (st.dd) st.hcl[i] = 9; }\n    // the hands chase their targets on a lagging spring'),
+   '    if (DA > 0) for (let i = 0; i < 2; i++) { const sd = i ? 1 : -1, sh = i ? shR : shL, ld = st.dd && st.dd.lead === i; const EP = SL_DD_ENDS[st.dd ? st.dd.end % SL_DD_ENDS.length : 0].f, ev = ld ? EP[0] : EP[1], fU = st.dd ? svEaseIO(clamp((st.dd.t - .5) / .8, 0, 1)) : 1, up = ld ? [.25, -1, .05] : [.45, -.85, .05], wide = ld ? [1, -.3, -.05] : [1, -.15, .05], fl = [0, 1, 2].map(j => lerp(up[j], wide[j], fU)), bl = 1 + .12 * HU, tv = [0, 1, 2].map(j => lerp(fl[j], ev[j], HU) * bl); handT[i] = V3.mix(handT[i], V3.add(sh, [sd * tv[0], tv[1], tv[2]], ua + fa), DA); if (st.dd) st.hcl[i] = 9; }\n    // the hands chase their targets on a lagging spring'),
   # palm-back flick: the "up" finish bends further, and on a straight raised arm the hand bends back so the fingertips point out
   ('style: rr < EG ? "egypt" : rr < EG + (1 - EG) * .6 ? "up" : rr < EG + (1 - EG) * .88 ? "down" : "line", b: .55 + .55 * Math.random(), a: 0 }',
    'style: rr < EG ? "egypt" : rr < EG + (1 - EG) * .6 ? "up" : rr < EG + (1 - EG) * .88 ? "down" : "line", b: rr >= EG && rr < EG + (1 - EG) * .6 ? .95 + .45 * Math.random() : .55 + .55 * Math.random(), a: 0 }'),
   ('const want = h.style === "up" ? -Math.PI / 2 : Math.PI / 2,',
    'const ext = Math.hypot(J.wrists[i][0] - sh2[0], J.wrists[i][1] - sh2[1]) / Math.max(1, (ua + fa) * U * J.wrists[i][2]), want = h.style === "up" ? (Math.sin(fdir) < -.55 && ext > .82 ? (J.wrists[i][0] >= J.chest[0] ? 0 : Math.PI) : -Math.PI / 2) : Math.PI / 2,'),
+  # ---- tempo follows the music (Oct 23, 01:35, Kennedy: when it's sparse go one step slower; when it's unusually loud — louder than
+  # this song usually is — go to double time; REMOVED Oct 23 01:50: it made the duck walk frantic; otherwise the set feel). Loudness is judged against the
+  # song's own 30 s average (3 s window vs 30 s), with hysteresis; a change of feel waits for the start of a bar of the song and the
+  # dancer's count is re-anchored there, so the beat never jumps.
+  ('const mult = [.5, 1, 2, 4][I("feel")], gap = gap0 * mult, vpos = (bn0 + ph0) / mult, bn = Math.floor(vpos), ph = vpos - bn, newBeat = bn !== (st.vb ?? -1); st.vb = bn;',
+   'const raw_ = R.raw; if (raw_ != null) { st.lmed = lerp(st.lmed ?? raw_, raw_, 1 - Math.exp(-dt / 3)); st.lt = raw_ > .01 ? (st.lt || 0) + dt : 0; if (st.lt < .1) st.lsong = st.lmed; st.lsong = lerp(st.lsong ?? raw_, raw_, 1 - Math.exp(-dt / Math.min(30, 2 + st.lt))); const rel = st.lmed / Math.max(1e-4, st.lsong); st.tfQ = st.lt > 3 && (st.tfQ ? rel < .7 : rel < .55); } else { st.tfQ = false; st.lt = 0; }'
+   ' const fSet = I("feel"), fW = st.tfQ && I("tfq") === 1 ? Math.min(3, fSet + 1) : fSet;'
+   ' if (st.fIdx == null) { st.fIdx = fW; st.vanchor = 0; st.vbase = 0; } let vpos = st.vbase + (bn0 + ph0 - st.vanchor) / [.5, 1, 2, 4][st.fIdx];'
+   ' if (fW !== st.fIdx && bn0 !== st.fB0 && bn0 % 4 === 0) { st.vbase = Math.round(vpos); st.vanchor = bn0; st.fIdx = fW; vpos = st.vbase + ph0 / [.5, 1, 2, 4][fW]; } st.fB0 = bn0;'
+   ' const mult = [.5, 1, 2, 4][st.fIdx], gap = gap0 * mult, bn = Math.floor(vpos), ph = vpos - bn, newBeat = bn !== (st.vb ?? -1); st.vb = bn;'),
+  # no duck walk while it's quiet: Mix stays in vogue until the music comes back (a duck walk already going finishes its stretch)
+  ('if (newBeat && bn - st.segStart >= segLen && !st.dd && (st.ddPend == null || st.dCur === 2))', 'if (newBeat && bn - st.segStart >= segLen && !st.dd && (st.ddPend == null || st.dCur === 2) && !(st.dCur !== 2 && st.tfQ))'),
 ]
 src = open("engine/serve.js").read()
 a = src.index("  draw(E) {\n") + len("  draw(E) {\n")
@@ -231,7 +243,7 @@ const SL_DD_LEGUP = [
 ];
 const SERVELET_DROP = new Set(%s);
 const SERVELET = { key: "servelet", name: "Servelet", fade: .55, init: SERVE.init,
-  shape: [...SERVE.shape.filter(s => !SERVELET_DROP.has(s.key)).map(s => s.key === "squat" ? { key: "squat2", label: "Squat depth", def: .75, grp: "Duck walk", when: s.when } : s),
+  shape: [...SERVE.shape.filter(s => !SERVELET_DROP.has(s.key)).map(s => s.key === "squat" ? { key: "squat2", label: "Squat depth", def: .75, grp: "Duck walk", when: s.when } : s).flatMap(s => s.key === "feel" ? [s, { key: "tfq", label: "When it gets quiet", min: 0, max: 1, def: 1, fmt: v => ["Keep the feel", "One step slower"][v], grp: "Dance" }] : [s]),
     { key: "width", label: "Build", def: .5, cfmt: v => v < .3 ? "Lean" : v < .7 ? "Athletic" : "Heavy", grp: "Body" },
     { key: "muscle", label: "Muscle", def: .6, grp: "Body" },
     { key: "defn", label: "Definition lines", def: .55, grp: "Body" },

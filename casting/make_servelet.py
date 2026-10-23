@@ -56,24 +56,34 @@ MOTION_PATCHES = [
   ('st.dF = Math.min(1, st.dF + dt * 1.6); const mixF = svEaseIO(st.dF), duck = lerp(st.dPrev === 2 ? 1 : 0, st.dCur === 2 ? 1 : 0, mixF);',
    'st.dF = Math.min(1, st.dF + dt * 1.6); const mixF = svEaseIO(st.dF), duck0 = lerp(st.dPrev === 2 ? 1 : 0, st.dCur === 2 ? 1 : 0, mixF);'
    # kneeling vogue: on a bar, sometimes go down on one knee for a few bars and keep voguing with the arms
-   ' st.kn ||= { on: false, f: 0, until: 0, back: 1 }; const KNs = st.kn;'
-   ' if (bar && !st.dd && duck0 < .5) { if (KNs.on && bn >= KNs.until) KNs.on = false; else if (!KNs.on && k("kneel") > .02 && Math.random() < k("kneel") * .45) { KNs.on = true; KNs.until = bn + I("kneelbars") * 4; KNs.back = Math.random() < .5 ? 0 : 1; st.yawT = st.yaw.p + svAng((Math.random() < .5 ? 1 : -1) * (.45 + Math.random() * .5) - st.yaw.p); } }'
+   ' st.wall = (st.wall || 0) + dt; st.kn ||= { on: false, f: 0, until: 0, back: 1 }; const KNs = st.kn;'
+   ' if (bar && !st.dd && st.ddPend == null && duck0 < .5) { if (KNs.on && bn >= KNs.until) KNs.on = false; else if (!KNs.on && k("kneel") > .02 && Math.random() < k("kneel") * .45) { KNs.on = true; KNs.until = bn + I("kneelbars") * 4; KNs.back = Math.random() < .5 ? 0 : 1; st.yawT = st.yaw.p + svAng((Math.random() < .5 ? 1 : -1) * (.45 + Math.random() * .5) - st.yaw.p); } }'
    ' if (st.dCur === 2 && duck0 > .5) KNs.on = false; KNs.f = clamp(KNs.f + (KNs.on ? 1 : -1) * dt * 1.5, 0, 1); const KN = svEaseIO(KNs.f);'
    # death drop: on beat drops (a quiet break, then a loud return on a kick), loud hits, every 8 bars, or the button
    ' const rawL = R.raw || 0; st.dslow = lerp(st.dslow ?? rawL, rawL, 1 - Math.exp(-dt / 6)); st.dfast = lerp(st.dfast ?? rawL, rawL, 1 - Math.exp(-dt / .25)); st.sinceDD = (st.sinceDD ?? 99) + dt;'
    ' const ddw = I("ddrop"), dsens = L("ddsens", .75, 1.35); if (st.dfast < st.dslow * .62 * dsens) st.brk = (st.brk || 0) + dt; else st.brk = Math.max(0, (st.brk || 0) - dt * .4);'
    ' let fireDD = false; { const req = E.node && E.node.shape && E.node.shape.ddnow; if (req && req !== st.ddReq) { if (st.ddReq != null || Date.now() - req < 3000) fireDD = true; } st.ddReq = req || st.ddReq || 0; }'
    ' if (!st.dd && st.sinceDD > 4) { if (E.beat && R.raw != null) { if (ddw === 1 && st.brk > .8 && st.dfast > st.dslow * (1.12 / dsens)) fireDD = true; if (ddw === 2 && st.dfast > st.dslow * (1.5 / dsens)) fireDD = true; } if (ddw === 3 && newBeat && bn > 0 && bn % 32 === 0) fireDD = true; }'
-   ' if (fireDD && !st.dd) { const ep = I("ddend"), picks = SL_DD_PICK.length ? SL_DD_PICK : SL_DD_ENDS.map((_, j) => j); st.dd = { t: 0, front: Math.random() < .5 ? 0 : 1, lead: Math.random() < .5 ? 0 : 1, legV: SL_DD_LEG_POOL[Math.floor(Math.random() * SL_DD_LEG_POOL.length)], end: st.forceEnd ?? (ep > 0 ? ep - 1 : picks[Math.floor(Math.random() * picks.length)]) }; st.brk = 0; KNs.on = false; st.yawT = st.yaw.p + svAng((Math.random() < .5 ? 1 : -1) * (1.0 + Math.random() * .35) - st.yaw.p); st.hat = [{ style: "up", b: 1.35, a: 0 }, { style: "up", b: 1.2, a: 0 }]; }'
+   ' if (fireDD && !st.dd && st.ddPend == null && dsel !== 2) st.ddPend = st.wall; if (st.ddPend != null && !st.dd) { KNs.on = false; if (dsel === 0 && st.dCur === 2) { st.dPrev = 2; st.dCur = 1; st.dF = 0; st.segStart = bn; st.dropUntil = null; } if (st.wall - st.ddPend > 5) st.ddPend = null; }'
+   ' if (st.ddPend != null && !st.dd && duck0 < .03 && KNs.f < .03) { st.ddPend = null; const ep = I("ddend"), picks = SL_DD_PICK.length ? SL_DD_PICK : SL_DD_ENDS.map((_, j) => j); st.dd = { t: 0, front: Math.random() < .5 ? 0 : 1, lead: Math.random() < .5 ? 0 : 1, legV: SL_DD_LEG_POOL[Math.floor(Math.random() * SL_DD_LEG_POOL.length)], end: st.forceEnd ?? (ep > 0 ? ep - 1 : picks[Math.floor(Math.random() * picks.length)]) }; st.brk = 0; KNs.on = false; st.yawT = st.yaw.p + svAng((Math.random() < .5 ? 1 : -1) * (1.0 + Math.random() * .35) - st.yaw.p); st.hat = [{ style: "up", b: 1.35, a: 0 }, { style: "up", b: 1.2, a: 0 }]; }'
    # phases: wind up (rise, the arm sweeps up) → fall (gravity) → hold on the floor, arched back → rise
    # DD = how far down (hips on the floor), DL = how far the torso has fallen back, LU = the raised leg's climb, HU = the hands forming the ending pose
    ' let DD = 0, DA = 0, DL = 0, DP = 0, LU = 0, HU = 0; if (st.dd) { const D = st.dd, prep = .35, fall = .4, hold = Math.max(.8, I("ddhold") * gap), rise = .6; D.t += dt; D.hold = hold;'
    ' if (D.t < prep) { const u = D.t / prep; DA = svEaseIO(u) * .6; DP = Math.sin(Math.PI * u); }'
    ' else if (D.t < prep + fall) { const u = (D.t - prep) / fall; DD = u * u; DA = .6 + .4 * u; DL = u * u; }'
-   ' else if (D.t < prep + fall + hold) { const u = (D.t - prep - fall) / hold; DD = 1; DA = 1; DL = 1 + .1 * svEaseIO(u); LU = svEaseIO(u); HU = svEaseIO(Math.min(1, u * 1.1)); }'
-   ' else if (D.t < prep + fall + hold + rise) { const u = svEaseIO((D.t - prep - fall - hold) / rise); DD = 1 - u; DA = 1 - u; DL = 1.1 * (1 - u); LU = 1 - u; HU = 1 - u; }'
+   ' else if (D.t < prep + fall + hold) { const u = (D.t - prep - fall) / hold; DD = 1; DA = 1; DL = 1 + .18 * svEaseIO(u); LU = svEaseIO(u); HU = svEaseIO(Math.min(1, u * 1.1)); }'
+   ' else if (D.t < prep + fall + hold + rise) { const u = svEaseIO((D.t - prep - fall - hold) / rise); DD = 1 - u; DA = 1 - u; DL = 1.18 * (1 - u); LU = 1 - u; HU = 1 - u; }'
    ' else { st.dd = null; st.sinceDD = 0; st.hcl = [0, 0]; } }'
    ' const duck = duck0 * (1 - Math.max(KN, DD));'),
+  # no dance switches while a drop is waiting or happening
+  ('if (newBeat && bn - st.segStart >= segLen)', 'if (newBeat && bn - st.segStart >= segLen && !st.dd && st.ddPend == null)'),
+  ('if (k("dropduck") > .02 && st.dCur === 1 &&', 'if (k("dropduck") > .02 && st.dCur === 1 && !st.dd && st.ddPend == null &&'),
+  # once down nothing breathes: the vogue bends, lean and head nod straighten out, and automated arm length / elbows hold still
+  ('const armL = L("armlen", .22, .5)', 'const armL = st.dd ? (st.dd.armL ??= L("armlen", .22, .5)) : L("armlen", .22, .5)'),
+  ('const eo = L("elbows", 0, 1)', 'const eo = st.dd ? (st.dd.eo ??= L("elbows", 0, 1)) : L("elbows", 0, 1)'),
+  ('svSpr(st.nod, st.nodT * (1 - duck) + duck * .15 * Math.sin(t * TAU / gap) * k("nod"), 40, 7, dt);', 'svSpr(st.nod, (st.nodT * (1 - duck) + duck * .15 * Math.sin(t * TAU / gap) * k("nod")) * (1 - DA), 40, 7, dt);'),
+  ('const arch = L("arch", .25, 1), wb = k("waist") * (1 - duck);', 'const arch = st.dd ? (st.dd.arch ??= L("arch", .25, 1)) : L("arch", .25, 1), wb = k("waist") * (1 - duck) * (1 - DA);'),
+  ('+ st.leanT * (1 - duck) + L("dlean"', '+ st.leanT * (1 - duck) * (1 - DA) + L("dlean"'),
   # while down (kneeling or dropped) the dancer stays put: no roaming, turning or spinning
   ('if (bar && roam > .02 && Math.random() < .35 + .5 * roam) st.tgt =', 'if (bar && !st.dd && KN < .05 && roam > .02 && Math.random() < .35 + .5 * roam) st.tgt ='),
   ('if (roam < .02) st.tgt = [0, 0];', 'if (roam < .02) st.tgt = [0, 0]; if (st.dd || KN > .05) st.tgt = [st.pos.x.p, st.pos.z.p];'),
@@ -84,7 +94,7 @@ MOTION_PATCHES = [
   ('lerp(floor - .24, floor - .07, k("squat"))', 'floor - (q => q < .75 ? lerp(.4, .24, q / .75) : lerp(.24, .19, (q - .75) / .25))(k("squat2"))'),
   # hips: kneeling sits on the back thigh; the drop lands on the floor; the wind-up lifts a little
   ('svSpr3(st.hip, [sway, squatY + lerp(vb, bounce, duck), 0], 900, 55, dt);',
-   'svSpr3(st.hip, [sway * (1 - KN) * (1 - DD), lerp(lerp(squatY + lerp(vb, bounce, duck), floor - thigh * .97 + vb * .5, KN), floor - .05, DD) - .025 * DP, -.03 * KN - .08 * DD], 900, 55, dt);'),
+   'svSpr3(st.hip, [sway * (1 - KN) * (1 - DD), lerp(lerp(squatY + lerp(vb, bounce, duck), floor - thigh * .97 + vb * .5, KN), floor - .05, DD) - .025 * DP, -.03 * KN - .08 * DD - .04 * LU], 900, 55, dt);'),
   # the drop lays the torso back
   ('const waist = V3.add(hipC, [sideB * .06, -.15, .05 * arch + fwdB * .04]);',
    'const PA = DL * 1.22, RB = (v, f) => { if (!PA) return v; const a = PA * f, c = Math.cos(a), s_ = Math.sin(a); return [v[0], v[1] * c - v[2] * s_, v[2] * c + v[1] * s_]; }; const waist = V3.add(hipC, RB([sideB * .06, -.15, .05 * arch + fwdB * .04], .6));'),

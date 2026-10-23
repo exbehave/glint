@@ -92,7 +92,7 @@ const SL_DD_LEGUP = [
 ];
 const SERVELET_DROP = new Set(["crest", "fdir", "head", "headstyle", "hand", "outward", "prism", "split", "sweep", "weight", "width", "wild"]);
 const SERVELET = { key: "servelet", name: "Servelet", fade: .55, init: SERVE.init,
-  shape: [...SERVE.shape.filter(s => !SERVELET_DROP.has(s.key)).map(s => s.key === "squat" ? { key: "squat2", label: "Squat depth", def: .75, grp: "Duck walk", when: s.when } : s),
+  shape: [...SERVE.shape.filter(s => !SERVELET_DROP.has(s.key)).map(s => s.key === "squat" ? { key: "squat2", label: "Squat depth", def: .75, grp: "Duck walk", when: s.when } : s).flatMap(s => s.key === "feel" ? [s, { key: "tfq", label: "When it gets quiet", min: 0, max: 1, def: 1, fmt: v => ["Keep the feel", "One step slower"][v], grp: "Dance" }, { key: "tfl", label: "When it gets unusually loud", min: 0, max: 2, def: 1, fmt: v => ["Keep the feel", "One step faster", "Double time"][v], grp: "Dance" }] : [s]),
     { key: "width", label: "Build", def: .5, cfmt: v => v < .3 ? "Lean" : v < .7 ? "Athletic" : "Heavy", grp: "Body" },
     { key: "muscle", label: "Muscle", def: .6, grp: "Body" },
     { key: "defn", label: "Definition lines", def: .55, grp: "Body" },
@@ -119,7 +119,7 @@ const SERVELET = { key: "servelet", name: "Servelet", fade: .55, init: SERVE.ini
   draw(E) {
     const { g, n, R, S, st, dt, t, L, I, k } = E, ST = Math.max(0, Math.min(1, k("settle"))), loud = tLoud(R), gap0 = svBeat(E, st), ph0 = clamp(st.since / gap0, 0, 1), bn0 = st.beats || 0;
     // tempo feel: the dancer counts its own beat — double time subdivides the song's beat, half/quarter time stretch it
-    const mult = [.5, 1, 2, 4][I("feel")], gap = gap0 * mult, vpos = (bn0 + ph0) / mult, bn = Math.floor(vpos), ph = vpos - bn, newBeat = bn !== (st.vb ?? -1); st.vb = bn;
+    const raw_ = R.raw; if (raw_ != null) { st.lmed = lerp(st.lmed ?? raw_, raw_, 1 - Math.exp(-dt / 3)); st.lt = raw_ > .01 ? (st.lt || 0) + dt : 0; if (st.lt < .1) st.lsong = st.lmed; st.lsong = lerp(st.lsong ?? raw_, raw_, 1 - Math.exp(-dt / Math.min(30, 2 + st.lt))); const rel = st.lmed / Math.max(1e-4, st.lsong); st.tfQ = st.tfQ ? rel < .7 : rel < .55; st.tfL = st.tfL ? rel > 1.15 : rel > 1.3 && st.lt > 20; } else { st.tfQ = false; st.tfL = false; st.lt = 0; } const fSet = I("feel"), fW = st.tfL ? (I("tfl") === 2 ? 0 : I("tfl") === 1 ? Math.max(0, fSet - 1) : fSet) : st.tfQ && I("tfq") === 1 ? Math.min(3, fSet + 1) : fSet; if (st.fIdx == null) { st.fIdx = fW; st.vanchor = 0; st.vbase = 0; } let vpos = st.vbase + (bn0 + ph0 - st.vanchor) / [.5, 1, 2, 4][st.fIdx]; if (fW !== st.fIdx && bn0 !== st.fB0 && bn0 % 4 === 0) { st.vbase = Math.round(vpos); st.vanchor = bn0; st.fIdx = fW; vpos = st.vbase + ph0 / [.5, 1, 2, 4][fW]; } st.fB0 = bn0; const mult = [.5, 1, 2, 4][st.fIdx], gap = gap0 * mult, bn = Math.floor(vpos), ph = vpos - bn, newBeat = bn !== (st.vb ?? -1); st.vb = bn;
     const H0 = S * L("size", .34, 1.0), U = H0, lw0 = Math.max(1, H0 * .0045) * L("weight", .5, 2.2), hue = n.hue, spread = k("spread") * 90, glow = k("glow");
     const dsel = I("dance"), bar = newBeat && bn > 0 && bn % 4 === 0;
     // ---- which dance (Mix it up alternates every few bars, blended)
@@ -128,7 +128,7 @@ const SERVELET = { key: "servelet", name: "Servelet", fade: .55, init: SERVE.ini
     st.lf = lerp(st.lf ?? loud, loud, Math.min(1, dt * 4)); st.ls = lerp(st.ls ?? loud, loud, Math.min(1, dt * .18)); const drop = st.lf - st.ls; // fast vs slow loudness
     if (dsel === 0) { const ratio = [1, 2, 3, 4, 6][I("ratio")], loudF = clamp((st.ls - .25) * 1.6, 0, 1) * k("loudduck"), duckBars = I("mixbars"), vogueBars = Math.max(1, Math.round(duckBars * ratio * (1 - .7 * loudF)));
       st.segStart ??= bn; const segLen = st.dCur === 2 ? (st.dropUntil != null ? st.dropUntil - st.segStart : duckBars * 4) : vogueBars * 4;
-      if (newBeat && bn - st.segStart >= segLen && !st.dd && (st.ddPend == null || st.dCur === 2)) { st.dPrev = st.dCur; st.dCur = st.dCur === 1 ? 2 : 1; st.dF = 0; st.segStart = bn; st.dropUntil = null; }
+      if (newBeat && bn - st.segStart >= segLen && !st.dd && (st.ddPend == null || st.dCur === 2) && !(st.dCur !== 2 && st.tfQ)) { st.dPrev = st.dCur; st.dCur = st.dCur === 1 ? 2 : 1; st.dF = 0; st.segStart = bn; st.dropUntil = null; }
       // beat drop: fast loudness jumps well above the slow average → duck walk now, for Drop duck walk for bars
       if (k("dropduck") > .02 && st.dCur === 1 && !st.dd && st.ddPend == null && drop > .5 - .4 * k("dropduck") && st.ls < .55 && t - (st.dropT ?? -9) > 6) { st.dropT = t; st.dPrev = 1; st.dCur = 2; st.dF = 0; st.segStart = bn; st.dropUntil = bn + I("dropbars") * 4; } }
     else if (st.dCur !== dsel) { st.dPrev = st.dCur; st.dCur = dsel; st.dF = 0; }

@@ -128,6 +128,18 @@ MOTION_PATCHES = [
    'style: rr < EG ? "egypt" : rr < EG + (1 - EG) * .6 ? "up" : rr < EG + (1 - EG) * .88 ? "down" : "line", b: rr >= EG && rr < EG + (1 - EG) * .6 ? .95 + .45 * Math.random() : .55 + .55 * Math.random(), a: 0 }'),
   ('const want = h.style === "up" ? -Math.PI / 2 : Math.PI / 2,',
    'const ext = Math.hypot(J.wrists[i][0] - sh2[0], J.wrists[i][1] - sh2[1]) / Math.max(1, (ua + fa) * U * J.wrists[i][2]), want = h.style === "up" ? (Math.sin(fdir) < -.55 && ext > .82 ? (J.wrists[i][0] >= J.chest[0] ? 0 : Math.PI) : -Math.PI / 2) : Math.PI / 2,'),
+  # ---- tempo follows the music (Oct 23, 01:35, Kennedy: when it's sparse go one step slower; when it's unusually loud — louder than
+  # this song usually is, not just a loud pop/EDM track — go to double time; otherwise the set feel). Loudness is judged against the
+  # song's own 30 s average (3 s window vs 30 s), with hysteresis; a change of feel waits for the start of a bar of the song and the
+  # dancer's count is re-anchored there, so the beat never jumps.
+  ('const mult = [.5, 1, 2, 4][I("feel")], gap = gap0 * mult, vpos = (bn0 + ph0) / mult, bn = Math.floor(vpos), ph = vpos - bn, newBeat = bn !== (st.vb ?? -1); st.vb = bn;',
+   'const raw_ = R.raw; if (raw_ != null) { st.lmed = lerp(st.lmed ?? raw_, raw_, 1 - Math.exp(-dt / 3)); st.lt = raw_ > .01 ? (st.lt || 0) + dt : 0; if (st.lt < .1) st.lsong = st.lmed; st.lsong = lerp(st.lsong ?? raw_, raw_, 1 - Math.exp(-dt / Math.min(30, 2 + st.lt))); const rel = st.lmed / Math.max(1e-4, st.lsong); st.tfQ = st.tfQ ? rel < .7 : rel < .55; st.tfL = st.tfL ? rel > 1.15 : rel > 1.3 && st.lt > 20; } else { st.tfQ = false; st.tfL = false; st.lt = 0; }'
+   ' const fSet = I("feel"), fW = st.tfL ? (I("tfl") === 2 ? 0 : I("tfl") === 1 ? Math.max(0, fSet - 1) : fSet) : st.tfQ && I("tfq") === 1 ? Math.min(3, fSet + 1) : fSet;'
+   ' if (st.fIdx == null) { st.fIdx = fW; st.vanchor = 0; st.vbase = 0; } let vpos = st.vbase + (bn0 + ph0 - st.vanchor) / [.5, 1, 2, 4][st.fIdx];'
+   ' if (fW !== st.fIdx && bn0 !== st.fB0 && bn0 % 4 === 0) { st.vbase = Math.round(vpos); st.vanchor = bn0; st.fIdx = fW; vpos = st.vbase + ph0 / [.5, 1, 2, 4][fW]; } st.fB0 = bn0;'
+   ' const mult = [.5, 1, 2, 4][st.fIdx], gap = gap0 * mult, bn = Math.floor(vpos), ph = vpos - bn, newBeat = bn !== (st.vb ?? -1); st.vb = bn;'),
+  # no duck walk while it's quiet: Mix stays in vogue until the music comes back (a duck walk already going finishes its stretch)
+  ('if (newBeat && bn - st.segStart >= segLen && !st.dd && (st.ddPend == null || st.dCur === 2))', 'if (newBeat && bn - st.segStart >= segLen && !st.dd && (st.ddPend == null || st.dCur === 2) && !(st.dCur !== 2 && st.tfQ))'),
 ]
 src = open("engine/serve.js").read()
 a = src.index("  draw(E) {\n") + len("  draw(E) {\n")
@@ -231,7 +243,7 @@ const SL_DD_LEGUP = [
 ];
 const SERVELET_DROP = new Set(%s);
 const SERVELET = { key: "servelet", name: "Servelet", fade: .55, init: SERVE.init,
-  shape: [...SERVE.shape.filter(s => !SERVELET_DROP.has(s.key)).map(s => s.key === "squat" ? { key: "squat2", label: "Squat depth", def: .75, grp: "Duck walk", when: s.when } : s),
+  shape: [...SERVE.shape.filter(s => !SERVELET_DROP.has(s.key)).map(s => s.key === "squat" ? { key: "squat2", label: "Squat depth", def: .75, grp: "Duck walk", when: s.when } : s).flatMap(s => s.key === "feel" ? [s, { key: "tfq", label: "When it gets quiet", min: 0, max: 1, def: 1, fmt: v => ["Keep the feel", "One step slower"][v], grp: "Dance" }, { key: "tfl", label: "When it gets unusually loud", min: 0, max: 2, def: 1, fmt: v => ["Keep the feel", "One step faster", "Double time"][v], grp: "Dance" }] : [s]),
     { key: "width", label: "Build", def: .5, cfmt: v => v < .3 ? "Lean" : v < .7 ? "Athletic" : "Heavy", grp: "Body" },
     { key: "muscle", label: "Muscle", def: .6, grp: "Body" },
     { key: "defn", label: "Definition lines", def: .55, grp: "Body" },

@@ -113,7 +113,7 @@ MOTION_PATCHES = [
    'const knees = ankles.map((a, i) => svIK(i ? hipR : hipL, a, thigh, shin, poles[i])).map(q => st.dd ? [q[0], Math.min(q[1], floor - .025), q[2]] : q);'),
   ('st.hands[i].x.p = w[0]; st.hands[i].y.p = w[1]; st.hands[i].z.p = w[2]; } return w; });',
    'st.hands[i].x.p = w[0]; st.hands[i].y.p = w[1]; st.hands[i].z.p = w[2]; } if (st.dd && w[1] > floor - .02) w = [w[0], floor - .02, w[2]]; return w; });'),
-  ('svSpr3(st.feet[i], ft, Kleg, Cleg, dt)', 'svSpr3(st.feet[i], ft, Kleg * (st.dd ? 9 : 1 + 8 * PR), Cleg * Math.sqrt(st.dd ? 9 : 1 + 8 * PR), dt)'),
+  ('svSpr3(st.feet[i], ft, Kleg, Cleg, dt)', 'svSpr3(st.feet[i], ft, Kleg * (st.dd ? 9 : 1), Cleg * (st.dd ? 3 : 1), dt)'),
   # overhead sweep: one arm swings up and over the head in a big arc while the other drifts out low the other way; a slower move
   ('u = Math.min(1, (t - st.poseT) * 3 * ps);', 'u = Math.min(1, (t - st.poseT) * 3 * ps * (st.tt === "over" ? .5 : 1));'),
   ('st.tt = q < sn ? "snap" : q < sn + (1 - sn) * .55 ? "arc" : "wiper"; }',
@@ -128,36 +128,6 @@ MOTION_PATCHES = [
    'style: rr < EG ? "egypt" : rr < EG + (1 - EG) * .6 ? "up" : rr < EG + (1 - EG) * .88 ? "down" : "line", b: rr >= EG && rr < EG + (1 - EG) * .6 ? .95 + .45 * Math.random() : .55 + .55 * Math.random(), a: 0 }'),
   ('const want = h.style === "up" ? -Math.PI / 2 : Math.PI / 2,',
    'const ext = Math.hypot(J.wrists[i][0] - sh2[0], J.wrists[i][1] - sh2[1]) / Math.max(1, (ua + fa) * U * J.wrists[i][2]), want = h.style === "up" ? (Math.sin(fdir) < -.55 && ext > .82 ? (J.wrists[i][0] >= J.chest[0] ? 0 : Math.PI) : -Math.PI / 2) : Math.PI / 2,'),
-  # ---- round 6 (Oct 23, 00:33, from Kennedy's clip of a viral freestyle: the dancer with the afro and the bow; Kennedy picked all four)
-  # her arm shapes join the pose deck; a pose can carry its own lean (negative = back)
-  ('st.pose = p; st.poseT = t; st.nodT = (Math.random() - .5) * .6 * k("nod") * 2; st.leanT = (Math.random() - .5) * .6 * k("lean") * 2; st.poseMirror = Math.random() < .5;',
-   'st.pose = p; st.poseT = t; st.nodT = (Math.random() - .5) * .6 * k("nod") * 2; st.leanT = (Math.random() - .5) * .6 * k("lean") * 2; { const lp = SL_POSES[p % SL_POSES.length].lean; if (lp != null) st.leanT = lp * (.5 + .5 * k("lean")); } st.poseMirror = Math.random() < .5;'),
-  # hair-flip spin: on a big hit she turns her back, both hands go to her head, the head whips, then she spins back around to the front
-  ('if (newBeat && !st.dd && KN < .05 && k("spins") > .02 &&',
-   'if (!st.hf && newBeat && !st.dd && st.ddPend == null && KN < .05 && duck0 < .1 && k("hflip") > .02 && R.kick * (.6 + loud) > 1.15 - .75 * k("hflip") && st.wall - (st.hfEnd ?? -9) > 5) st.hf = { t: 0, y0: st.yaw.p, dir: Math.random() < .5 ? 1 : -1 };'
-   ' if (st.hf) { const H = st.hf; H.t += dt; const u1 = svEaseIO(Math.min(1, H.t / .35)), u2 = svEaseIO(clamp((H.t - .55) / .5, 0, 1)); st.yawT = H.y0 + H.dir * Math.PI * (u1 + u2); st.spin = t; if (!H.whip && H.t > .35) { H.whip = 1; st.nod.v += 9 * H.dir; st.bend.x.v += 6 * H.dir; } if (H.t > 1.15) { st.hf = null; st.hfEnd = st.wall; st.yawT = H.y0 + H.dir * TAU; } }'
-   ' if (newBeat && !st.hf && !st.dd && KN < .05 && k("spins") > .02 &&'),
-  ('{ const Ky = L("turnspeed", 2, 90);', '{ const Ky = st.hf ? 260 : L("turnspeed", 2, 90);'),
-  # high-knee prance: for a bar or two she bounces on the balls of her feet, knees popping up in turn on the song's beat
-  ('const duck = duck0 * (1 - Math.max(KN, DD));',
-   'st.pr ||= { on: false, f: 0, until: 0 }; if (bar && !st.dd && st.ddPend == null && !st.hf && KN < .05 && duck0 < .5) { if (st.pr.on && bn >= st.pr.until) st.pr.on = false; else if (!st.pr.on && k("prance") > .02 && Math.random() < k("prance") * .5) { st.pr.on = true; st.pr.until = bn + 4 * (Math.random() < .5 ? 1 : 2); } } if (st.dd || st.ddPend != null || KNs.on || duck0 > .5) st.pr.on = false; st.pr.f = clamp(st.pr.f + (st.pr.on ? 1 : -1) * dt * 3, 0, 1); const PR = svEaseIO(st.pr.f);'
-   ' const duck = duck0 * (1 - Math.max(KN, DD));'),
-  ('if (bar && !st.dd && st.ddPend == null && duck0 < .5) {', 'if (bar && !st.dd && st.ddPend == null && !st.hf && !(st.pr && st.pr.on) && duck0 < .5) {'),
-  ('if (st.ddPend != null && !st.dd && duck0 < .03 && KNs.f < .03) {', 'if (st.ddPend != null && !st.dd && !st.hf && duck0 < .03 && KNs.f < .03) {'),
-  ('feetT.push([0, 1, 2].map(j => lerp(lerp(f0_[j], kF_[j], KN), dF_[j], DD))',
-   'const lift_ = (bn0 % 2 === i ? 1 : 0) * Math.pow(Math.sin(Math.PI * ph0), .7), pF_ = [sd * stance * .8, floor - .015 - lift_ * .3 * legL / .46, -.09 * lift_]; feetT.push([0, 1, 2].map(j => lerp(lerp(lerp(f0_[j], pF_[j], PR * (1 - duck)), kF_[j], KN), dF_[j], DD))'),
-  ('poles.push(V3.mix(V3.mix(V3.mix([sd * (crossF ? -.6 : .25), 0, 1],', 'poles.push(V3.mix(V3.mix(V3.mix(V3.mix([sd * (crossF ? -.6 : .25), 0, 1], [sd * .15, -.25, 1], PR),'),
-  ('squatY + lerp(vb, bounce, duck)', 'squatY + lerp(vb, bounce, duck) - PR * (1 - duck) * (.05 + .03 * Math.abs(Math.sin(Math.PI * ph0)))'),
-  # while prancing she travels a little the way she faces on each beat (when Roam is on)
-  ('if (st.dd || KN > .05) st.tgt = [st.pos.x.p, st.pos.z.p];',
-   'if (st.dd || KN > .05) st.tgt = [st.pos.x.p, st.pos.z.p]; if (st.pr && st.pr.f > .5 && roam > .02 && bn0 !== st.prB) { st.prB = bn0; st.tgt = [clamp(st.pos.x.p + Math.sin(st.yaw.p) * .07, -xr, xr), clamp(st.pos.z.p + Math.cos(st.yaw.p) * .07, -.55, .55)]; }'),
-  # loose groove: a side-to-side sway through the hips and ribs, plus a shoulder shimmy, keeps the body moving between poses
-  ('svSpr3(st.hip, [sway * (1 - KN) * (1 - DD),', 'svSpr3(st.hip, [(sway + k("groove") * .02 * (1 - duck) * Math.sin(Math.PI * (bn0 + ph0))) * (1 - KN) * (1 - DD),'),
-  ('const sideB = st.bend.x.p, twist = st.bend.y.p, fwdB = st.bend.z.p;',
-   'const GV = (1 - duck) * (1 - DA) * (st.hf ? 0 : 1), bp_ = bn0 + ph0, sideB = st.bend.x.p + k("groove") * .3 * GV * Math.sin(Math.PI * bp_), twist = st.bend.y.p + k("shimmy") * .22 * GV * Math.sin(TAU * 2 * bp_) * (.6 + .6 * loud), fwdB = st.bend.z.p;'),
-  # hair flip: both hands go to the head while she turns away and whips around
-  ('    if (DA > 0) for (let i = 0; i < 2; i++)',
-   '    { const HFh = st.hf ? Math.sin(Math.PI * Math.min(1, st.hf.t / 1.0)) : 0; if (HFh > 0) for (let i = 0; i < 2; i++) { const sd = i ? 1 : -1, sh = i ? shR : shL; handT[i] = V3.mix(handT[i], V3.add(sh, [sd * -.2, -.82, -.05], ua + fa), HFh); } }\n    if (DA > 0) for (let i = 0; i < 2; i++)'),
 ]
 src = open("engine/serve.js").read()
 a = src.index("  draw(E) {\n") + len("  draw(E) {\n")
@@ -224,13 +194,6 @@ const SL_POSES = [
   { k: "31", n: "Dip: one behind the head, one down to the knee", f: r => [[-.2, -.95, -.2], [.25, .95, .25]] },
   { k: "31a", n: "Deep dip: one behind the head, one reaching past the knee", f: r => [[-.2, -.95, -.2], [.3, 1.05, .35]] },
   { k: "31b", n: "Dip: one straight up, one down to the knee", f: r => [[.1, -1.1 * r, .05], [.25, .95, .25]] },
-  // Oct 23: from Kennedy's clip of the dancer with the afro and the bow
-  { k: "F1", n: "One arm bent over the head, wrist loose; the other down by the hip", f: r => [[-.15, -.9, .1], [.3, .75, .05]] },
-  { k: "F2", n: "Both hands at the head, elbows out", f: r => [[-.2, -.82, -.05], [-.2, -.82, -.05]] },
-  { k: "F3", n: "Arms flung wide at shoulder height, wrists loose", f: r => [[1.0 * r, -.05, .05], [1.0 * r, -.05, .05]] },
-  { k: "F4", n: "One arm straight up, leaning back", lean: -.6, f: r => [[.15, -1.1 * r, 0], [.35, .8, -.1]] },
-  { k: "F5", n: "Both arms up and loose, waving over the head", f: r => [[.35, -1.0 * r, .05], [.5, -.9 * r, .1]] },
-  { k: "F6", n: "One arm out wide, one hand at the head", f: r => [[1.0 * r, -.1, .05], [-.2, -.82, -.05]] },
 ];
 // death drop endings: [lead arm, other arm], each [x outward from that shoulder, y down, z toward the room] in arm lengths, in
 // the room's frame (she is lying back, so "up" is the sky and "back over the head" is -z). Oct 23: sent to Kennedy to pick by number.
@@ -280,10 +243,6 @@ const SERVELET = { key: "servelet", name: "Servelet", fade: .55, init: SERVE.ini
     { key: "duckvogue", label: "Vogue arms in the duck walk", def: .75, grp: "Duck walk" },
     { key: "swish", label: "Swish between poses", def: .6, grp: "Vogue" },
     { key: "over", label: "Overhead sweeps", def: .35, grp: "Vogue" },
-    { key: "groove", label: "Groove between poses", def: .4, grp: "Vogue" },
-    { key: "shimmy", label: "Shoulder shimmy", def: .3, grp: "Vogue" },
-    { key: "prance", label: "High-knee prance", def: .3, grp: "Vogue" },
-    { key: "hflip", label: "Hair-flip spins", def: .3, grp: "Moving around" },
     { key: "kneel", label: "Kneel down", def: .3, grp: "Floor work" },
     { key: "kneelbars", label: "Stay kneeling for", min: 1, max: 4, def: 1 / 3, fmt: v => v + (v > 1 ? " bars" : " bar"), slide: true, grp: "Floor work" },
     { key: "ddrop", label: "Death drop", min: 0, max: 3, def: 1 / 3, fmt: v => ["Off", "Beat drops", "Loud hits", "On a timer"][v], grp: "Floor work" },

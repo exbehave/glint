@@ -1,8 +1,6 @@
 """Rebuild engine/servelet.js and casting/servelet.js: Serve classic's motion (sliced verbatim from engine/serve.js,
 between 'draw(E) {' and '// ---- drawing:') plus Servelet's own drawing in casting/servelet-draw.js.
 Run from the repo root: python3 casting/make_servelet.py"""
-# Servelet's own motion changes, applied to the copied motion (Kennedy's first rehearsal, Oct 22, 2026: "the hands jerk back and
-# forth instead of following through to new poses"; in the duck walk "the hands are giving puppet master, up and down, back and forth").
 # Servelet's own motion changes, applied to the copied motion. Round 2 (Oct 22, 22:12) fixed Kennedy's "hands jerk back and
 # forth" / "puppet master" notes but made the dance boring (Kennedy, 22:30: "it's not really posing like it was before"), so every
 # hand change now rides the "Hand follow-through" slider (key settle): 0 = exactly Serve classic's hands (the default),
@@ -23,24 +21,35 @@ MOTION_PATCHES = [
    '(.05 + da[1]) * (ua + fa) + lerp(.05 * Math.sin(t * TAU / gap * 2 + i), bounce * .5, ST), .12]'),
   # a hand's next angle is picked as the arm arrives at a new pose (follow-through past halfway)
   ('st.hcl ||= [0, 0]; st.hcl[i] -= dt;',
-   'st.hcl ||= [0, 0]; if (ST > .5 && st.poseT === t) st.hcl[i] = .85 / (3 * L("posespeed", .15, 1.6)); st.hcl[i] -= dt;'),
+   'st.hcl ||= [0, 0]; if (st.poseT === t) st.hcl[i] = .85 / (3 * L("posespeed", .15, 1.6)) * (.85 + .3 * Math.random()); st.hcl[i] -= dt;'),
   # while the hand travels the wrist trails behind, then flicks into place; strength follows the slider
   ('s.p = ht + svAng(s.p - ht); svSpr(s, ht,',
-   'const pw = st.prev && st.prev["w" + i], spd = pw ? Math.hypot(J.wrists[i][0] - pw[0], J.wrists[i][1] - pw[1]) / Math.max(dt, 1e-3) / U : 0; let hT = ht; if (ST > 0 && pw && spd > .25) { const trail = Math.atan2(pw[1] - J.wrists[i][1], pw[0] - J.wrists[i][0]); hT += svAng(trail - hT) * Math.min(.75, (spd - .25) * .5) * ST; } s.p = hT + svAng(s.p - hT); svSpr(s, hT,'),
+   'const pw = st.prev && st.prev["w" + i], spd = pw ? Math.hypot(J.wrists[i][0] - pw[0], J.wrists[i][1] - pw[1]) / Math.max(dt, 1e-3) / U : 0; let hT = ht; if (pw && spd > .25) { const trail = Math.atan2(pw[1] - J.wrists[i][1], pw[0] - J.wrists[i][0]); hT += svAng(trail - hT) * Math.min(.75, (spd - .25) * .5) * Math.max(ST, k("swish")); } s.p = hT + svAng(s.p - hT); svSpr(s, hT,'),
   ('K * (st.hat[i].out ? .6 : 1.4), st.hat[i].out ? 2 * Math.max(.45, zeta) * Math.sqrt(K * .6) : C * .8, dt)',
-   'K * (st.hat[i].out ? .6 : 1.4), lerp(st.hat[i].out ? 2 * Math.max(.45, zeta) * Math.sqrt(K * .6) : C * .8, 2 * .45 * Math.sqrt(K * (st.hat[i].out ? .6 : 1.4)), ST), dt)'),
+   'K * (st.hat[i].out ? .6 : 1.4), st.hat[i].style ? 2 * .42 * Math.sqrt(K * 1.4) : lerp(st.hat[i].out ? 2 * Math.max(.45, zeta) * Math.sqrt(K * .6) : C * .8, 2 * .45 * Math.sqrt(K * (st.hat[i].out ? .6 : 1.4)), ST), dt)'),
   # ---- round 3 (Oct 22, 22:45, Kennedy: "it keeps reverting back to the same poses"; wants ~30 pre-selected poses, and a swishy
   # windshield-wiper motion in both vogue and the duck walk, like the geometric version had)
   # a 32-pose library dealt like a shuffled deck: every pose comes up once before any repeats (st.forcePose pins one, for the pose sheet)
   ('if (bn % every === 0) { let p = st.pose; while (p === st.pose) p = Math.floor(Math.random() * SV_POSES.length); st.pose = p;',
    'if (bn % every === 0) { let p; if (st.forcePose != null) p = st.forcePose; else { if (!st.deck || !st.deck.length) { st.deck = SL_POSES.map((_, j) => j).sort(() => Math.random() - .5); if (st.deck[st.deck.length - 1] === st.pose) st.deck.unshift(st.deck.pop()); } p = st.deck.pop(); } st.pose = p;'),
+  # Servelet's hands always use the landing finishes below (the Hand motion picker and its Flick size / Hands point outward are dropped)
+  ('const fmode = I("fdir")', 'const fmode = 0'),
   ('pose = SV_POSES[st.pose](reach)', 'pose = SL_POSES[st.pose % SL_POSES.length].f(reach)'),
   # vogue transitions swing along an arc around the shoulder (the hand bows out mid-path) and land with a small overshoot (Swish)
   ('handT[i] = V3.mix(st.handFrom[i], handT[i], svEaseIO(u)); }',
-   'const SW = k("swish"), e0 = svEaseIO(u), c1 = 1.2 * SW, ob = u >= 1 ? 1 : 1 + (c1 + 1) * Math.pow(u - 1, 3) + c1 * Math.pow(u - 1, 2), e = lerp(e0, ob, Math.min(1, SW * 1.2)); const shp = i ? shR : shL, a0 = V3.sub(st.handFrom[i], shp), a1 = V3.sub(handT[i], shp), r0 = V3.len(a0), r1 = V3.len(a1), dir = V3.norm(V3.mix(V3.norm(a0), V3.norm(a1), e)), rad = lerp(r0, r1, e) + SW * .28 * (ua + fa) * Math.sin(Math.PI * Math.min(1, Math.max(0, e))); handT[i] = V3.mix(V3.mix(st.handFrom[i], handT[i], e), V3.add(shp, dir, rad), SW); }'),
+   'const SW = k("swish"); if (st.poseT === t && i === 0) { const q = Math.random(), sn = .12 + .35 * (1 - SW); st.tt = q < sn ? "snap" : q < sn + (1 - sn) * .55 ? "arc" : "wiper"; } const TT = st.tt || "arc"; if (TT === "snap") handT[i] = V3.mix(st.handFrom[i], handT[i], svEaseIO(Math.min(1, u * 1.6))); else { const e0 = svEaseIO(u), c1 = 1.2 * SW, ob = u >= 1 ? 1 : 1 + (c1 + 1) * Math.pow(u - 1, 3) + c1 * Math.pow(u - 1, 2), e = lerp(e0, ob, Math.min(1, SW * 1.2)); const shp = i ? shR : shL, a0 = V3.sub(st.handFrom[i], shp), a1 = V3.sub(handT[i], shp), r0 = V3.len(a0), r1 = V3.len(a1), dir = V3.norm(V3.mix(V3.norm(a0), V3.norm(a1), e)), rad = lerp(r0, r1, e) + SW * .28 * (ua + fa) * Math.sin(Math.PI * Math.min(1, Math.max(0, e))); let hp = V3.mix(V3.mix(st.handFrom[i], handT[i], e), V3.add(shp, dir, rad), Math.max(.35, SW)); if (TT === "wiper") { const sw = Math.sin(TAU * Math.min(1, u)) * (1 - Math.min(1, u)) * (.35 + .4 * SW) * (ua + fa); hp = V3.add(hp, [(i ? 1 : -1) * sw, -Math.abs(sw) * .35, 0]); } handT[i] = hp; } }'),
+  # rolling hands: when the hands come close together they circle each other (half a turn per dancer beat) instead of sitting still
+  ('st.handPrev = handT.map(h => h.slice()); }',
+   'st.handPrev = handT.map(h => h.slice()); { const RL = k("roll"), dd = V3.len(V3.sub(handT[0], handT[1])), near = .5 * (ua + fa); if (RL > .01 && dd < near) { const amt = (1 - dd / near) * RL, phi = Math.PI * (bn + ph), rr = .1 * (ua + fa) * amt; for (let i = 0; i < 2; i++) handT[i] = V3.add(handT[i], [Math.cos(phi + i * Math.PI) * rr, Math.sin(phi + i * Math.PI) * rr, Math.sin(phi * .5 + i) * rr * .5]); } } }'),
   # duck walk: the forearms sweep side to side on the beat like windshield wipers, both the same way, rising at the middle of each sweep
   ('handT.push(V3.mix(vog, dk, duck)); }',
-   'const WP = k("wiper"), wA = WP * (Math.PI / 2.6) * Math.cos(Math.PI * (bn + ph)), wR = (ua + fa) * .5, dkw = WP > .01 ? V3.add(dk, [sd * Math.sin(wA) * wR * (i ? 1 : -1), (1 - Math.cos(wA)) * wR - WP * .25 * wR, 0]) : dk; handT.push(V3.mix(vog, dkw, duck)); }'),
+   'const WP = k("wiper"), DV = k("duckvogue"), wA = WP * (Math.PI / 2.6) * Math.cos(Math.PI * (bn + ph)), wR = (ua + fa) * .5, base = V3.mix(vog, dk, duck * (1 - DV)), fin = WP > .01 ? V3.add(base, [Math.sin(wA) * wR * duck, ((1 - Math.cos(wA)) * wR - WP * .25 * wR) * duck, 0]) : base; handT.push(fin); }'),
+  # hand finishes: each landing picks one. Egyptian (flat, pointing sideways away from the body) at most a share set by the
+  # Egyptian hands slider; mostly the wrist flicks so the hand tips up, sometimes down on a reach, sometimes straight along the arm.
+  ('st.hat[i] = { abs: false, out: true, a: (Math.random() - .5) * 2 * spreadA * (Math.random() < .35 + .65 * (1 - bias) ? 1 : .35) };',
+   '{ const EG = k("egypt"), rr = Math.random(); st.hat[i] = { style: rr < EG ? "egypt" : rr < EG + (1 - EG) * .6 ? "up" : rr < EG + (1 - EG) * .88 ? "down" : "line", b: .55 + .55 * Math.random(), a: 0 }; }'),
+  ('ht = st.hat[i].abs ? st.hat[i].a : (st.hat[i].out ? odir : fdir) + st.hat[i].a;',
+   'ht = (() => { const h = st.hat[i]; if (h.style) { if (h.style === "egypt") return J.wrists[i][0] >= J.chest[0] ? 0 : Math.PI; if (h.style === "line") return fdir; const want = h.style === "up" ? -Math.PI / 2 : Math.PI / 2, d = svAng(want - fdir); return fdir + Math.sign(d || 1) * Math.min(Math.abs(d), h.b); } return h.abs ? h.a : (h.out ? odir : fdir) + h.a; })();'),
 ]
 src = open("engine/serve.js").read()
 a = src.index("  draw(E) {\n") + len("  draw(E) {\n")
@@ -49,7 +58,7 @@ motion = src[a:b]
 for old, new in MOTION_PATCHES:
     assert motion.count(old) == 1, "motion patch no longer matches: " + old[:60]
     motion = motion.replace(old, new)
-DROP = ["crest", "head", "headstyle", "hand", "prism", "split", "sweep", "weight", "width"]
+DROP = ["crest", "fdir", "head", "headstyle", "hand", "outward", "prism", "split", "sweep", "weight", "width", "wild"]
 hdr = '''/* ================= Servelet (Oct 22, 2026, name picked by Kennedy) =================
    Serve classic's dancing (motion copied verbatim from engine/serve.js, which is frozen) on a realistic human body:
    one continuous neon outline around the whole silhouette, a dark fill, a head-to-toe color gradient, a few anatomy
@@ -117,6 +126,9 @@ const SERVELET = { key: "servelet", name: "Servelet", fade: .55, init: SERVE.ini
     { key: "head", label: "Head size", def: .45, grp: "Body" },
     { key: "hand", label: "Hand size", def: .5, grp: "Hands" },
     { key: "settle", label: "Hand follow-through", def: 0, grp: "Hands" },
+    { key: "egypt", label: "Egyptian hands", def: .2, cfmt: v => Math.round(v * 100) + "%% of landings", grp: "Hands" },
+    { key: "roll", label: "Rolling hands when close", def: .6, grp: "Hands" },
+    { key: "duckvogue", label: "Vogue arms in the duck walk", def: .75, grp: "Duck walk" },
     { key: "swish", label: "Swish between poses", def: .6, grp: "Vogue" },
     { key: "wiper", label: "Wiper sweeps", def: .6, grp: "Duck walk" },
     { key: "weight", label: "Outline weight", def: .35, grp: "Look" },

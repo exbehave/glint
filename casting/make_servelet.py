@@ -64,7 +64,7 @@ MOTION_PATCHES = [
    ' const ddw = I("ddrop"), dsens = L("ddsens", .75, 1.35); if (st.dfast < st.dslow * .62 * dsens) st.brk = (st.brk || 0) + dt; else st.brk = Math.max(0, (st.brk || 0) - dt * .4);'
    ' let fireDD = false; { const req = E.node && E.node.shape && E.node.shape.ddnow; if (req && req !== st.ddReq) { if (st.ddReq != null || Date.now() - req < 3000) fireDD = true; } st.ddReq = req || st.ddReq || 0; }'
    ' if (!st.dd && st.sinceDD > 4) { if (E.beat && R.raw != null) { if (ddw === 1 && st.brk > .8 && st.dfast > st.dslow * (1.12 / dsens)) fireDD = true; if (ddw === 2 && st.dfast > st.dslow * (1.5 / dsens)) fireDD = true; } if (ddw === 3 && newBeat && bn > 0 && bn % 32 === 0) fireDD = true; }'
-   ' if (fireDD && !st.dd) { const ep = I("ddend"), picks = SL_DD_PICK.length ? SL_DD_PICK : SL_DD_ENDS.map((_, j) => j); st.dd = { t: 0, front: Math.random() < .5 ? 0 : 1, lead: Math.random() < .5 ? 0 : 1, end: st.forceEnd ?? (ep > 0 ? ep - 1 : picks[Math.floor(Math.random() * picks.length)]) }; st.brk = 0; KNs.on = false; st.yawT = st.yaw.p + svAng((Math.random() < .5 ? 1 : -1) * (1.0 + Math.random() * .35) - st.yaw.p); st.hat = [{ style: "up", b: 1.35, a: 0 }, { style: "up", b: 1.2, a: 0 }]; }'
+   ' if (fireDD && !st.dd) { const ep = I("ddend"), picks = SL_DD_PICK.length ? SL_DD_PICK : SL_DD_ENDS.map((_, j) => j); st.dd = { t: 0, front: Math.random() < .5 ? 0 : 1, lead: Math.random() < .5 ? 0 : 1, legV: SL_DD_LEG_POOL[Math.floor(Math.random() * SL_DD_LEG_POOL.length)], end: st.forceEnd ?? (ep > 0 ? ep - 1 : picks[Math.floor(Math.random() * picks.length)]) }; st.brk = 0; KNs.on = false; st.yawT = st.yaw.p + svAng((Math.random() < .5 ? 1 : -1) * (1.0 + Math.random() * .35) - st.yaw.p); st.hat = [{ style: "up", b: 1.35, a: 0 }, { style: "up", b: 1.2, a: 0 }]; }'
    # phases: wind up (rise, the arm sweeps up) → fall (gravity) → hold on the floor, arched back → rise
    # DD = how far down (hips on the floor), DL = how far the torso has fallen back, LU = the raised leg's climb, HU = the hands forming the ending pose
    ' let DD = 0, DA = 0, DL = 0, DP = 0, LU = 0, HU = 0; if (st.dd) { const D = st.dd, prep = .35, fall = .4, hold = Math.max(.8, I("ddhold") * gap), rise = .6; D.t += dt; D.hold = hold;'
@@ -94,7 +94,7 @@ MOTION_PATCHES = [
    'const neck = V3.add(chest, RB([sideB * .02, -.045, .02 * arch], 1.3)), head = V3.add(neck, RB([sideB * .03 + st.nod.p * .03, -.062, .03 * arch + fwdB * .02], 1.6));'),
   # legs: kneeling = back knee on the floor, front foot planted; drop = front leg straight along the floor, back leg folded out to the side
   ('feetT.push([lerp(vx_, dx_, duck), lerp(floor - .015, dy_, duck), lerp(vz_, dz_, duck), 1 + kc * .9 * duck]);',
-   'const KB = KNs.back === i, FR = st.dd ? st.dd.front === i : i === 1, f0_ = [lerp(vx_, dx_, duck), lerp(floor - .015, dy_, duck), lerp(vz_, dz_, duck)], kF_ = KB ? [sd * .07, floor - .01, -shin * .92] : [sd * .09, floor - .015, .2], phi_ = lerp(.06, .66, LU), BL_ = SL_DD_LEGS[st.ddLegV ?? SL_DD_LEG](sd, floor, legL, shin), dF_ = FR ? [sd * .05, floor - .05 - legL * .97 * Math.sin(phi_), -.08 + legL * .97 * Math.cos(phi_)] : BL_.slice(0, 3);'
+   'const KB = KNs.back === i, FR = st.dd ? st.dd.front === i : i === 1, f0_ = [lerp(vx_, dx_, duck), lerp(floor - .015, dy_, duck), lerp(vz_, dz_, duck)], kF_ = KB ? [sd * .07, floor - .01, -shin * .92] : [sd * .09, floor - .015, .2], phi_ = lerp(.06, .66, LU), BL_ = SL_DD_LEGS[st.ddLegV ?? (st.dd ? st.dd.legV : 0)](sd, floor, legL, shin), dF_ = FR ? [sd * .05, floor - .05 - legL * .97 * Math.sin(phi_), -.08 + legL * .97 * Math.cos(phi_)] : BL_.slice(0, 3);'
    ' feetT.push([0, 1, 2].map(j => lerp(lerp(f0_[j], kF_[j], KN), dF_[j], DD)).concat([lerp(1 + kc * .9 * duck, 1, Math.max(KN, DD))]));'),
   ('poles.push(V3.mix([sd * (crossF ? -.6 : .25), 0, 1], [sd * L("knees", .05, 1.2), 0, 1], duck)); }',
    'poles.push(V3.mix(V3.mix(V3.mix([sd * (crossF ? -.6 : .25), 0, 1], [sd * L("knees", .05, 1.2), 0, 1], duck), KB ? [sd * .1, .4, 1] : [sd * .15, -.3, 1], KN), FR ? [0, -1, .15] : BL_.slice(3, 6), DD)); }'),
@@ -209,7 +209,8 @@ const SL_DD_LEGS = [
   (sd, fl, L, sh) => [sd * .3, fl - .24, -.3, sd * .6, -.3, -1], // C: wrong way: knee bent backward, foot kicked up behind
   (sd, fl, L, sh) => [sd * .4, fl - .2, .02, sd, .45, 0],         // D: knee jammed down to the side, shin sticking up
 ];
-const SL_DD_LEG = 1;
+// Oct 23, 00:14, Kennedy: "I mostly like A. D is okay" (B and C didn't look right): each drop picks A most of the time, D sometimes
+const SL_DD_LEG_POOL = [0, 0, 0, 3];
 const SERVELET_DROP = new Set(%s);
 const SERVELET = { key: "servelet", name: "Servelet", fade: .55, init: SERVE.init,
   shape: [...SERVE.shape.filter(s => !SERVELET_DROP.has(s.key)).map(s => s.key === "squat" ? { key: "squat2", label: "Squat depth", def: .75, grp: "Duck walk", when: s.when } : s),

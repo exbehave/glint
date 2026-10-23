@@ -41,7 +41,8 @@
         m.quadraticCurveTo(J.neck[0], J.neck[1] + U * .01 * s, sL[0], sL[1]); m.closePath(); m.fill();
         // deltoids (round shoulders overlapping the torso), traps, glutes
         const dR = U * .036 * Mu * L("width", .8, 1.25); blob(m, J.shL, dR, dR * .92, 0); blob(m, J.shR, dR, dR * .92, 0);
-        blob(m, J.hipL, U * .05 * L("width", .8, 1.2), U * .045, 0); blob(m, J.hipR, U * .05 * L("width", .8, 1.2), U * .045, 0);
+        // pelvis: one smooth capsule from hip to hip (two separate glute blobs popped out at odd angles during turns)
+        limb(m, J.hipL, J.hipR, U * .046 * L("width", .85, 1.15), U * .046 * L("width", .85, 1.15), U * .004 * mus, .5);
         limb(m, J.chest, J.neck, U * .05 * (1 + .3 * mus), r(R_.neck, 1 + .25 * mus), 0, .5);
         limb(m, J.neck, J.head, r(R_.neck, 1 + .25 * mus), r(R_.neck * .9), 0, .5);
         // head: a smooth oval with a jaw, tilted with the neck
@@ -76,10 +77,13 @@
       // which chains cross in front of the body? (z toward the room, and overlapping the torso or the other leg on screen)
       const tz = (J.chest[3] + J.hipC[3]) / 2, tw = Math.max(Math.hypot(J.shR[0] - J.shL[0], J.shR[1] - J.shL[1]) * .5, U * .05 * J.chest[2]) + U * .02;
       const sep = [], base = [P.coreP];
-      for (let i = 0; i < 2; i++) { const cz = (J.elbows[i][3] + J.wrists[i][3]) / 2, over = Math.min(segDist(J.wrists[i], J.chest, J.hipC), segDist(J.elbows[i], J.chest, J.hipC)) < tw;
-        if (cz > tz && over) sep.push({ z: cz, p: P.armP(i) }); else base.push(P.armP(i)); }
-      for (let i = 0; i < 2; i++) { const o = 1 - i, cz = (J.knees[i][3] + J.ankles[i][3]) / 2, oz = (J.knees[o][3] + J.ankles[o][3]) / 2, wl2 = U * .07 * J.knees[i][2], over = Math.min(segDist(J.knees[i], J.knees[o], J.ankles[o]), segDist(J.ankles[i], J.knees[o], J.ankles[o]), segDist(J.ankles[i], J.hipC, J.knees[o])) < wl2;
-        if ((cz > oz || (cz === oz && i === 1)) && over) sep.push({ z: cz, p: P.legP(i) }); else base.push(P.legP(i)); }
+      // arms: inked on their own only while clearly in front of the chest; hysteresis stops them flickering on and off through a turn
+      st.armSep ||= [false, false];
+      for (let i = 0; i < 2; i++) { const cz = (J.elbows[i][3] + J.wrists[i][3]) / 2, d = Math.min(segDist(J.wrists[i], J.chest, J.hipC), segDist(J.elbows[i], J.chest, J.hipC));
+        let on = cz > tz + .02 && d < tw; if (live) { const was = st.armSep[i]; on = was ? (cz > tz - .02 && d < tw * 1.3) : on; st.armSep[i] = on; }
+        if (on) sep.push({ z: cz, p: P.armP(i) }); else base.push(P.armP(i)); }
+      // legs always belong to the one outline (Kennedy, Oct 22: inking a leg on its own drew extra lines across the hips that flickered in turns)
+      base.push(P.legP(0), P.legP(1));
       const gr = ink(m => base.forEach(f => f(m)), J, al, bb, yTop, yBot);
       sep.sort((a, b) => a.z - b.z).forEach(c => ink(c.p, J, al, bb, yTop, yBot));
       // anatomy lines: chest, abs and V-lines from the front; spine and shoulder blades from behind; they fade toward profile

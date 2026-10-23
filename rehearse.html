@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Glint Rehearsal</title>
+<meta name="theme-color" content="#08080a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="icon" href="icon-192.png?v=mask" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png?v=mask">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500&family=IBM+Plex+Mono:wght@400&display=swap">
+<link rel="stylesheet" href="glint.css">
+<style>
+/* Rehearsal review: pick a recording, watch it back, and mark the good and bad stretches.
+   Video on top, then the timeline (thumbnail strip with the marked stretches as colored bands), then the marking
+   controls and the list of marks. Grayscale UI; green and red appear only as the good/bad marks. */
+:root { --good: #9fdcb3; --bad: #e39a9a; }
+body { padding-bottom: env(safe-area-inset-bottom, 0); }
+.rh { max-width: 980px; margin: 0 auto; padding: 0 16px 40px; display: grid; gap: 14px; }
+.rh .top a { font-size: 13px; color: var(--muted); text-decoration: none; }
+.list { display: grid; gap: 8px; }
+.rec { display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; gap: 12px; align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 8px; text-align: left; width: 100%; color: var(--fg); }
+.rec img { width: 96px; height: 60px; object-fit: cover; border-radius: 6px; background: #000; display: block; }
+.rec b { font-weight: 400; display: block; color: var(--silver); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rec small { color: var(--dim); font-family: var(--font-data); font-size: 11.5px; }
+.rec .tags { display: flex; gap: 6px; font-family: var(--font-data); font-size: 11.5px; }
+.tag { padding: 2px 7px; border-radius: 999px; border: 1px solid var(--line-hi); color: var(--muted); }
+.tag.g { color: var(--good); border-color: rgba(159, 220, 179, .4); } .tag.b { color: var(--bad); border-color: rgba(227, 154, 154, .4); }
+.player { position: relative; background: #000; border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; aspect-ratio: 16 / 10; }
+.player video, .player img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.marking { position: absolute; left: 10px; top: 10px; font-family: var(--font-data); font-size: 11px; letter-spacing: .1em; color: var(--silver); background: rgba(0,0,0,.55); padding: 4px 8px; border-radius: 6px; }
+.tl { position: relative; height: 64px; border-radius: 8px; overflow: hidden; background: var(--well); border: 1px solid var(--line-hi); touch-action: none; cursor: pointer; }
+.tl, .tl * { -webkit-user-select: none; user-select: none; -webkit-user-drag: none; -webkit-touch-callout: none; }
+.tl .strip { position: absolute; inset: 0; opacity: .55; pointer-events: none; }
+.tl .strip img { position: absolute; top: 0; height: 100%; object-fit: cover; }
+.tl .ruler { position: absolute; left: 0; right: 0; bottom: 0; height: 14px; pointer-events: none; }
+.tl .ruler i { position: absolute; bottom: 0; width: 1px; height: 5px; background: var(--line-hi); }
+.tl .ruler i.big { height: 9px; background: var(--muted); }
+.tl .ruler b { position: absolute; bottom: 9px; font: 400 9.5px var(--font-data); color: var(--muted); transform: translateX(3px); }
+.tl .tick { position: absolute; top: 0; bottom: 0; width: 3px; margin-left: -1.5px; opacity: .9; }
+.tl .tick.good { background: var(--good); } .tl .tick.bad { background: var(--bad); } .tl .tick.note { background: var(--silver); }
+.tl.zoomed { cursor: grab; }
+#ink { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; touch-action: none; }
+.player.drawing #ink { pointer-events: auto; cursor: crosshair; }
+.player.drawing { outline: 1px solid var(--silver); }
+.pens { display: flex; gap: 6px; flex-wrap: wrap; }
+.btn.good[aria-pressed="true"] { background: var(--good); color: #0b0b0d; } .btn.bad[aria-pressed="true"] { background: var(--bad); color: #0b0b0d; }
+.mark-row .kind.mixed { color: var(--silver); } .mark-row .parts { color: var(--dim); font-size: 12px; }
+.mark-row .kind .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 3px; vertical-align: middle; }
+.zoom { display: flex; gap: 6px; align-items: center; }
+.zoom output { font-family: var(--font-data); font-size: 12px; color: var(--muted); min-width: 40px; text-align: center; }
+.tl .band { position: absolute; pointer-events: none; top: 0; bottom: 0; opacity: .38; border-left: 2px solid; border-right: 2px solid; }
+.tl .band.good { background: var(--good); border-color: var(--good); } .tl .band.bad { background: var(--bad); border-color: var(--bad); }
+.tl .band.open { background: var(--silver); border-color: var(--silver); opacity: .25; }
+.tl .head { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--silver); box-shadow: 0 0 6px rgba(255,255,255,.6); pointer-events: none; }
+.times { display: flex; justify-content: space-between; font-family: var(--font-data); font-size: 12px; color: var(--muted); }
+.ctl { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.btn.big { padding: 10px 16px; font-size: 14px; }
+.btn.good { border-color: rgba(159, 220, 179, .5); color: var(--good); } .btn.bad { border-color: rgba(227, 154, 154, .5); color: var(--bad); }
+.note-in { flex: 1 1 220px; min-width: 0; background: var(--well); border: 1px solid var(--line-hi); border-radius: 8px; padding: 9px 10px; }
+.marks { display: grid; gap: 6px; }
+.mark-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+.mark-row .when { font-family: var(--font-data); font-size: 12px; color: var(--muted); background: none; border: 0; padding: 0; text-align: left; }
+.mark-row .kind { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; }
+.mark-row .kind.good { color: var(--good); } .mark-row .kind.bad { color: var(--bad); } .mark-row .kind.note { color: var(--silver); }
+.mark-row .txt { color: var(--fg); overflow-wrap: anywhere; }
+.x { background: none; border: 0; color: var(--dim); font-size: 18px; line-height: 1; padding: 4px 6px; }
+.signin { display: grid; gap: 8px; max-width: 360px; }
+.signin input { background: var(--well); border: 1px solid var(--line-hi); border-radius: 8px; padding: 9px 10px; }
+@media (max-width: 600px) { .rec { grid-template-columns: 72px minmax(0, 1fr); } .rec img { width: 72px; height: 46px; } .rec .tags { grid-column: 2; } }
+</style>
+</head>
+<body>
+<div class="rh">
+  <header class="top"><div class="mark">GLINT</div><a href="index.html?here=1">Back to the Studio</a></header>
+
+  <section class="card" id="gate" hidden>
+    <h3>Sign in <span>to see recordings from your other devices</span></h3>
+    <form class="signin" id="signin">
+      <input id="si-user" type="text" placeholder="Username" autocomplete="username" autocapitalize="none" spellcheck="false" aria-label="Username">
+      <input id="si-pass" type="password" placeholder="Password" autocomplete="current-password" aria-label="Password">
+      <button class="btn" type="submit">Sign in</button>
+      <span class="now" id="si-msg"></span>
+    </form>
+  </section>
+
+  <section class="card" id="pick">
+    <h3>Rehearsals <span id="pick-sub">newest first</span></h3>
+    <div class="list" id="list"><span class="desc">Loading…</span></div>
+  </section>
+
+  <section class="card" id="view" hidden>
+    <h3><span id="v-name" style="color:var(--silver);text-transform:none;letter-spacing:.02em;font-size:13px"></span><button class="btn" type="button" id="v-back">All rehearsals</button></h3>
+    <div class="player" id="player"><video id="video" playsinline preload="auto"></video><img id="still" alt="" hidden><canvas id="ink"></canvas><div class="marking" id="marking" hidden>MARKING</div></div>
+    <div class="tl" id="tl" aria-label="Timeline: drag to move, pinch to zoom"><div class="strip" id="strip"></div><div id="bands"></div><div class="ruler" id="ruler"></div><div class="head" id="head"></div></div>
+    <div class="times"><span id="t-now">0:00</span><span id="t-src" class="desc"></span><span id="t-end">0:00</span></div>
+    <div class="ctl">
+      <button class="btn big" type="button" id="play">Play</button>
+      <button class="btn" type="button" id="prevf" aria-label="Back one frame">‹ frame</button>
+      <button class="btn" type="button" id="nextf" aria-label="Forward one frame">frame ›</button>
+      <button class="btn" type="button" id="back5">−5 s</button>
+      <button class="btn" type="button" id="fwd5">+5 s</button>
+      <button class="btn" type="button" id="speed">1×</button>
+      <span class="zoom"><button class="btn" type="button" id="zout" aria-label="Zoom out">−</button><output id="zlvl">1×</output><button class="btn" type="button" id="zin" aria-label="Zoom in">+</button></span>
+    </div>
+    <div class="ctl" id="draw-row">
+      <button class="btn" type="button" id="draw" aria-pressed="false">✎ Draw on this frame</button>
+      <span class="pens" id="pens" hidden>
+        <button class="btn good" type="button" data-pen="good" aria-pressed="true">Good pen</button>
+        <button class="btn bad" type="button" data-pen="bad" aria-pressed="false">Bad pen</button>
+        <button class="btn" type="button" data-pen="note" aria-pressed="false">Comment pen</button>
+        <button class="btn" type="button" id="ink-undo">Undo</button>
+        <button class="btn" type="button" id="ink-save">Save drawing</button>
+      </span>
+    </div>
+    <div class="ctl" id="frame-row">
+      <span class="desc">This frame:</span>
+      <button class="btn good" type="button" id="fgood">Good</button>
+      <button class="btn bad" type="button" id="fbad">Bad</button>
+      <button class="btn" type="button" id="fnote">Comment</button>
+    </div>
+    <div class="ctl">
+      <button class="btn big" type="button" id="mark">Start a stretch here</button>
+      <button class="btn big good" type="button" id="good" hidden>End here: Good</button>
+      <button class="btn big bad" type="button" id="bad" hidden>End here: Bad</button>
+      <button class="btn" type="button" id="cancel" hidden>Cancel</button>
+    </div>
+    <div class="ctl" id="note-row"><input class="note-in" id="note" type="text" maxlength="300" placeholder="Note (needed for Comment)"></div>
+    <div class="marks" id="marks"></div>
+    <div class="now" id="v-msg" aria-live="polite"></div>
+    <div class="row"><button class="btn" type="button" id="del">Delete this rehearsal</button></div>
+  </section>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
+<script src="account.js"></script>
+<script src="rehearse-review.js"></script>
+</body>
+</html>

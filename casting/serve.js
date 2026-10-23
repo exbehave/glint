@@ -38,7 +38,7 @@ const SV_POSES = [
   r => [[.2, -1.0 * r, -.4], [.95 * r, -.2, .4]],                      // one up and back, one out and forward
 ];
 const SV_FACES = [0, 0, Math.PI / 4, -Math.PI / 4, Math.PI / 2, -Math.PI / 2, Math.PI, 3 * Math.PI / 4, -3 * Math.PI / 4]; // front, 3/4s, profiles, back
-const SERVE = { key: "serve", name: "Serve", fade: .55,
+const SERVE = { key: "serve", name: "Serve classic", fade: .55,
   init: () => ({ hands: [svS3(), svS3()], ha: [svS0(), svS0()], fa: [svS0(), svS0()], feet: [svS3(), svS3()], hip: svS3(), bend: svS3(), nod: svS0(), yaw: svS0(), pos: { x: svS0(), z: svS0() }, pose: -1, poseT: 0, hat: [0, 0], hdir: [1, -1], ft: [0, 0], fl: [0, 0], trail: [[], []], freezes: [], prev: null, flare: {}, dCur: 1, dPrev: 1, dF: 1, sweep: 0, kickFoot: 0, cross: 0, crossT: 0, lastBeat: -1, duckArm: [[0, 0], [0, 0]], face: 0, tgt: [0, 0], moving: 0, yawT: 0, spin: -9, bendT: [0, 0, 0], nodT: 0, leanT: 0 }),
   shape: [
     { key: "dance", label: "Dance", min: 0, max: 2, def: 0, fmt: i => ["Mix it up", "Vogue", "Duck walk"][i], grp: "Dance" },

@@ -32,12 +32,18 @@ const TRACER = { key: "tracer", name: "Plain trail", fade: 1, init: () => ({ h: 
 const formOf = key => key === "tracer" ? TRACER : FORM[key];
 
 /* ---------- state ---------- */
-const lab = { mode: "reworks", idx: { reworks: 0, forms: 0, chars: 0, lenses: 0, traits: 0 }, partner: false, music: { reaction: 1, punch: 1, decay: 1 } };
+// Serve classic: Kennedy's saved Studio default for Serve (Oct 22, 2026; full copy with automations in serve-classic.json)
+const SERVE_CLASSIC = {"shape": {"nod": 0.69, "arch": 0.42, "body": 1, "echo": 0.35, "fdir": 0.25, "feel": 0.6666666666666666, "foot": 1, "glow": 1, "hand": 1, "head": 1, "hold": 0.714285714285714, "kick": 0.57, "lean": 1, "roam": 0.49, "size": 0, "sway": 1, "walk": 0.93, "bsnap": 1, "crest": 0.69, "dlean": 1, "kicks": 0.5, "knees": 0, "persp": 0.99, "prism": 1, "ratio": 0.75, "reach": 1, "spins": 0.58, "split": 1, "squat": 0, "sweep": 0.01, "turns": 0.53, "waist": 1, "width": 0.64, "ankles": 0.17, "armlag": 1, "armlen": 1, "bounce": 1, "elbows": 0, "flicks": 0, "flings": 1, "freeze": 0.03, "kreach": 1, "rubber": 1, "spread": 1, "stance": 0.03, "waistw": 0.56, "weight": 0.35, "wspeed": 0.41, "crosses": 0.42, "echolen": 1, "mixbars": 0.428571428571429, "outward": 1, "stretch": 1, "vbounce": 1, "armspeed": 1, "dropbars": 0.428571428571429, "dropduck": 1, "legspeed": 0.23, "loudduck": 0.19, "posebeat": 0, "headstyle": 0.75, "posespeed": 0.76, "turnspeed": 0.27}, "p": {"roam": 0, "size": 0.5, "chaos": 0.15, "grace": 0.7, "tempo": 0.45, "energy": 0.9, "social": 0.3, "trails": 0.5, "magnetism": 0}, "hue": 20, "hy": 0.5};
+// Servelet: Kennedy's bench settings, Oct 22, 2026 (also its Studio default)
+const SERVELET_DEF = {"shape": {"ankles": 0.37, "arch": 0.76, "armlag": 0.26, "armlen": 1, "armspeed": 0.73, "body": 1, "bounce": 0.72, "bsnap": 0.85, "crosses": 0.42, "dance": 0, "ddhold": 0.428571428571429, "ddrop": 1, "ddsens": 1, "defn": 0.48, "dlean": 1, "dropbars": 0.428571428571429, "dropduck": 0.34, "echo": 0.71, "echolen": 1, "egypt": 0.16, "elbows": 0, "fdir": 0.25, "feel": 0.6666666666666666, "flicks": 0, "flings": 0.98, "floor": 0.64, "foot": 1, "freeze": 0.16, "glow": 1, "hand": 1, "head": 1, "hold": 0.428571428571429, "kick": 1, "kicks": 0.5, "kneel": 0.55, "kneelbars": 0.333333333333333, "knees": 0, "kreach": 0.74, "lean": 1, "legspeed": 0.23, "loudduck": 0.58, "mixbars": 0.428571428571429, "muscle": 0.77, "nod": 0.97, "oglow": 1, "outward": 1, "over": 0.39, "persp": 0.99, "posebeat": 0, "posespeed": 0.45, "ratio": 0.5, "reach": 1, "roam": 0.49, "roll": 0.62, "rubber": 1, "settle": 0.72, "size": 0.31, "spins": 0.61, "spread": 1, "squat2": 0.51, "stance": 0.03, "stretch": 1, "sway": 0.6, "swish": 1, "turns": 0.48, "turnspeed": 0.27, "vbounce": 1, "waist": 1, "waistw": 0.97, "walk": 0.93, "weight": 0.24, "width": 0.27, "wild": 0.52, "wiper": 0.78, "wspeed": 0.65}, "p": {"roam": 0, "size": 0.5, "chaos": 0.05, "grace": 0.7, "tempo": 0.45, "energy": 0.9, "social": 0.3, "trails": 0.5, "magnetism": 0}};
+const lab = { mode: "dance", idx: { dance: 0, reworks: 0, forms: 0, chars: 0, lenses: 0, traits: 0 }, partner: false, music: { reaction: 1, punch: 1, decay: 1 } };
 const LENS_SCENES = ["cheshire", "lips", "storm", "graffiti", "synapse", "firework", "tornado2", "vine2"]; // reworks to look at through a lens
 const base = mk(1, 1), baseX = base.getContext("2d"); // the composed picture, before any lens
 const tweaks = {};     // per item, kept while you move around the list
 const reviews = {};    // saved feedback, from the store
-const itemsFor = m => m === "traits" ? NEW_TRAITS.map(r => ({ kind: "trait", key: r.form.key, name: r.form.name, desc: r.desc, r })) : m === "lenses" ? LENSES.map(l => ({ kind: "lens", key: l.key, name: l.name, desc: l.desc, l })) : m === "reworks" ? REWORKS.map(r => ({ kind: "rework", key: r.form.key, name: r.form.name, desc: r.desc, from: r.from, r })) : m === "forms" ? FORMS.map(f => ({ kind: "form", key: f.key, name: f.name })) : CHARS.map(c => ({ kind: "char", key: c.key, name: c.name, desc: c.desc }));
+const DANCER_KEYS = ["serve", "servelet"];
+const DANCERS = () => NEW_TRAITS.filter(r => DANCER_KEYS.includes(r.form.key)).sort((a, b) => DANCER_KEYS.indexOf(a.form.key) - DANCER_KEYS.indexOf(b.form.key)).map(r => ({ kind: "trait", key: r.form.key, name: r.form.name, desc: r.desc, r, classic: true }));
+const itemsFor = m => m === "dance" ? DANCERS() : m === "traits" ? NEW_TRAITS.filter(r => !DANCER_KEYS.includes(r.form.key)).map(r => ({ kind: "trait", key: r.form.key, name: r.form.name, desc: r.desc, r })) : m === "lenses" ? LENSES.map(l => ({ kind: "lens", key: l.key, name: l.name, desc: l.desc, l })) : m === "reworks" ? REWORKS.map(r => ({ kind: "rework", key: r.form.key, name: r.form.name, desc: r.desc, from: r.from, r })) : m === "forms" ? FORMS.map(f => ({ kind: "form", key: f.key, name: f.name })) : CHARS.map(c => ({ kind: "char", key: c.key, name: c.name, desc: c.desc }));
 const itemsForRaw = itemsFor;
 const itemsForShown = m => { const all = itemsForRaw(m), live = all.filter(it => !(reviews[it.kind + "-" + it.key] && reviews[it.kind + "-" + it.key].verdict === "cut")); return live.length ? live : all; };
 const cur = () => itemsForShown(lab.mode)[lab.idx[lab.mode]];
@@ -46,6 +52,7 @@ const docId = it => it.kind + "-" + it.key;
 function reworkTweak(r) { return { form: r.form.key, char: r.char, hue: r.hue, hy: r.hy, shape: {}, p: Object.assign({}, PDEF, r.p), o1: { wave: "sine", rate: .6, depth: .16 }, o2: { on: true, wave: "sine", rate: .9, depth: .14, phase: .25 } }; }
 function freshTweak(it) {
   if (it.kind === "lens") return { scene: "cheshire", op: .75, mode: it.l.mode, lk: {} };
+  if (it.classic) { const r = it.r, D = r.form.key === "servelet" ? SERVELET_DEF : SERVE_CLASSIC; return { form: r.form.key, char: r.char, hue: r.form.key === "serve" ? SERVE_CLASSIC.hue : r.hue, hy: SERVE_CLASSIC.hy, shape: Object.assign({}, D.shape), p: Object.assign({}, PDEF, D.p), o1: { wave: "sine", rate: .6, depth: .16 }, o2: { on: true, wave: "sine", rate: .9, depth: .14, phase: .25 } }; }
   if (it.kind === "rework" || it.kind === "trait") { const r = it.r; return { form: r.form.key, char: r.char, hue: r.hue, hy: r.hy, shape: {}, p: Object.assign({}, PDEF, r.p), o1: { wave: "sine", rate: .6, depth: .16 }, o2: { on: true, wave: "sine", rate: .9, depth: .14, phase: .25 } }; }
   if (it.kind === "form") { const f = FORM[it.key]; return { form: it.key, char: f.keepChar || f.char, hue: f.keepHue ?? 300, shape: {}, p: Object.assign({}, PDEF, COMMON, f.def || {}, f.keepP || {}), o1: { wave: "sine", rate: .6, depth: .16 }, o2: { on: true, wave: "sine", rate: .9, depth: .14, phase: .25 } }; }
   return { form: "tracer", char: it.key, hue: 190, shape: MOCAP_DEF[it.key] ? { length: .85 } : {}, mc: MOCAP_DEF[it.key] ? Object.assign({}, MOCAP_DEF[it.key]) : undefined, p: Object.assign({}, PDEF, COMMON, MOCAP_DEF[it.key] ? { roam: .4 } : {}), o1: { wave: "sine", rate: .6, depth: .16 }, o2: { on: true, wave: "sine", rate: .9, depth: .14, phase: .25 } };
@@ -316,6 +323,7 @@ function renderReview() {
   $("#load-saved").hidden = !rv.settings;
 }
 function renderAll() {
+  const arch = lab.mode !== "dance"; $("#tab-dance").setAttribute("aria-pressed", !arch); $("#tab-archive").setAttribute("aria-pressed", arch); $("#archive-row").hidden = !arch;
   $("#tab-lenses").setAttribute("aria-pressed", lab.mode === "lenses"); $("#tab-traits").setAttribute("aria-pressed", lab.mode === "traits"); $("#tab-reworks").setAttribute("aria-pressed", lab.mode === "reworks"); $("#tab-forms").setAttribute("aria-pressed", lab.mode === "forms"); $("#tab-chars").setAttribute("aria-pressed", lab.mode === "chars");
   const it = cur();
   $("#partner").checked = lab.partner;
@@ -327,12 +335,14 @@ function go(i) {
   const it = cur(); lab.partner = it.kind === "char" ? NEEDS_PARTNER.has(it.key) : (it.key === "lightning" || it.key === "cradle" ? lab.partner : false);
   restart(); renderAll(); remember();
 }
-function setMode(m) { lab.mode = m; go(lab.idx[m]); }
+function setMode(m) { lab.mode = m; if (m !== "dance") lab.archMode = m; go(lab.idx[m]); }
 function syncMusicUI(text) {
   $("#music-now").textContent = text;
   $("#m-demo").setAttribute("aria-pressed", au.mode === "demo"); $("#m-off").setAttribute("aria-pressed", au.mode === "none"); $("#m-file-l").setAttribute("aria-pressed", au.mode === "file");
 }
 
+$("#tab-dance").addEventListener("click", () => setMode("dance"));
+$("#tab-archive").addEventListener("click", () => setMode(lab.archMode || "traits"));
 $("#tab-forms").addEventListener("click", () => setMode("forms"));
 $("#tab-reworks").addEventListener("click", () => setMode("reworks"));
 $("#tab-chars").addEventListener("click", () => setMode("chars"));
@@ -400,7 +410,7 @@ $("#load-saved").addEventListener("click", () => {
 
 function remember() { dirty = false; pendingVerdict = null; try { localStorage.setItem("casting.pos2", JSON.stringify({ mode: lab.mode, idx: lab.idx, key: cur() ? docId(cur()) : null })); } catch (_) {} }
 
-try { const pos = JSON.parse(localStorage.getItem("casting.pos2") || "null"); if (pos && pos.idx) { lab.wantKey = pos.key || null; lab.mode = ["reworks", "forms", "chars", "lenses", "traits"].includes(pos.mode) ? pos.mode : "reworks"; lab.idx.lenses = clamp(pos.idx.lenses | 0, 0, LENSES.length - 1); lab.idx.traits = clamp(pos.idx.traits | 0, 0, NEW_TRAITS.length - 1); lab.idx.reworks = clamp(pos.idx.reworks | 0, 0, REWORKS.length - 1); lab.idx.forms = clamp(pos.idx.forms | 0, 0, FORMS.length - 1); lab.idx.chars = clamp(pos.idx.chars | 0, 0, CHARS.length - 1); } } catch (_) {}
+try { const pos = JSON.parse(localStorage.getItem("casting.pos2") || "null"); if (pos && pos.idx) { lab.wantKey = pos.key || null; lab.mode = ["dance", "reworks", "forms", "chars", "lenses", "traits"].includes(pos.mode) ? pos.mode : "dance"; if (lab.mode !== "dance") lab.archMode = lab.mode; lab.idx.lenses = clamp(pos.idx.lenses | 0, 0, LENSES.length - 1); lab.idx.traits = clamp(pos.idx.traits | 0, 0, NEW_TRAITS.length - 3); lab.idx.reworks = clamp(pos.idx.reworks | 0, 0, REWORKS.length - 1); lab.idx.forms = clamp(pos.idx.forms | 0, 0, FORMS.length - 1); lab.idx.chars = clamp(pos.idx.chars | 0, 0, CHARS.length - 1); } } catch (_) {}
 syncMusicUI("Silence · idle motion only");
 go(lab.idx[lab.mode]);
 resize(); requestAnimationFrame(frame);

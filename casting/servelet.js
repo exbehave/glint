@@ -227,7 +227,13 @@ const SERVELET = { key: "servelet", name: "Servelet", fade: .55, init: SERVE.ini
     // only a kicking foot lifts its toes a little. (Kennedy's first rehearsal: the feet looked hyperextended, i.e. on tiptoe.)
     { const fl = L("foot", .6, 1.6); J.heels = []; J.toes = [];
       ankles.forEach((a, i) => { const sd = i ? 1 : -1, kc = clamp(((a[3] || 1) - 1) / .9, 0, 1);
-        J.heels.push(proj(V3.add(a, [0, .016, -.022 * fl]))); J.toes.push(proj(V3.add(a, [sd * .014 * fl, .018 - .035 * kc, .072 * fl]))); }); }
+        let hl = V3.add(a, [0, .016, -.022 * fl]), tp = V3.add(a, [sd * .014 * fl, .018 - .035 * kc, .072 * fl]);
+        // a foot lifted well off the floor (the death drop's raised leg) follows its shin, toe softly pointed (Kennedy, Oct 23:
+        // the flat-floor foot lined up with the raised shin and vanished, leaving a stump)
+        const up = clamp((floor - a[1] - .05) / .08, 0, 1);
+        if (up > 0) { const d = V3.norm(V3.sub(a, knees[i])), pr = V3.add([0, -1, 0], d, d[1]), pn = V3.len(pr) > 1e-3 ? V3.norm(pr) : [0, 0, 1], f = V3.norm(V3.add(d, pn, .55));
+          const hl2 = V3.add(V3.add(a, pn, -.018), d, .006), tp2 = V3.add(a, f, .075 * fl); hl = V3.mix(hl, hl2, up); tp = V3.mix(tp, tp2, up); }
+        J.heels.push(proj(hl)); J.toes.push(proj(tp)); }); }
     const DPRg = (g.getTransform ? g.getTransform().a : 1) || 1, mus = k("muscle"), defn = k("defn"), oglow = k("oglow");
     const lwO = Math.max(1, U * .004) * L("weight", .6, 2.4); // outline width in CSS px at full size
     st.mk ||= { a: mk(8, 8), b: mk(8, 8), c: mk(8, 8) }; const MK = st.mk;

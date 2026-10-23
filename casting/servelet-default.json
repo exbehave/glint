@@ -216,11 +216,31 @@
  },
  "links": [
   {
-   "amt": 0.5,
-   "dst": "",
-   "src": "kick"
+   "src": "kick",
+   "dst": "flicks",
+   "amt": 0.25
+  },
+  {
+   "src": "bass",
+   "dst": "sway",
+   "amt": 0.3
+  },
+  {
+   "src": "mid",
+   "dst": "over",
+   "amt": 0.35
+  },
+  {
+   "src": "high",
+   "dst": "echo",
+   "amt": 0.3
+  },
+  {
+   "src": "loud",
+   "dst": "arch",
+   "amt": 0.25
   }
  ],
  "focus": 0.6,
- "saved": "Kennedy Studio default, Oct 23 2026 00:08 CT"
+ "saved": "Kennedy Studio default, Oct 23 2026 00:08 CT; links set Oct 23 01:15 (Kennedy said try them)"
 }

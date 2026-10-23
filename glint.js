@@ -59,6 +59,18 @@ const MOVES = ["anchored", "wander", "skater", "moth", "wallflower", "metronome"
 const KEY = "glint.v3";
 let state = null, sel = 0, seq = 0;
 /* my defaults: "Set as default" on a trait saves its current settings, and every new copy of that trait (and Reset) starts from them */
+/* Music links, curated per trait (Oct 23, 2026, Kennedy: body type and the like shouldn't follow the music, but flicks per beat should).
+   For a trait listed here only these settings can be linked; "-" before a key = louder pushes it toward its lowest choice (e.g. New pose
+   every: louder = more often). Stepped pickers are allowed here. Traits not listed keep the old rule (every plain 0–100% slider). */
+const LINKABLE = {
+  servelet: ["posespeed", "reach", "swish", "over", "-posebeat", "waist", "lean", "sway", "vbounce", "arch", "flicks", "wspeed", "armspeed", "elbows", "nod",
+    "squat2", "bounce", "bsnap", "kicks", "kick", "kreach", "dlean", "flings", "wiper", "legspeed", "ankles", "roam", "walk", "turns", "turnspeed", "spins",
+    "kneel", "echo", "echolen", "freeze", "spread", "glow", "weight", "oglow", "floor"],
+  serve: ["posespeed", "reach", "-posebeat", "waist", "lean", "sway", "vbounce", "arch", "flicks", "wspeed", "armspeed", "elbows", "nod",
+    "squat", "bounce", "bsnap", "kicks", "kick", "kreach", "dlean", "flings", "legspeed", "ankles", "roam", "walk", "turns", "turnspeed", "spins",
+    "echo", "echolen", "freeze", "prism", "split", "sweep", "spread", "glow", "weight"],
+};
+const linkInfo = form => { const L0 = LINKABLE[form]; if (!L0) return null; const keys = new Set(), inv = new Set(); L0.forEach(k => { if (k[0] === "-") { keys.add(k.slice(1)); inv.add(k.slice(1)); } else keys.add(k); }); return { keys, inv }; };
 const DEFK = "glint.defaults"; let myDefs = {}; try { myDefs = JSON.parse(localStorage.getItem(DEFK) || "{}") || {}; } catch (_) {}
 function newLayer(form) {
   const v = VIS[form], d = myDefs[form];
@@ -445,9 +457,9 @@ function frame(now) {
     lx.setTransform(DPR, 0, 0, DPR, 0, 0); lx.globalCompositeOperation = "lighter";
     const items = f.shape || [], shp = node.shape || {};
     // music links: each frequency band pushes the slider it's linked to toward its maximum
-    const mod = {}; (node.links || []).forEach(ln => { if (!ln.dst || !ln.amt) return; const v = { kick: V.kick, bass: V.bass, mid: V.mid, high: Math.max(V.treble, V.hat), loud: V.rms }[ln.src] || 0; mod[ln.dst] = (mod[ln.dst] || 0) + v * ln.amt * r; });
+    const mod = {}, LI = linkInfo(node.form); (node.links || []).forEach(ln => { if (!ln.dst || !ln.amt || (LI && !LI.keys.has(ln.dst))) return; const v = { kick: V.kick, bass: V.bass, mid: V.mid, high: Math.max(V.treble, V.hat), loud: V.rms }[ln.src] || 0; mod[ln.dst] = (mod[ln.dst] || 0) + v * ln.amt * r; });
     const av = rt.av || {};
-    const k = key => { const it = items.find(x => x.key === key), b = av["sh." + key] ?? (shp[key] != null ? shp[key] : (it && it.def != null ? it.def : .5)), md = mod[key]; return md ? b + (1 - b) * Math.min(1, md) : b; };
+    const k = key => { const it = items.find(x => x.key === key), b = av["sh." + key] ?? (shp[key] != null ? shp[key] : (it && it.def != null ? it.def : .5)), md = mod[key]; return md ? (LI && LI.inv.has(key) ? b * (1 - Math.min(1, md)) : b + (1 - b) * Math.min(1, md)) : b; };
     const L = (key, lo, hi) => lerp(lo, hi, k(key));
     const I = key => { const it = items.find(x => x.key === key) || {}; return Math.round(lerp(it.min ?? 0, it.max ?? 1, k(key))); };
     try { f.draw({ g: lx, n: rt, node, p: rt.p, st: rt.st, R: rt.R, S: S0 * (.5 + rt.p.size), W, H, dt, t: rt.tUse, beat: rt.beat, all, frame: shared, level: node.level, k, L, I }); } catch (err) { console.error(err); }
@@ -558,11 +570,11 @@ function renderLayer() {
     c1.append(slider("sh-" + sh.key, sh.label, "", 0, 1, steps ? 1 / steps : .01, v0, fmt, v => { l.shape[sh.key] = v; }, { l, key: "sh." + sh.key }));
   });
   // music links: pick what each part of the sound pushes
-  const targets = items.filter(sh => !sh.text && !sh.button && !isChoice(sh) && !(sh.min != null && sh.max != null && !(sh.min === 0 && sh.max === 1)));
+  const LI = linkInfo(l.form), targets = LI ? items.filter(sh => LI.keys.has(sh.key) && !sh.text && !sh.button) : items.filter(sh => !sh.text && !sh.button && !isChoice(sh) && !(sh.min != null && sh.max != null && !(sh.min === 0 && sh.max === 1)));
   if (targets.length) { if (!l.links) l.links = JSON.parse(JSON.stringify(f.links || []));
     const [gm, cm] = group("Music links", "what each sound pushes", openGrp[l.form + "Music links"] ?? false); gm.addEventListener("toggle", () => { openGrp[l.form + "Music links"] = gm.open; });
     LINK_SRC.forEach(([src, name]) => { let ln = l.links.find(x => x.src === src); const row = document.createElement("div"); row.className = "ctl";
-      row.innerHTML = `<div class="ctl-top"><label for="ln-${src}">${esc(name)}</label></div><select class="sel" id="ln-${src}">${['<option value="">Nothing</option>'].concat(targets.map(t2 => `<option value="${t2.key}"${ln && ln.dst === t2.key ? " selected" : ""}>${esc(t2.label)}</option>`)).join("")}</select>`;
+      row.innerHTML = `<div class="ctl-top"><label for="ln-${src}">${esc(name)}</label></div><select class="sel" id="ln-${src}">${['<option value="">Nothing</option>'].concat([...new Set(targets.map(t2 => t2.grp || ""))].map(gn => { const opts = targets.filter(t2 => (t2.grp || "") === gn).map(t2 => `<option value="${t2.key}"${ln && ln.dst === t2.key ? " selected" : ""}>${esc(t2.label)}${LI && LI.inv.has(t2.key) ? " (more often)" : ""}</option>`).join(""); return gn ? `<optgroup label="${esc(gn)}">${opts}</optgroup>` : opts; })).join("")}</select>`;
       row.querySelector("select").addEventListener("change", e => { if (!ln) { ln = { src, dst: "", amt: .5 }; l.links.push(ln); } ln.dst = e.target.value; save(); renderLayer(); });
       cm.append(row); if (ln && ln.dst) cm.append(slider("lna-" + src, "Amount", "", 0, 1, .01, ln.amt, pct, v => { ln.amt = v; })); });
     box.append(gm); }

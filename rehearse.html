@@ -33,9 +33,19 @@ body { padding-bottom: env(safe-area-inset-bottom, 0); }
 .player video, .player img { width: 100%; height: 100%; object-fit: contain; display: block; }
 .marking { position: absolute; left: 10px; top: 10px; font-family: var(--font-data); font-size: 11px; letter-spacing: .1em; color: var(--silver); background: rgba(0,0,0,.55); padding: 4px 8px; border-radius: 6px; }
 .tl { position: relative; height: 64px; border-radius: 8px; overflow: hidden; background: var(--well); border: 1px solid var(--line-hi); touch-action: none; cursor: pointer; }
-.tl .strip { position: absolute; inset: 0; display: flex; opacity: .55; }
-.tl .strip img { height: 100%; flex: 1 1 0; min-width: 0; object-fit: cover; }
-.tl .band { position: absolute; top: 0; bottom: 0; opacity: .38; border-left: 2px solid; border-right: 2px solid; }
+.tl, .tl * { -webkit-user-select: none; user-select: none; -webkit-user-drag: none; -webkit-touch-callout: none; }
+.tl .strip { position: absolute; inset: 0; opacity: .55; pointer-events: none; }
+.tl .strip img { position: absolute; top: 0; height: 100%; object-fit: cover; }
+.tl .ruler { position: absolute; left: 0; right: 0; bottom: 0; height: 14px; pointer-events: none; }
+.tl .ruler i { position: absolute; bottom: 0; width: 1px; height: 5px; background: var(--line-hi); }
+.tl .ruler i.big { height: 9px; background: var(--muted); }
+.tl .ruler b { position: absolute; bottom: 9px; font: 400 9.5px var(--font-data); color: var(--muted); transform: translateX(3px); }
+.tl .tick { position: absolute; top: 0; bottom: 0; width: 3px; margin-left: -1.5px; opacity: .9; }
+.tl .tick.good { background: var(--good); } .tl .tick.bad { background: var(--bad); } .tl .tick.note { background: var(--silver); }
+.tl.zoomed { cursor: grab; }
+.zoom { display: flex; gap: 6px; align-items: center; }
+.zoom output { font-family: var(--font-data); font-size: 12px; color: var(--muted); min-width: 40px; text-align: center; }
+.tl .band { position: absolute; pointer-events: none; top: 0; bottom: 0; opacity: .38; border-left: 2px solid; border-right: 2px solid; }
 .tl .band.good { background: var(--good); border-color: var(--good); } .tl .band.bad { background: var(--bad); border-color: var(--bad); }
 .tl .band.open { background: var(--silver); border-color: var(--silver); opacity: .25; }
 .tl .head { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--silver); box-shadow: 0 0 6px rgba(255,255,255,.6); pointer-events: none; }
@@ -48,7 +58,7 @@ body { padding-bottom: env(safe-area-inset-bottom, 0); }
 .mark-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
 .mark-row .when { font-family: var(--font-data); font-size: 12px; color: var(--muted); background: none; border: 0; padding: 0; text-align: left; }
 .mark-row .kind { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; }
-.mark-row .kind.good { color: var(--good); } .mark-row .kind.bad { color: var(--bad); }
+.mark-row .kind.good { color: var(--good); } .mark-row .kind.bad { color: var(--bad); } .mark-row .kind.note { color: var(--silver); }
 .mark-row .txt { color: var(--fg); overflow-wrap: anywhere; }
 .x { background: none; border: 0; color: var(--dim); font-size: 18px; line-height: 1; padding: 4px 6px; }
 .signin { display: grid; gap: 8px; max-width: 360px; }
@@ -78,21 +88,30 @@ body { padding-bottom: env(safe-area-inset-bottom, 0); }
   <section class="card" id="view" hidden>
     <h3><span id="v-name" style="color:var(--silver);text-transform:none;letter-spacing:.02em;font-size:13px"></span><button class="btn" type="button" id="v-back">All rehearsals</button></h3>
     <div class="player" id="player"><video id="video" playsinline preload="auto"></video><img id="still" alt="" hidden><div class="marking" id="marking" hidden>MARKING</div></div>
-    <div class="tl" id="tl" aria-label="Timeline: tap or drag to move"><div class="strip" id="strip"></div><div id="bands"></div><div class="head" id="head"></div></div>
+    <div class="tl" id="tl" aria-label="Timeline: drag to move, pinch to zoom"><div class="strip" id="strip"></div><div id="bands"></div><div class="ruler" id="ruler"></div><div class="head" id="head"></div></div>
     <div class="times"><span id="t-now">0:00</span><span id="t-src" class="desc"></span><span id="t-end">0:00</span></div>
     <div class="ctl">
       <button class="btn big" type="button" id="play">Play</button>
+      <button class="btn" type="button" id="prevf" aria-label="Back one frame">‹ frame</button>
+      <button class="btn" type="button" id="nextf" aria-label="Forward one frame">frame ›</button>
       <button class="btn" type="button" id="back5">−5 s</button>
       <button class="btn" type="button" id="fwd5">+5 s</button>
       <button class="btn" type="button" id="speed">1×</button>
+      <span class="zoom"><button class="btn" type="button" id="zout" aria-label="Zoom out">−</button><output id="zlvl">1×</output><button class="btn" type="button" id="zin" aria-label="Zoom in">+</button></span>
+    </div>
+    <div class="ctl" id="frame-row">
+      <span class="desc">This frame:</span>
+      <button class="btn good" type="button" id="fgood">Good</button>
+      <button class="btn bad" type="button" id="fbad">Bad</button>
+      <button class="btn" type="button" id="fnote">Comment</button>
     </div>
     <div class="ctl">
-      <button class="btn big" type="button" id="mark">Start a mark here</button>
+      <button class="btn big" type="button" id="mark">Start a stretch here</button>
       <button class="btn big good" type="button" id="good" hidden>End here: Good</button>
       <button class="btn big bad" type="button" id="bad" hidden>End here: Bad</button>
       <button class="btn" type="button" id="cancel" hidden>Cancel</button>
     </div>
-    <div class="ctl" id="note-row" hidden><input class="note-in" id="note" type="text" maxlength="300" placeholder="What made it good or bad? (optional)"><span class="desc">The note goes with the mark you end next.</span></div>
+    <div class="ctl" id="note-row"><input class="note-in" id="note" type="text" maxlength="300" placeholder="Note (optional for Good and Bad; needed for Comment)"></div>
     <div class="marks" id="marks"></div>
     <div class="now" id="v-msg" aria-live="polite"></div>
     <div class="row"><button class="btn" type="button" id="del">Delete this rehearsal</button></div>

@@ -36,7 +36,7 @@
     items.forEach(it => { const b = document.createElement("button"); b.type = "button"; b.className = "rec";
       const th = it.thumbs && it.thumbs.length ? it.thumbs[Math.min(it.thumbs.length - 1, 2)].img : it.thumb0 && it.thumb0.img ? it.thumb0.img : "";
       const g = (it.labels || []).filter(l => l.kind === "good").length, bd = (it.labels || []).filter(l => l.kind === "bad").length;
-      b.innerHTML = `${th ? `<img src="${esc(th)}" alt="">` : `<img alt="">`}<div><b>${esc(it.name)}</b><small>${fmt(it.duration)} · ${esc(it.device || "")}${it.local ? " · on this device" : ""}${it.cloud ? " · synced" : ""}</small></div><div class="tags">${g ? `<span class="tag g">${g} good</span>` : ""}${bd ? `<span class="tag b">${bd} bad</span>` : ""}${!g && !bd ? `<span class="tag">unlabeled</span>` : ""}</div>`;
+      b.innerHTML = `${th ? `<img src="${esc(th)}" alt="">` : `<img alt="">`}<div><b>${esc(it.name)}</b><small>${fmt(it.duration)} · ${esc(it.device || "")}${it.local ? " · on this device" : ""}${it.cloud ? " · synced" : ""}</small></div><div class="tags">${g ? `<span class="tag g">${g} good</span>` : ""}${bd ? `<span class="tag b">${bd} bad</span>` : ""}${(it.labels || []).some(l => l.kind === "note") ? `<span class="tag">${(it.labels || []).filter(l => l.kind === "note").length} comments</span>` : ""}${!(it.labels || []).length ? `<span class="tag">unlabeled</span>` : ""}</div>`;
       b.addEventListener("click", () => open(it)); list.append(b); });
   }
 
@@ -54,33 +54,62 @@
   v.addEventListener("ended", () => { $("#play").textContent = "Play"; }); v.addEventListener("pause", () => { $("#play").textContent = "Play"; }); v.addEventListener("play", () => { $("#play").textContent = "Pause"; });
   (function loop(t) { requestAnimationFrame(loop); if (!cur) return; if (!cur.hasVideo && clock.playing) { clock.t += (t - clock.last) / 1000 * speed; clock.last = t; if (clock.t >= dur()) { clock.t = dur(); setPlay(false); } showStill(); } draw(); })(performance.now());
 
-  // ---- timeline
-  const tl = $("#tl"); let dragging = false;
-  const tAt = e => { const r = tl.getBoundingClientRect(); return (Math.max(0, Math.min(r.width, e.clientX - r.left)) / r.width) * dur(); };
-  tl.addEventListener("pointerdown", e => { if (!cur) return; dragging = true; tl.setPointerCapture(e.pointerId); seek(tAt(e)); });
-  tl.addEventListener("pointermove", e => { if (dragging) seek(tAt(e)); }); tl.addEventListener("pointerup", () => { dragging = false; }); tl.addEventListener("pointercancel", () => { dragging = false; });
-  let open_ = null; // the mark being made: { a }
+  // ---- timeline: at 1× the whole recording fits and you tap or drag to a spot. Zoomed in (pinch, or − / +), it works
+  // like CapCut: the playhead stays in the middle and you drag the strip under it, so short moments are easy to land on.
+  const tl = $("#tl"), FPS = 30, ptrs = new Map(); let zoom = 1, drag = null, pinch = null, thumbsEl = [], bandKey = "";
+  const maxZoom = () => Math.max(1, dur() / 1.2); // at most ~1.2 s across the strip
+  const span = () => dur() / zoom, viewStart = () => zoom <= 1 ? 0 : now() - span() / 2;
+  const fmtP = s => { s = Math.max(0, s || 0); return `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, "0")}`; };
+  function setZoom(z) { zoom = Math.max(1, Math.min(maxZoom(), z)); $("#zlvl").textContent = (zoom < 10 ? zoom.toFixed(1).replace(/\.0$/, "") : Math.round(zoom)) + "×"; tl.classList.toggle("zoomed", zoom > 1); draw(); }
+  $("#zin").addEventListener("click", () => setZoom(zoom * 2)); $("#zout").addEventListener("click", () => setZoom(zoom / 2));
+  tl.addEventListener("dragstart", e => e.preventDefault());
+  tl.addEventListener("pointerdown", e => { if (!cur) return; e.preventDefault(); tl.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, e.clientX);
+    if (ptrs.size === 2) { const xs = [...ptrs.values()]; pinch = { d: Math.abs(xs[0] - xs[1]) || 1, z: zoom }; drag = null; return; }
+    if (playing()) setPlay(false);
+    const r = tl.getBoundingClientRect(); drag = { x: e.clientX, t: now(), w: r.width };
+    if (zoom <= 1) seek(((e.clientX - r.left) / r.width) * dur()); });
+  tl.addEventListener("pointermove", e => { if (!ptrs.has(e.pointerId)) return; ptrs.set(e.pointerId, e.clientX);
+    if (pinch && ptrs.size === 2) { const xs = [...ptrs.values()]; setZoom(pinch.z * (Math.abs(xs[0] - xs[1]) || 1) / pinch.d); return; }
+    if (!drag) return; if (zoom <= 1) { const r = tl.getBoundingClientRect(); seek(((e.clientX - r.left) / r.width) * dur()); }
+    else seek(drag.t - (e.clientX - drag.x) / drag.w * span()); });
+  const up = e => { ptrs.delete(e.pointerId); if (ptrs.size < 2) pinch = null; if (!ptrs.size) drag = null; };
+  tl.addEventListener("pointerup", up); tl.addEventListener("pointercancel", up);
+  tl.addEventListener("wheel", e => { if (!cur || !(e.ctrlKey || Math.abs(e.deltaY) > Math.abs(e.deltaX))) { if (cur && zoom > 1) { e.preventDefault(); seek(now() + e.deltaX / tl.clientWidth * span()); } return; } e.preventDefault(); setZoom(zoom * Math.exp(-e.deltaY * .01)); }, { passive: false });
+  const step = n => { setPlay(false); seek(Math.round(now() * FPS + n) / FPS); };
+  $("#prevf").addEventListener("click", () => step(-1)); $("#nextf").addEventListener("click", () => step(1));
+  let open_ = null; // the stretch being marked: { a }
+  function buildStrip() { const box = $("#strip"); box.innerHTML = ""; thumbsEl = (cur.thumbs || []).map((x, i, a) => { const im = document.createElement("img"); im.src = x.img; im.alt = ""; im.draggable = false; im.dataset.t = x.t; im.dataset.e = a[i + 1] ? a[i + 1].t : dur(); box.append(im); return im; }); }
   function draw() {
-    if (!cur) return; const d = dur() || 1, t = now(); $("#head").style.left = (t / d * 100) + "%"; $("#t-now").textContent = fmt(t); $("#t-end").textContent = fmt(d);
-    const bands = $("#bands"), want = JSON.stringify([cur.labels, open_ && open_.a, open_ ? Math.round(t * 10) : 0]); if (bands.dataset.k === want) return; bands.dataset.k = want; bands.innerHTML = "";
-    (cur.labels || []).forEach(l => { const e = document.createElement("div"); e.className = "band " + l.kind; e.style.left = (l.a / d * 100) + "%"; e.style.width = (Math.max(.002, (l.b - l.a) / d) * 100) + "%"; bands.append(e); });
-    if (open_) { const a = Math.min(open_.a, t), b = Math.max(open_.a, t), e = document.createElement("div"); e.className = "band open"; e.style.left = (a / d * 100) + "%"; e.style.width = (Math.max(.002, (b - a) / d) * 100) + "%"; bands.append(e); }
+    if (!cur) return; const d = dur() || 1, t = now(), sp = span(), v0 = viewStart(), X = x => ((x - v0) / sp * 100);
+    $("#head").style.left = (zoom > 1 ? 50 : t / d * 100) + "%"; $("#t-now").textContent = zoom > 1 ? fmtP(t) : fmt(t); $("#t-end").textContent = fmt(d);
+    thumbsEl.forEach(im => { const a = +im.dataset.t, b = +im.dataset.e; im.style.left = X(a) + "%"; im.style.width = Math.max(0, X(b) - X(a)) + "%"; });
+    // ruler: ticks at a spacing that suits the zoom
+    const steps = [.1, .2, .5, 1, 2, 5, 10, 15, 30, 60], st = steps.find(x => sp / x <= 12) || 120, rk = [Math.round(v0 * 100), Math.round(sp * 100)].join();
+    if ($("#ruler").dataset.k !== rk) { $("#ruler").dataset.k = rk; let h = ""; for (let x = Math.max(0, Math.ceil(v0 / st) * st); x <= Math.min(d, v0 + sp) + 1e-6; x += st) { const big = Math.abs(x / (st * 5) - Math.round(x / (st * 5))) < 1e-6; h += `<i class="${big ? "big" : ""}" style="left:${X(x)}%"></i>` + (big || sp / st <= 6 ? `<b style="left:${X(x)}%">${st < 1 ? fmtP(x) : fmt(x)}</b>` : ""); } $("#ruler").innerHTML = h; }
+    const bands = $("#bands"), k = JSON.stringify([cur.labels, open_ && open_.a]);
+    if (k !== bandKey) { bandKey = k; bands.innerHTML = "";
+      (cur.labels || []).forEach(l => { const e = document.createElement("div"); e.className = l.b > l.a ? "band " + l.kind : "tick " + l.kind; e.dataset.a = l.a; e.dataset.b = l.b; bands.append(e); });
+      if (open_) { const e = document.createElement("div"); e.className = "band open"; e.dataset.open = "1"; bands.append(e); } }
+    [...bands.children].forEach(e => { let a = +e.dataset.a, b = +e.dataset.b; if (e.dataset.open) { a = Math.min(open_.a, t); b = Math.max(open_.a, t); }
+      e.style.left = X(a) + "%"; if (b > a || e.dataset.open) e.style.width = Math.max(.15, X(b) - X(a)) + "%"; });
   }
 
-  // ---- marking
-  function markUI() { const on = !!open_; $("#mark").hidden = on; $("#good").hidden = !on; $("#bad").hidden = !on; $("#cancel").hidden = !on; $("#marking").hidden = !on; $("#note-row").hidden = !on; if (on) $("#marking").textContent = "MARKING FROM " + fmt(open_.a); }
+  // ---- marking: one frame (Good / Bad / Comment), or a stretch (start here … end here: Good / Bad)
+  function markUI() { const on = !!open_; $("#mark").hidden = on; $("#good").hidden = !on; $("#bad").hidden = !on; $("#cancel").hidden = !on; $("#marking").hidden = !on; $("#frame-row").hidden = on; if (on) $("#marking").textContent = "MARKING FROM " + fmtP(open_.a); }
+  const addLabel = l => { cur.labels = (cur.labels || []).concat([Object.assign({ note: $("#note").value.trim(), at: new Date().toISOString() }, l)]).sort((x, y) => x.a - y.a); $("#note").value = ""; renderMarks(); saveLabels(); };
   $("#mark").addEventListener("click", () => { open_ = { a: now() }; markUI(); });
-  $("#cancel").addEventListener("click", () => { open_ = null; $("#note").value = ""; markUI(); draw(); });
-  const finish = kind => { if (!open_) return; const t = now(), a = Math.min(open_.a, t), b = Math.max(open_.a, t);
-    cur.labels = (cur.labels || []).concat([{ a: +a.toFixed(2), b: +Math.max(b, a + .5).toFixed(2), kind, note: $("#note").value.trim(), at: new Date().toISOString() }]).sort((x, y) => x.a - y.a);
-    open_ = null; $("#note").value = ""; markUI(); renderMarks(); saveLabels(); };
+  $("#cancel").addEventListener("click", () => { open_ = null; markUI(); draw(); });
+  const finish = kind => { if (!open_) return; const t = now(), a = Math.min(open_.a, t), b = Math.max(open_.a, t); open_ = null; markUI();
+    addLabel({ a: +a.toFixed(3), b: +Math.max(b, a + 1 / FPS).toFixed(3), kind }); };
   $("#good").addEventListener("click", () => finish("good")); $("#bad").addEventListener("click", () => finish("bad"));
+  const frameMark = kind => { setPlay(false); if (kind === "note" && !$("#note").value.trim()) { $("#note").focus(); $("#v-msg").textContent = "Type your comment in the note box, then tap Comment."; return; } const t = +now().toFixed(3); addLabel({ a: t, b: t, kind }); };
+  $("#fgood").addEventListener("click", () => frameMark("good")); $("#fbad").addEventListener("click", () => frameMark("bad")); $("#fnote").addEventListener("click", () => frameMark("note"));
   function renderMarks() {
-    const box = $("#marks"); box.innerHTML = ""; draw();
-    if (!(cur.labels || []).length) { box.innerHTML = `<span class="desc">No marks yet. Play it, tap Start a mark here where a stretch begins, then End here: Good or Bad where it ends. Overlapping marks are fine.</span>`; return; }
-    cur.labels.forEach((l, i) => { const r = document.createElement("div"); r.className = "mark-row";
-      r.innerHTML = `<button class="when" type="button">${fmt(l.a)}–${fmt(l.b)}</button><div><span class="kind ${l.kind}">${l.kind}</span> <span class="txt">${esc(l.note)}</span></div><button class="x" type="button" aria-label="Remove this mark">×</button>`;
-      r.querySelector(".when").addEventListener("click", () => seek(l.a));
+    const box = $("#marks"); box.innerHTML = ""; bandKey = ""; draw();
+    if (!(cur.labels || []).length) { box.innerHTML = `<span class="desc">No marks yet. Pause on a moment and tap This frame: Good, Bad or Comment; or tap Start a stretch here, play or scrub to where it ends, and tap End here: Good or Bad. Pinch the timeline (or tap +) to zoom in; then drag it under the playhead to land on the exact frame.</span>`; return; }
+    cur.labels.forEach((l, i) => { const r = document.createElement("div"); r.className = "mark-row"; const frame = !(l.b > l.a);
+      r.innerHTML = `<button class="when" type="button">${frame ? fmtP(l.a) : fmtP(l.a) + "–" + fmtP(l.b)}</button><div><span class="kind ${l.kind}">${l.kind === "note" ? "comment" : l.kind}${frame ? " · frame" : ""}</span> <span class="txt">${esc(l.note)}</span></div><button class="x" type="button" aria-label="Remove this mark">×</button>`;
+      r.querySelector(".when").addEventListener("click", () => { setPlay(false); seek(l.a); });
       r.querySelector(".x").addEventListener("click", () => { if (!confirm("Remove this mark?")) return; cur.labels.splice(i, 1); renderMarks(); saveLabels(); });
       box.append(r); });
   }
@@ -107,7 +136,7 @@
       v.onloadedmetadata = () => { if (!isFinite(v.duration)) { v.currentTime = 1e7; v.ontimeupdate = () => { v.ontimeupdate = null; v.currentTime = 0; }; } }; }
     else { from = "thumbnails only (the video stayed on the device that recorded it)"; clock.t = 0; showStill(); }
     $("#t-src").textContent = from;
-    $("#strip").innerHTML = (cur.thumbs || []).filter((_, i, a) => a.length <= 24 || i % Math.ceil(a.length / 24) === 0).map(x => `<img src="${esc(x.img)}" alt="">`).join("");
+    buildStrip(); zoom = 1; setZoom(1);
     open_ = null; markUI(); renderMarks(); $("#v-msg").textContent = "";
   }
   $("#v-back").addEventListener("click", () => { setPlay(false); cur = null; $("#view").hidden = true; $("#pick").hidden = false; loadList(); });
@@ -115,7 +144,7 @@
     try { await DB.del("recs", cur.id); await DB.del("videos", cur.id); } catch (_) {}
     if (sb && user && admin && cur.cloud) { if (cur.video_path) await sb.storage.from("rehearsals").remove([cur.video_path]); await sb.from("glint_rehearsals").delete().eq("id", cur.id); }
     $("#v-back").click(); });
-  document.addEventListener("keydown", e => { if (!cur || e.target.closest("input")) return; if (e.code === "Space") { e.preventDefault(); setPlay(!playing()); } if (e.key === "ArrowLeft") seek(now() - 2); if (e.key === "ArrowRight") seek(now() + 2); });
+  document.addEventListener("keydown", e => { if (!cur || e.target.closest("input")) return; if (e.code === "Space") { e.preventDefault(); setPlay(!playing()); } if (e.key === "ArrowLeft") seek(now() - 2); if (e.key === "ArrowRight") seek(now() + 2); if (e.key === ",") step(-1); if (e.key === ".") step(1); });
 
   (async () => { await signedIn(); loadList(); })();
 })();

@@ -11,11 +11,12 @@ const SERVELET = { key: "servelet", name: "Servelet", fade: .55, init: SERVE.ini
     { key: "defn", label: "Definition lines", def: .55, grp: "Body" },
     { key: "head", label: "Head size", def: .45, grp: "Body" },
     { key: "hand", label: "Hand size", def: .5, grp: "Hands" },
+    { key: "settle", label: "Hand follow-through", def: 0, grp: "Hands" },
     { key: "weight", label: "Outline weight", def: .35, grp: "Look" },
     { key: "oglow", label: "Outline glow", def: .6, grp: "Look" },
     { key: "floor", label: "Floor glow", def: .7, grp: "Look" }],
   draw(E) {
-    const { g, n, R, S, st, dt, t, L, I, k } = E, loud = tLoud(R), gap0 = svBeat(E, st), ph0 = clamp(st.since / gap0, 0, 1), bn0 = st.beats || 0;
+    const { g, n, R, S, st, dt, t, L, I, k } = E, ST = Math.max(0, Math.min(1, k("settle"))), loud = tLoud(R), gap0 = svBeat(E, st), ph0 = clamp(st.since / gap0, 0, 1), bn0 = st.beats || 0;
     // tempo feel: the dancer counts its own beat — double time subdivides the song's beat, half/quarter time stretch it
     const mult = [.5, 1, 2, 4][I("feel")], gap = gap0 * mult, vpos = (bn0 + ph0) / mult, bn = Math.floor(vpos), ph = vpos - bn, newBeat = bn !== (st.vb ?? -1); st.vb = bn;
     const H0 = S * L("size", .34, 1.0), U = H0, lw0 = Math.max(1, H0 * .0045) * L("weight", .5, 2.2), hue = n.hue, spread = k("spread") * 90, glow = k("glow");
@@ -49,7 +50,7 @@ const SERVELET = { key: "servelet", name: "Servelet", fade: .55, init: SERVE.ini
     if (newBeat) { st.kickFoot = bn % 2; if (bn % every === 0) { let p = st.pose; while (p === st.pose) p = Math.floor(Math.random() * SV_POSES.length); st.pose = p; st.poseT = t; st.nodT = (Math.random() - .5) * .6 * k("nod") * 2; st.leanT = (Math.random() - .5) * .6 * k("lean") * 2; st.poseMirror = Math.random() < .5;
         st.bendT = [(Math.random() - .5) * .9, (Math.random() - .5) * .5, (Math.random() - .5) * 1.2]; // side bend, twist, forward bend
         if (Math.random() < k("crosses") * .6) { st.cross = Math.random() < .5 ? -1 : 1; st.crossT = t; } else if (Math.random() < .5) st.cross = 0; }
-      for (let i = 0; i < 2; i++) { const a = st.duckArm[i]; if (bn % 4 === 0 || a[3] == null) { a[3] = (Math.random() - .5) * .3; a[4] = (Math.random() - .5) * .3; } a[0] = a[3]; a[1] = a[4]; if (bn % 4 === i * 2 && Math.random() < k("flings") * 1.4) a[0] += .8 * (Math.random() > .5 ? 1 : .35); } }
+      for (let i = 0; i < 2; i++) { const a = st.duckArm[i]; if (ST < .5 || bn % 4 === 0 || a[3] == null) { a[3] = (Math.random() - .5) * .3; a[4] = (Math.random() - .5) * .3; } a[0] = a[3]; a[1] = a[4]; if (bn % 4 === i * 2 && Math.random() < k("flings") * 1.4) a[0] += .8 * (Math.random() > .5 ? 1 : .35); } }
     if (st.pose < 0) { st.pose = 0; st.nodT = 0; }
     // ---- flicks
     const fpb = [.25, .5, 1, 2, 3, 4][I("flicks")], fphase = Math.floor((bn + ph) * fpb);
@@ -58,7 +59,7 @@ const SERVELET = { key: "servelet", name: "Servelet", fade: .55, init: SERVE.ini
       // clock hands: each hand, on its own clock, picks a new position anywhere around the dial and sweeps there smoothly
       // (never a jittery wedge); the dial is centered on "away from the body", Egyptian style, and Hands point outward
       // decides how often it lands near that than anywhere else
-      for (let i = 0; i < 2; i++) { st.hcl ||= [0, 0]; if (st.poseT === t) st.hcl[i] = .85 / (3 * L("posespeed", .15, 1.6)); st.hcl[i] -= dt; if (st.hcl[i] <= 0) { const per = gap / Math.max(.25, fpb); st.hcl[i] = per * (.55 + .9 * Math.random()); const bias = k("outward"), spreadA = Math.PI * (1 - .85 * bias * bias); st.hat[i] = { abs: false, out: true, a: (Math.random() - .5) * 2 * spreadA * (Math.random() < .35 + .65 * (1 - bias) ? 1 : .35) }; } }
+      for (let i = 0; i < 2; i++) { st.hcl ||= [0, 0]; if (ST > .5 && st.poseT === t) st.hcl[i] = .85 / (3 * L("posespeed", .15, 1.6)); st.hcl[i] -= dt; if (st.hcl[i] <= 0) { const per = gap / Math.max(.25, fpb); st.hcl[i] = per * (.55 + .9 * Math.random()); const bias = k("outward"), spreadA = Math.PI * (1 - .85 * bias * bias); st.hat[i] = { abs: false, out: true, a: (Math.random() - .5) * 2 * spreadA * (Math.random() < .35 + .65 * (1 - bias) ? 1 : .35) }; } }
     } else
     for (let i = 0; i < 2; i++) if (fphase !== st.fl[i]) { st.fl[i] = fphase; st.hdir[i] = -st.hdir[i];
       if (fmode === 1) st.hat[i] = { abs: false, a: svAng((st.hat[i].a || 0) + (Math.random() - .5) * 2 * frange + (Math.random() < .3 ? Math.PI : 0)) };
@@ -68,7 +69,7 @@ const SERVELET = { key: "servelet", name: "Servelet", fade: .55, init: SERVE.ini
     for (let i = 0; i < 2; i++) if (typeof st.hat[i] !== "object") st.hat[i] = { abs: false, a: 0 };
     if (newBeat) for (let i = 0; i < 2; i++) if (st.kickFoot === i || Math.random() < .3) st.ft[i] = (Math.random() - .5) * 1.6 * k("ankles");
     const f0 = L("wspeed", .7, 7), K = Math.pow(TAU * f0, 2), zeta = L("rubber", .6, .05), C = 2 * zeta * Math.sqrt(K), Ka = Math.pow(TAU * f0 * .9, 2), Ca = 2 * Math.max(.12, zeta * 1.3) * Math.sqrt(Ka);
-    const fArm = L("armspeed", .5, 5), Karm = Math.pow(TAU * fArm, 2) * lerp(1, .3, k("armlag")), Carm = 2 * .95 * Math.sqrt(Karm), fLeg = L("legspeed", .6, 6), Kleg = Math.pow(TAU * fLeg, 2), Cleg = 2 * .8 * Math.sqrt(Kleg);
+    const fArm = L("armspeed", .5, 5), Karm = Math.pow(TAU * fArm, 2) * lerp(1, lerp(1, .3, k("armlag")), ST), Carm = 2 * lerp(L("armlag", .9, .18), .95, ST) * Math.sqrt(Karm), fLeg = L("legspeed", .6, 6), Kleg = Math.pow(TAU * fLeg, 2), Cleg = 2 * .8 * Math.sqrt(Kleg);
     // ---- the skeleton in local space (figure units; x right, y down from the top of the head, z toward the room)
     const kpb = [.5, 1, 2][I("kicks")], bounce = svPop((bn + ph) * kpb, k("bsnap")) * L("bounce", .02, .16) * (.7 + .3 * Math.min(1, R.energy)) * (1 + .4 * R.kick), vb = svPop(ph, .4) * L("vbounce", 0, .05) * (.7 + .3 * loud);
     const legL = L("leglen", .36, .56), thigh = legL / 2, shin = legL / 2, floor = .46 + legL, squatY = lerp(.46 + (legL - .46), lerp(floor - .24, floor - .07, k("squat")), duck), sway = Math.sin(t * Math.PI / gap * .5) * L("sway", 0, .06) * (1 - duck) * (.5 + loud);
@@ -95,11 +96,11 @@ const SERVELET = { key: "servelet", name: "Servelet", fade: .55, init: SERVE.ini
     // arms
     const ua = armL * .51, fa = armL * .49, reach = L("reach", .5, 1.0) * (.8 + .3 * loud) * (1 + .15 * R.kick), pose = SV_POSES[st.pose](reach), handT = [];
     for (let i = 0; i < 2; i++) { const sd = i ? 1 : -1, sh = i ? shR : shL, pv = pose[st.poseMirror ? 1 - i : i], vog = V3.add(sh, [sd * pv[0] * (ua + fa), pv[1] * (ua + fa), pv[2] * (ua + fa)]);
-      const da = st.duckArm[i], dk = V3.add(sh, [sd * (.16 + da[0]) * (ua + fa) * .95, (.05 + da[1]) * (ua + fa) + bounce * .5, .12]);
+      const da = st.duckArm[i], dk = V3.add(sh, [sd * (.16 + da[0]) * (ua + fa) * .95, (.05 + da[1]) * (ua + fa) + lerp(.05 * Math.sin(t * TAU / gap * 2 + i), bounce * .5, ST), .12]);
       handT.push(V3.mix(vog, dk, duck)); }
     { const ps = L("posespeed", .15, 1.6); for (let i = 0; i < 2; i++) { const prevT = st.handPrev ? st.handPrev[i] : handT[i], u = Math.min(1, (t - st.poseT) * 3 * ps); if (!st.handFrom) st.handFrom = handT.map(h => h.slice()); if (st.poseT === t) st.handFrom[i] = prevT; handT[i] = V3.mix(st.handFrom[i], handT[i], svEaseIO(u)); } st.handPrev = handT.map(h => h.slice()); }
     // the hands chase their targets on a lagging spring, then are held within arm's length of the shoulder (no stretching off the body)
-    const wrists = handT.map((h, i) => { const sh = i ? shR : shL, KK = lerp(Karm, K, k("rubber") * .35), CC = 2 * .95 * Math.sqrt(KK); svSpr3(st.hands[i], h, KK, CC, dt); let w = svP(st.hands[i]); const d = V3.sub(w, sh), dl = V3.len(d); if (dl > ua + fa - .005) { w = V3.add(sh, d, (ua + fa - .005) / dl); st.hands[i].x.p = w[0]; st.hands[i].y.p = w[1]; st.hands[i].z.p = w[2]; } return w; });
+    const wrists = handT.map((h, i) => { const sh = i ? shR : shL, KK = lerp(Karm, K, k("rubber") * .35), CC = lerp(lerp(Carm, C, k("rubber") * .35), 2 * .95 * Math.sqrt(KK), ST); svSpr3(st.hands[i], h, KK, CC, dt); let w = svP(st.hands[i]); const d = V3.sub(w, sh), dl = V3.len(d); if (dl > ua + fa - .005) { w = V3.add(sh, d, (ua + fa - .005) / dl); st.hands[i].x.p = w[0]; st.hands[i].y.p = w[1]; st.hands[i].z.p = w[2]; } return w; });
     const eo = L("elbows", 0, 1), elbows = wrists.map((w, i) => svIK(i ? shR : shL, w, ua, fa, [(i ? 1 : -1) * (.1 + .9 * eo), .5 - .4 * eo, -.3 - .5 * eo]));
     // ---- world space: turn by yaw, move to the spot on the stage; then project with perspective
     const f = L("persp", 7, 2.2), px = st.pos.x.p, pz = st.pos.z.p;
@@ -107,7 +108,7 @@ const SERVELET = { key: "servelet", name: "Servelet", fade: .55, init: SERVE.ini
     const J = { head: proj(head), neck: proj(neck), shL: proj(shL), shR: proj(shR), chest: proj(chest), waist: proj(waist), hipL: proj(hipL), hipR: proj(hipR), hipC: proj(hipC), waistL: proj(waistL), waistR: proj(waistR), elbows: elbows.map(proj), wrists: wrists.map(proj), knees: knees.map(proj), ankles: ankles.map(a => { const q = proj(a); q.push(a[3]); return q; }), nose: proj(V3.add(head, [0, .01, .055])) };
     // hand and foot angles ride their own springs (the flick), in the screen plane
     const hAng = [], fAng = [];
-    for (let i = 0; i < 2; i++) { const fdir = Math.atan2(J.wrists[i][1] - J.elbows[i][1], J.wrists[i][0] - J.elbows[i][0]), s = st.ha[i]; s.p = fdir + svAng(s.p - fdir); const sh2 = i ? J.shR : J.shL, odir = Math.atan2(J.wrists[i][1] - sh2[1], J.wrists[i][0] - sh2[0]), ht = st.hat[i].abs ? st.hat[i].a : (st.hat[i].out ? odir : fdir) + st.hat[i].a; const pw = st.prev && st.prev["w" + i], spd = pw ? Math.hypot(J.wrists[i][0] - pw[0], J.wrists[i][1] - pw[1]) / Math.max(dt, 1e-3) / U : 0; let hT = ht; if (pw && spd > .25) { const trail = Math.atan2(pw[1] - J.wrists[i][1], pw[0] - J.wrists[i][0]); hT += svAng(trail - hT) * Math.min(.75, (spd - .25) * .5); } s.p = hT + svAng(s.p - hT); svSpr(s, hT, K * (st.hat[i].out ? .6 : 1.4), 2 * .45 * Math.sqrt(K * (st.hat[i].out ? .6 : 1.4)), dt); hAng.push(s);
+    for (let i = 0; i < 2; i++) { const fdir = Math.atan2(J.wrists[i][1] - J.elbows[i][1], J.wrists[i][0] - J.elbows[i][0]), s = st.ha[i]; s.p = fdir + svAng(s.p - fdir); const sh2 = i ? J.shR : J.shL, odir = Math.atan2(J.wrists[i][1] - sh2[1], J.wrists[i][0] - sh2[0]), ht = st.hat[i].abs ? st.hat[i].a : (st.hat[i].out ? odir : fdir) + st.hat[i].a; const pw = st.prev && st.prev["w" + i], spd = pw ? Math.hypot(J.wrists[i][0] - pw[0], J.wrists[i][1] - pw[1]) / Math.max(dt, 1e-3) / U : 0; let hT = ht; if (ST > 0 && pw && spd > .25) { const trail = Math.atan2(pw[1] - J.wrists[i][1], pw[0] - J.wrists[i][0]); hT += svAng(trail - hT) * Math.min(.75, (spd - .25) * .5) * ST; } s.p = hT + svAng(s.p - hT); svSpr(s, hT, K * (st.hat[i].out ? .6 : 1.4), lerp(st.hat[i].out ? 2 * Math.max(.45, zeta) * Math.sqrt(K * .6) : C * .8, 2 * .45 * Math.sqrt(K * (st.hat[i].out ? .6 : 1.4)), ST), dt); hAng.push(s);
       const sdir = Math.atan2(J.ankles[i][1] - J.knees[i][1], J.ankles[i][0] - J.knees[i][0]), a = st.fa[i]; a.p = sdir + svAng(a.p - sdir); svSpr(a, sdir + st.ft[i] + (i ? 1 : -1) * lerp(-.1, .3, duck) * .5 * Math.cos(yaw), Ka, Ca, dt); fAng.push(a); }
     // velocities → flare
     const prev = st.prev, vel = (key, p) => prev && prev[key] ? Math.hypot(p[0] - prev[key][0], p[1] - prev[key][1]) / Math.max(dt, 1e-3) / U : 0;

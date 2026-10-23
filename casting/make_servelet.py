@@ -3,27 +3,32 @@ between 'draw(E) {' and '// ---- drawing:') plus Servelet's own drawing in casti
 Run from the repo root: python3 casting/make_servelet.py"""
 # Servelet's own motion changes, applied to the copied motion (Kennedy's first rehearsal, Oct 22, 2026: "the hands jerk back and
 # forth instead of following through to new poses"; in the duck walk "the hands are giving puppet master, up and down, back and forth").
+# Servelet's own motion changes, applied to the copied motion. Round 2 (Oct 22, 22:12) fixed Kennedy's "hands jerk back and
+# forth" / "puppet master" notes but made the dance boring (Kennedy, 22:30: "it's not really posing like it was before"), so every
+# hand change now rides the "Hand follow-through" slider (key settle): 0 = exactly Serve classic's hands (the default),
+# 1 = round 2 in full. ST = clamp(k("settle")) is defined at the top of the motion.
 MOTION_PATCHES = [
-  # arm lag used to lower the damping (Arm lag maxed = zeta .18, so the hands bounced back and forth past every target).
-  # Now lag means a softer, slower spring that still settles without bouncing.
+  ('const { g, n, R, S, st, dt, t, L, I, k } = E,',
+   'const { g, n, R, S, st, dt, t, L, I, k } = E, ST = Math.max(0, Math.min(1, k("settle"))),'),
+  # arm lag lowered the damping (lag maxed = zeta .18, so hands bounced past every target); with follow-through up, lag
+  # softens the spring instead and the damping rises toward .95
   ('fArm = L("armspeed", .5, 5), Karm = Math.pow(TAU * fArm, 2), Carm = 2 * L("armlag", .9, .18) * Math.sqrt(Karm)',
-   'fArm = L("armspeed", .5, 5), Karm = Math.pow(TAU * fArm, 2) * lerp(1, .3, k("armlag")), Carm = 2 * .95 * Math.sqrt(Karm)'),
+   'fArm = L("armspeed", .5, 5), Karm = Math.pow(TAU * fArm, 2) * lerp(1, lerp(1, .3, k("armlag")), ST), Carm = 2 * lerp(L("armlag", .9, .18), .95, ST) * Math.sqrt(Karm)'),
   ('KK = lerp(Karm, K, k("rubber") * .35), CC = lerp(Carm, C, k("rubber") * .35)',
-   'KK = lerp(Karm, K, k("rubber") * .35), CC = 2 * .95 * Math.sqrt(KK)'),
-  # duck walk arms: new targets once a bar (not every beat), flings still on their beat; no fast up-and-down wobble,
-  # the arms just ride the body's bounce
+   'KK = lerp(Karm, K, k("rubber") * .35), CC = lerp(lerp(Carm, C, k("rubber") * .35), 2 * .95 * Math.sqrt(KK), ST)'),
+  # duck walk arms: with follow-through past halfway, new targets once a bar instead of every beat; the fast wobble fades into the body bounce
   ('for (let i = 0; i < 2; i++) { const a = st.duckArm[i]; a[0] = (Math.random() - .5) * .3; a[1] = (Math.random() - .5) * .3; if (bn % 4 === i * 2 && Math.random() < k("flings") * 1.4) a[0] += .8 * (Math.random() > .5 ? 1 : .35); }',
-   'for (let i = 0; i < 2; i++) { const a = st.duckArm[i]; if (bn % 4 === 0 || a[3] == null) { a[3] = (Math.random() - .5) * .3; a[4] = (Math.random() - .5) * .3; } a[0] = a[3]; a[1] = a[4]; if (bn % 4 === i * 2 && Math.random() < k("flings") * 1.4) a[0] += .8 * (Math.random() > .5 ? 1 : .35); }'),
+   'for (let i = 0; i < 2; i++) { const a = st.duckArm[i]; if (ST < .5 || bn % 4 === 0 || a[3] == null) { a[3] = (Math.random() - .5) * .3; a[4] = (Math.random() - .5) * .3; } a[0] = a[3]; a[1] = a[4]; if (bn % 4 === i * 2 && Math.random() < k("flings") * 1.4) a[0] += .8 * (Math.random() > .5 ? 1 : .35); }'),
   ('(.05 + da[1]) * (ua + fa) + .05 * Math.sin(t * TAU / gap * 2 + i), .12]',
-   '(.05 + da[1]) * (ua + fa) + bounce * .5, .12]'),
-  # follow-through: a hand's next angle is picked as the arm arrives at a new pose, so the wrist lands with one flick
+   '(.05 + da[1]) * (ua + fa) + lerp(.05 * Math.sin(t * TAU / gap * 2 + i), bounce * .5, ST), .12]'),
+  # a hand's next angle is picked as the arm arrives at a new pose (follow-through past halfway)
   ('st.hcl ||= [0, 0]; st.hcl[i] -= dt;',
-   'st.hcl ||= [0, 0]; if (st.poseT === t) st.hcl[i] = .85 / (3 * L("posespeed", .15, 1.6)); st.hcl[i] -= dt;'),
-  # while the hand travels, the wrist trails behind the motion (it "breaks" back), then flicks to its pose angle on arrival
+   'st.hcl ||= [0, 0]; if (ST > .5 && st.poseT === t) st.hcl[i] = .85 / (3 * L("posespeed", .15, 1.6)); st.hcl[i] -= dt;'),
+  # while the hand travels the wrist trails behind, then flicks into place; strength follows the slider
   ('s.p = ht + svAng(s.p - ht); svSpr(s, ht,',
-   'const pw = st.prev && st.prev["w" + i], spd = pw ? Math.hypot(J.wrists[i][0] - pw[0], J.wrists[i][1] - pw[1]) / Math.max(dt, 1e-3) / U : 0; let hT = ht; if (pw && spd > .25) { const trail = Math.atan2(pw[1] - J.wrists[i][1], pw[0] - J.wrists[i][0]); hT += svAng(trail - hT) * Math.min(.75, (spd - .25) * .5); } s.p = hT + svAng(s.p - hT); svSpr(s, hT,'),
+   'const pw = st.prev && st.prev["w" + i], spd = pw ? Math.hypot(J.wrists[i][0] - pw[0], J.wrists[i][1] - pw[1]) / Math.max(dt, 1e-3) / U : 0; let hT = ht; if (ST > 0 && pw && spd > .25) { const trail = Math.atan2(pw[1] - J.wrists[i][1], pw[0] - J.wrists[i][0]); hT += svAng(trail - hT) * Math.min(.75, (spd - .25) * .5) * ST; } s.p = hT + svAng(s.p - hT); svSpr(s, hT,'),
   ('K * (st.hat[i].out ? .6 : 1.4), st.hat[i].out ? 2 * Math.max(.45, zeta) * Math.sqrt(K * .6) : C * .8, dt)',
-   'K * (st.hat[i].out ? .6 : 1.4), 2 * .45 * Math.sqrt(K * (st.hat[i].out ? .6 : 1.4)), dt)'),
+   'K * (st.hat[i].out ? .6 : 1.4), lerp(st.hat[i].out ? 2 * Math.max(.45, zeta) * Math.sqrt(K * .6) : C * .8, 2 * .45 * Math.sqrt(K * (st.hat[i].out ? .6 : 1.4)), ST), dt)'),
 ]
 src = open("engine/serve.js").read()
 a = src.index("  draw(E) {\n") + len("  draw(E) {\n")
@@ -46,6 +51,7 @@ const SERVELET = { key: "servelet", name: "Servelet", fade: .55, init: SERVE.ini
     { key: "defn", label: "Definition lines", def: .55, grp: "Body" },
     { key: "head", label: "Head size", def: .45, grp: "Body" },
     { key: "hand", label: "Hand size", def: .5, grp: "Hands" },
+    { key: "settle", label: "Hand follow-through", def: 0, grp: "Hands" },
     { key: "weight", label: "Outline weight", def: .35, grp: "Look" },
     { key: "oglow", label: "Outline glow", def: .6, grp: "Look" },
     { key: "floor", label: "Floor glow", def: .7, grp: "Look" }],

@@ -59,7 +59,7 @@
   const tl = $("#tl"), FPS = 30, ptrs = new Map(); let zoom = 1, drag = null, pinch = null, thumbsEl = [], bandKey = "";
   const maxZoom = () => Math.max(1, dur() / 1.2); // at most ~1.2 s across the strip
   const span = () => dur() / zoom, viewStart = () => zoom <= 1 ? 0 : now() - span() / 2;
-  const fmtP = s => { s = Math.max(0, s || 0); return `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, "0")}`; };
+  const fmtP = s => { s = Math.max(0, s || 0); return `${Math.floor(s / 60)}:${(s % 60).toFixed(2).padStart(5, "0")}`; };
   function setZoom(z) { zoom = Math.max(1, Math.min(maxZoom(), z)); $("#zlvl").textContent = (zoom < 10 ? zoom.toFixed(1).replace(/\.0$/, "") : Math.round(zoom)) + "×"; tl.classList.toggle("zoomed", zoom > 1); draw(); }
   $("#zin").addEventListener("click", () => setZoom(zoom * 2)); $("#zout").addEventListener("click", () => setZoom(zoom / 2));
   tl.addEventListener("dragstart", e => e.preventDefault());

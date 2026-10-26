@@ -41,7 +41,7 @@ const LENS_SCENES = ["cheshire", "lips", "storm", "graffiti", "synapse", "firewo
 const base = mk(1, 1), baseX = base.getContext("2d"); // the composed picture, before any lens
 const tweaks = {};     // per item, kept while you move around the list
 const reviews = {};    // saved feedback, from the store
-const DANCER_KEYS = ["serve", "servelet"];
+const DANCER_KEYS = ["serve", "servelet", "skatelet"];
 const DANCERS = () => NEW_TRAITS.filter(r => DANCER_KEYS.includes(r.form.key)).sort((a, b) => DANCER_KEYS.indexOf(a.form.key) - DANCER_KEYS.indexOf(b.form.key)).map(r => ({ kind: "trait", key: r.form.key, name: r.form.name, desc: r.desc, r, classic: true }));
 const itemsFor = m => m === "dance" ? DANCERS() : m === "traits" ? NEW_TRAITS.filter(r => !DANCER_KEYS.includes(r.form.key)).map(r => ({ kind: "trait", key: r.form.key, name: r.form.name, desc: r.desc, r })) : m === "lenses" ? LENSES.map(l => ({ kind: "lens", key: l.key, name: l.name, desc: l.desc, l })) : m === "reworks" ? REWORKS.map(r => ({ kind: "rework", key: r.form.key, name: r.form.name, desc: r.desc, from: r.from, r })) : m === "forms" ? FORMS.map(f => ({ kind: "form", key: f.key, name: f.name })) : CHARS.map(c => ({ kind: "char", key: c.key, name: c.name, desc: c.desc }));
 const itemsForRaw = itemsFor;
@@ -52,7 +52,7 @@ const docId = it => it.kind + "-" + it.key;
 function reworkTweak(r) { return { form: r.form.key, char: r.char, hue: r.hue, hy: r.hy, shape: {}, p: Object.assign({}, PDEF, r.p), o1: { wave: "sine", rate: .6, depth: .16 }, o2: { on: true, wave: "sine", rate: .9, depth: .14, phase: .25 } }; }
 function freshTweak(it) {
   if (it.kind === "lens") return { scene: "cheshire", op: .75, mode: it.l.mode, lk: {} };
-  if (it.classic) { const r = it.r, D = r.form.key === "servelet" ? SERVELET_DEF : SERVE_CLASSIC; return { form: r.form.key, char: r.char, hue: r.form.key === "serve" ? SERVE_CLASSIC.hue : r.hue, hy: SERVE_CLASSIC.hy, shape: Object.assign({}, D.shape), p: Object.assign({}, PDEF, D.p), o1: { wave: "sine", rate: .6, depth: .16 }, o2: { on: true, wave: "sine", rate: .9, depth: .14, phase: .25 } }; }
+  if (it.classic) { const r = it.r, D = r.form.key === "servelet" || r.form.key === "skatelet" ? SERVELET_DEF : SERVE_CLASSIC; return { form: r.form.key, char: r.char, hue: r.form.key === "serve" ? SERVE_CLASSIC.hue : r.hue, hy: SERVE_CLASSIC.hy, shape: Object.assign({}, D.shape), p: Object.assign({}, PDEF, D.p), o1: { wave: "sine", rate: .6, depth: .16 }, o2: { on: true, wave: "sine", rate: .9, depth: .14, phase: .25 } }; }
   if (it.kind === "rework" || it.kind === "trait") { const r = it.r; return { form: r.form.key, char: r.char, hue: r.hue, hy: r.hy, shape: {}, p: Object.assign({}, PDEF, r.p), o1: { wave: "sine", rate: .6, depth: .16 }, o2: { on: true, wave: "sine", rate: .9, depth: .14, phase: .25 } }; }
   if (it.kind === "form") { const f = FORM[it.key]; return { form: it.key, char: f.keepChar || f.char, hue: f.keepHue ?? 300, shape: {}, p: Object.assign({}, PDEF, COMMON, f.def || {}, f.keepP || {}), o1: { wave: "sine", rate: .6, depth: .16 }, o2: { on: true, wave: "sine", rate: .9, depth: .14, phase: .25 } }; }
   return { form: "tracer", char: it.key, hue: 190, shape: MOCAP_DEF[it.key] ? { length: .85 } : {}, mc: MOCAP_DEF[it.key] ? Object.assign({}, MOCAP_DEF[it.key]) : undefined, p: Object.assign({}, PDEF, COMMON, MOCAP_DEF[it.key] ? { roam: .4 } : {}), o1: { wave: "sine", rate: .6, depth: .16 }, o2: { on: true, wave: "sine", rate: .9, depth: .14, phase: .25 } };

@@ -17,7 +17,7 @@
       handL: +hs(0).toFixed(2), handR: +hs(1).toFixed(2), wristL: +ha(0).toFixed(1), wristR: +ha(1).toFixed(1), bendSide: +(st.bend ? st.bend.x.p : 0).toFixed(2), bendTwist: +(st.bend ? st.bend.y.p : 0).toFixed(2), bendFwd: +(st.bend ? st.bend.z.p : 0).toFixed(2), x: +(st.pos ? st.pos.x.p : 0).toFixed(2), z: +(st.pos ? st.pos.z.p : 0).toFixed(2), spinning: st.spin != null && (gtime - st.spin) < 1 ? 1 : 0, armsInFront: st.armSep ? (st.armSep[0] ? 1 : 0) + (st.armSep[1] ? 2 : 0) : 0, kneel: st.kn && st.kn.on ? 1 : 0, ddrop: st.dd ? 1 : 0, trans: st.tt || "", feel: st.fIdx ?? -1, quiet: st.tfQ ? 1 : 0,
       // where each joint was on screen (0–1 across and down the stage = the video frame), so a drawing on a frame can be tied to a body part
       j: st.prev ? Object.fromEntries(Object.entries(st.prev).map(([k, q]) => [k, [+(q[0] / W).toFixed(3), +(q[1] / H).toFixed(3)]])) : null }; };
-  ["serve", "servelet"].forEach(k => { if (FORM[k]) FORM[k].probe = svProbe; });
+  ["serve", "servelet", "skatelet"].forEach(k => { if (FORM[k]) FORM[k].probe = svProbe; });
 
   // ---- local store (IndexedDB): recordings live here until (and after) they upload
   const DB = { db: null, open() { return this.db || (this.db = new Promise((res, rej) => { const r = indexedDB.open("glint-rehearsals", 1); r.onupgradeneeded = () => { r.result.createObjectStore("recs", { keyPath: "id" }); r.result.createObjectStore("videos"); }; r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); })); },

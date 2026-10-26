@@ -4,27 +4,31 @@ Skatelet (Oct 25, 2026, Kennedy's request and name): a figure skater on Servelet
   drawing = Servelet's body drawing, sliced verbatim from engine/servelet.js (run make_servelet.py first), plus DRAW_PATCHES
 Servelet stays untouched. Run from the repo root: python3 casting/make_skatelet.py"""
 
-SETS = r'''// Skatelet's positions (Oct 25, 2026), read from Kennedy's reference clip (a layback spin into a Biellmann) with a pose tracker.
-// Each: spin (0 = gliding, 1 = full spin speed), lay (upper back arched back, radians-ish; < 0 leans forward), low (the whole
-// torso tipped from the hips, < 0 = forward: the Biellmann tips forward while the upper back arches), side (side lean),
-// bend (skating knee), leg (free ankle from its hip, in leg lengths: x out, y down, z toward the room), pole (which way that knee
-// points), arms ([left, right], from each shoulder in arm lengths: x outward, y down, z toward the room; they turn with the torso),
+SETS = r'''// Skatelet's positions (round 2, Oct 25, 2026), from Kennedy's reference clip (a layback spin into a Biellmann).
+// Each: spin (0 = gliding, 1 = full spin speed), tilt (whole trunk tipped at the hips, degrees, + = back, - = forward), arch (backbend
+// as a share of a typical adult's full range, shared out along the spine by SK_SPINE), side (side bend, share of the normal range),
+// bend (skating knee, 0 = straight), leg (free ankle from its hip: x out, y down, z toward the room; normalized), pole (which way that
+// knee points), arms ([left, right], from each shoulder in arm lengths: x outward, y down, z toward the room, in the chest's frame),
 // hold (both hands on the free blade), reach (the free-side hand reaching back to the blade).
 const SK_SET = {
-  glide: { spin: 0, lay: -.14, side: 0, bend: .32, leg: [.04, .62, -.78], pole: [.3, 0, 1], arms: [[.95, .12, -.05], [.9, .2, .22]], hold: 0, reach: 0 },
-  entry: { spin: .75, lay: .1, side: -.06, bend: .16, leg: [.55, .5, -.6], pole: [.4, -.3, 1], arms: [[1, -.05, 0], [1, -.05, 0]], hold: 0, reach: 0 }, // clip 1–2: arms wide, leg out behind
-  catch: { spin: 1, low: -.18, lay: .5, side: .12, bend: .12, leg: [.18, -.3, -.62], pole: [.5, .5, -.7], arms: [[1, -.12, 0], [.3, -.6, -.5]], hold: 0, reach: 1 }, // clip 9–10
-  biel: { spin: 1.35, low: -.5, lay: .7, side: .08, bend: .08, leg: [.2, -.85, -.5], pole: [.3, -.2, -1], arms: [[.1, -1.05, -.2], [.1, -1.05, -.2]], hold: 1, reach: 0 }, // clip 11–14
-  exit: { spin: .35, lay: 0, side: 0, bend: .22, leg: [.3, .85, -.35], pole: [.4, 0, 1], arms: [[.85, .3, .1], [.85, .3, .1]], hold: 0, reach: 0 }, // clip 15
+  glide: { spin: 0, tilt: -18, arch: .12, side: 0, bend: .3, leg: [.04, .3, -.95], pole: [.3, 0, 1], arms: [[.95, .05, -.05], [.9, .15, .22]], hold: 0, reach: 0 },
+  entry: { spin: .75, tilt: -12, arch: .25, side: -.25, bend: .05, leg: [.35, -.05, -.94], pole: [.4, -.3, 1], arms: [[1, -.15, 0], [1, -.15, 0]], hold: 0, reach: 0 }, // clip 1–2
+  catch: { spin: 1, tilt: -28, arch: .6, side: .2, bend: .04, leg: [.15, -.6, -.78], pole: [.5, .6, -.6], arms: [[1, -.2, 0], [.3, -.6, -.6]], hold: 0, reach: 1 }, // clip 9–10
+  biel: { spin: 1.35, tilt: -55, arch: .75, side: .1, bend: .03, leg: [.1, -.78, -.62], pole: [.2, -.5, -1], arms: [[.1, -1, -.2], [.1, -1, -.2]], hold: 1, reach: 0 }, // clip 11–14
+  exit: { spin: .35, tilt: 0, arch: .1, side: 0, bend: .12, leg: [.3, .85, -.35], pole: [.4, 0, 1], arms: [[.85, .3, .1], [.85, .3, .1]], hold: 0, reach: 0 }, // clip 15
 };
 // layback positions, dealt like a shuffled deck (each once before any repeats)
 const SK_LAY = [
-  { n: "Halo: arms ringed over the head", spin: 1, lay: .95, side: 0, bend: .14, leg: [.35, .15, -.55], pole: [1, .4, -.4], arms: [[-.18, -1, -.15], [-.18, -1, -.15]], hold: 0, reach: 0 }, // clip 4
-  { n: "One arm up, one by the head", spin: 1, lay: .75, side: .12, bend: .14, leg: [.45, .35, -.6], pole: [.8, .2, -.2], arms: [[.15, -1.05, 0], [-.2, -.8, .1]], hold: 0, reach: 0 }, // clip 5
-  { n: "Arms open, leaning to the side", spin: 1, lay: .85, side: .28, bend: .14, leg: [.4, .2, -.62], pole: [1, .3, -.4], arms: [[.95, .2, -.15], [.9, -.2, -.1]], hold: 0, reach: 0 }, // clip 3, 7, 8
-  { n: "Framing the face", spin: 1, lay: .9, side: -.1, bend: .14, leg: [.35, .25, -.6], pole: [1, .4, -.4], arms: [[-.25, -.75, -.3], [-.25, -.75, -.3]], hold: 0, reach: 0 }, // clip 6
-  { n: "Leg up behind, arms wide", spin: 1, lay: .5, side: .2, bend: .14, leg: [.15, -.05, -.7], pole: [.6, .5, -.6], arms: [[1, -.15, 0], [1, 0, .1]], hold: 0, reach: 0 }, // clip 9
+  { n: "Halo: arms ringed over the head", spin: 1, tilt: 6, arch: .45, side: 0, bend: .04, leg: [.45, .05, -.85], pole: [1, .5, -.2], arms: [[-.15, -.95, -.05], [-.15, -.95, -.05]], hold: 0, reach: 0 }, // clip 4
+  { n: "One arm up, one by the head", spin: 1, tilt: 4, arch: .4, side: .2, bend: .04, leg: [.45, .1, -.85], pole: [1, .5, -.2], arms: [[.15, -1.05, 0], [-.2, -.75, .15]], hold: 0, reach: 0 }, // clip 5
+  { n: "Arms open, leaning to the side", spin: 1, tilt: 2, arch: .32, side: .55, bend: .04, leg: [.45, .05, -.85], pole: [1, .4, -.3], arms: [[.95, -.1, -.1], [.9, -.35, -.05]], hold: 0, reach: 0 }, // clip 3, 7, 8
+  { n: "Framing the face", spin: 1, tilt: 6, arch: .5, side: -.2, bend: .04, leg: [.4, .1, -.88], pole: [1, .5, -.2], arms: [[-.25, -.7, -.15], [-.25, -.7, -.15]], hold: 0, reach: 0 }, // clip 6
+  { n: "Leg up behind, arms wide", spin: 1, tilt: -8, arch: .35, side: .25, bend: .04, leg: [.2, -.45, -.87], pole: [.5, .6, -.6], arms: [[1, -.2, 0], [1, -.05, .1]], hold: 0, reach: 0 }, // clip 9
 ];
+// the spine, hips up: [segment length, share of the backbend (degrees at a typical adult's full range), cap (degrees, × Flexibility),
+// side-bend degrees at full range]. Typical adult extension: lumbar ~31°, thoracic ~22°, cervical ~63° (anatomystandard.com).
+// The neck and head take less than the full cervical range so the head doesn't roll upside down in deep laybacks.
+const SK_SPINE = [[.075, 15.5, 18, 15], [.075, 15.5, 18, 15], [.085, 11, 12, 15], [.085, 11, 12, 15], [.045, 20, 22, 12], [.062, 20, 22, 12]];
 const SK_DIR = -1; // spins turn this way (a left-foot spin, counterclockwise seen from above)
 '''
 
@@ -44,6 +48,7 @@ NEW_SHAPE = r'''[
     { key: "glidebars", label: "Glide between spins", min: 0, max: 3, def: 2 / 3, fmt: v => ["None", "1 bar", "2 bars", "4 bars"][v], grp: "Skating" },
     { key: "glidespeed", label: "Glide speed", def: .5, grp: "Skating" },
     { key: "layback", label: "Layback depth", def: .65, grp: "Skating" },
+    { key: "flex", label: "Flexibility", def: .7, cfmt: v => v < .2 ? "Typical adult" : v < .6 ? "Dancer" : "Elite skater", grp: "Skating" },
     { key: "freeleg", label: "Free leg height", def: .6, grp: "Skating" },
     { key: "ease", label: "Ease between positions", def: .45, grp: "Skating" },
     { key: "float", label: "Arm float", def: .5, grp: "Skating" },
@@ -51,6 +56,9 @@ NEW_SHAPE = r'''[
 
 # Servelet's drawing reads a few things Skatelet doesn't have; and the skates get blades
 DRAW_PATCHES = [
+  # the torso: ellipses stamped along the spine (each as wide as the body there, seen from this angle), so it curves as one piece
+  # in a backbend instead of a fixed shoulders-waist-hips outline that pinches when she arches
+  ('TORSO', '        if (J.spine) J.spine.forEach(q => { const w = Math.hypot(q.ax[0], q.ax[1]); m.beginPath(); m.ellipse(q.c[0], q.c[1], Math.max(w, q.d), Math.max(.5, q.d * 1.05), Math.atan2(q.ax[1], q.ax[0]), 0, TAU); m.fill(); });\n'),
   # store each foot's blade (under the sole, a little longer than the boot) next to its heel and toe
   ('J.heels.push(proj(hl)); J.toes.push(proj(tp)); }); }',
    'J.heels.push(proj(hl)); J.toes.push(proj(tp)); { const fd = V3.norm(V3.sub(tp, hl)), mid = V3.mix(hl, tp, .5), d0 = V3.sub(mid, a), dn = V3.norm(V3.add(d0, fd, -(d0[0] * fd[0] + d0[1] * fd[1] + d0[2] * fd[2]))); (J.blades ||= []).push([proj(V3.add(V3.add(hl, dn, .026), fd, -.012)), proj(V3.add(V3.add(tp, dn, .026), fd, .018)), proj(V3.add(V3.add(tp, dn, .012), fd, .024))]); } }); }'),
@@ -64,6 +72,8 @@ srv = open("engine/servelet.js").read()
 a = srv.index("    // ======== Servelet drawing")
 b = srv.rindex("  } };\nFORM.servelet = SERVELET;")
 drawing = srv[a:b]
+ta = drawing.index("        const lat = U * .012 * mus * s;"); tb = drawing.index("m.closePath(); m.fill();\n", ta) + len("m.closePath(); m.fill();\n")
+drawing = drawing[:ta] + "TORSO" + drawing[tb:]
 for old, new in DRAW_PATCHES:
     assert drawing.count(old) == 1, "draw patch no longer matches: " + old[:60]
     drawing = drawing.replace(old, new)

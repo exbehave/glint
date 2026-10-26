@@ -28,9 +28,9 @@
     // blend from the last position to the new one (eased); every joint also rides a spring, so limbs lag and settle
     const tr = L("ease", .35, 2.2), u = svEaseIO(clamp((t - SK.t0) / tr, 0, 1)), mixA = (a, b) => Array.isArray(a) ? a.map((x, j) => mixA(x, b[j])) : lerp(a, b, u);
     const cur = SK.cur = {}; for (const key in SK.to) cur[key] = mixA(SK.from[key] ?? SK.to[key], SK.to[key]);
-    const layS = L("layback", .3, 1.35), lay = cur.lay * (cur.lay > 0 ? layS : 1), low = cur.low || 0, side = cur.side * (.6 + .4 * layS), cs = clamp(cur.spin, 0, 1);
+    const cs = clamp(cur.spin, 0, 1);
     // ---- travel: glide around a long ellipse on the ice; spinning holds the spot
-    const legL = L("leglen", .36, .56), thigh = legL / 2, shin = legL / 2, floor = .46 + legL, armL = L("armlen", .22, .5), ua = armL * .51, fa = armL * .49;
+    const legL = L("leglen", .36, .56), thigh = legL / 2, shin = legL / 2, floor = .46 + legL, armL = L("armlen", .24, .36), ua = armL * .51, fa = armL * .49;
     const xr = Math.max(.15, E.W * .5 / U - .6), zr = .4, glideW = clamp(1 - cs * 2, 0, 1); st.th ??= Math.PI / 2;
     { const sp = L("glidespeed", .12, .9) * (.8 + .4 * loud), dl = Math.hypot(xr * Math.sin(st.th), zr * Math.cos(st.th)) || 1; st.th += glideW * sp / dl * dt * SK_DIR; }
     { const Kw = 30, Cw = 2 * .95 * Math.sqrt(Kw); svSpr(st.pos.x, xr * Math.cos(st.th), Kw, Cw, dt); svSpr(st.pos.z, zr * Math.sin(st.th), Kw, Cw, dt); }
@@ -42,12 +42,23 @@
     const yaw = st.yaw.p, cy_ = Math.cos(yaw), sy_ = Math.sin(yaw);
     // ---- the body in local space
     const body = k("body"), shW = L("shoulders", .07, .14) * lerp(.8, 1.3, body), hipW = L("hips", .04, .08) * lerp(1.35, .7, body), wW = L("waistw", .02, .075) * lerp(.85, 1.15, body);
-    const rot = (v, f) => { let [x, y, z] = v; const a = side * f, c = Math.cos(a), s_ = Math.sin(a); [x, y] = [x * c - y * s_, x * s_ + y * c]; const b = low + lay * f, cb = Math.cos(b), sb = Math.sin(b); return [x, y * cb - z * sb, z * cb + y * sb]; };
-    const stand = [-hipW * .55, floor - .015, 0];
-    svSpr3(st.hip, [0, floor - .015 - legL * (.995 - .16 * cur.bend), .07 * Math.max(0, lay) - .05 * Math.max(0, -lay)], 600, 45, dt); const hipC = svP(st.hip);
-    const waist = V3.add(hipC, rot([0, -.15, .02], .35)), chest = V3.add(waist, rot([0, -.17, -.01], 1)), neck = V3.add(chest, rot([0, -.045, 0], 1.25)), head = V3.add(neck, rot([0, -.062, .012], 1.55));
-    const shDir = V3.norm(rot([1, 0, 0], 1)), shL = V3.add(chest, shDir, -shW), shR = V3.add(chest, shDir, shW), hipL = V3.add(hipC, [-hipW, 0, 0]), hipR = V3.add(hipC, [hipW, 0, 0]);
-    const wd = V3.norm(rot([1, 0, 0], .5)), waistL = V3.add(waist, wd, -wW), waistR = V3.add(waist, wd, wW);
+    // the spine is a chain (2 lumbar, 2 thoracic, neck, head); a backbend is shared out in proportion to each region's real range
+    // (adult extension ~31° lumbar, 22° thoracic, 63° cervical), scaled by Layback depth × Flexibility, each region capped (SK_SPINE)
+    const D2R = Math.PI / 180, flex = L("flex", 1, 2), archT = cur.arch * L("layback", .4, 1.3), latT = cur.side, tilt = cur.tilt * D2R;
+    const turn = (v, sa, pa) => { let [x, y, z] = v; const c = Math.cos(sa), s_ = Math.sin(sa); [x, y] = [x * c - y * s_, x * s_ + y * c]; const cb = Math.cos(pa), sb = Math.sin(pa); return [x, y * cb - z * sb, z * cb + y * sb]; };
+    const chain = o => { let pa = tilt, sa = 0, p = o; const pts = [o], fr = [[0, tilt]];
+      SK_SPINE.forEach(([len, ext, cap, lat]) => { pa += Math.min(ext * archT * flex, cap * flex) * D2R; sa += lat * latT * Math.min(flex, 1.4) * D2R; p = V3.add(p, turn([0, -len, 0], sa, pa)); pts.push(p); fr.push([sa, pa]); });
+      return { pts, fr }; };
+    // balance: shift the hips so her weight (trunk, head, free leg) stays over the skating blade
+    const stand = [-hipW * .55, floor - .015, 0], hipY = floor - .015 - legL * (.995 - .16 * cur.bend);
+    { const c0 = chain([0, hipY, 0]).pts, freeA = V3.add([hipW, hipY, 0], V3.norm(cur.leg), legL * .9), com = [c0[2], c0[4], c0[6], freeA, V3.mix([hipW, hipY, 0], freeA, .5), [0, hipY, 0]], wt = [.22, .25, .1, .1, .15, .18];
+      let cx = 0, cz = 0; com.forEach((q, j) => { cx += q[0] * wt[j]; cz += q[2] * wt[j]; }); svSpr3(st.hip, [stand[0] - cx * .9 + hipW * .3, hipY, -cz * .9], 500, 42, dt); }
+    const hipC = svP(st.hip), SP = chain(hipC), [, l3, waist, t8, chest, neck, head] = SP.pts, frC = SP.fr[4], frW = SP.fr[2];
+    const rotC = v => turn(v, frC[0], frC[1]);
+    const shDir = V3.norm(rotC([1, 0, 0])), shL = V3.add(chest, shDir, -shW), shR = V3.add(chest, shDir, shW), hipL = V3.add(hipC, [-hipW, 0, 0]), hipR = V3.add(hipC, [hipW, 0, 0]);
+    const wd = V3.norm(turn([1, 0, 0], frW[0], frW[1])), waistL = V3.add(waist, wd, -wW), waistR = V3.add(waist, wd, wW);
+    // the torso's cross-sections along the spine (half width across, half depth front to back), so it bends as one smooth piece
+    const XS = [[hipC, [1, 0, 0], hipW * 1.2, .068], [l3, turn([1, 0, 0], SP.fr[1][0], SP.fr[1][1]), wW + .014, .055], [waist, wd, wW + .004, .05], [t8, turn([1, 0, 0], SP.fr[3][0], SP.fr[3][1]), shW * .72, .06], [chest, shDir, shW * .74, .058]];
     // legs: the left blade stays planted under her; the free leg takes the position's shape (Free leg height tips it up or down)
     const up = (k("freeleg") - .5) * .7, lv = cur.leg, lvn = V3.norm(lv), lr = [lvn[0], lvn[1] * Math.cos(up) + lvn[2] * Math.sin(up), lvn[2] * Math.cos(up) - lvn[1] * Math.sin(up)];
     const freeT = V3.add(hipR, lr, legL * Math.min(.97, V3.len(lv)));
@@ -57,7 +68,7 @@
     const knees = [svIK(hipL, ankles[0], thigh, shin, [-.1, 0, 1]), svIK(hipR, ankles[1], thigh, shin, V3.norm(cur.pole))];
     // arms: the position's pose turns with the torso; they float a little; in the catch and the Biellmann the hands go to the blade
     const blade = V3.add(ankles[1], [0, -.015, 0]), handT = [];
-    for (let i = 0; i < 2; i++) { const sd = i ? 1 : -1, sh = i ? shR : shL, pv = cur.arms[i], off = rot([sd * pv[0], pv[1], pv[2]], 1), fl = (ua + fa) * .07 * k("float");
+    for (let i = 0; i < 2; i++) { const sd = i ? 1 : -1, sh = i ? shR : shL, pv = cur.arms[i], off = rotC([sd * pv[0], pv[1], pv[2]]), fl = (ua + fa) * .07 * k("float");
       let h = V3.add(V3.add(sh, off, ua + fa), [Math.sin(t * .7 + i * 2.1) * fl, Math.sin(t * .53 + i) * fl, Math.cos(t * .61 + i) * fl * .6]);
       h = V3.mix(h, blade, Math.max(cur.hold, i === 1 ? cur.reach : 0)); handT.push(h); }
     const fArm = L("armspeed", .5, 5), Karm = Math.pow(TAU * fArm, 2), Carm = 2 * .8 * Math.sqrt(Karm);
@@ -67,6 +78,8 @@
     const f = L("persp", 7, 2.2), px = st.pos.x.p, pz = st.pos.z.p;
     const proj = p => { const wx = p[0] * cy_ + p[2] * sy_ + px, wz = -p[0] * sy_ + p[2] * cy_ + pz, s = f / Math.max(.5, f - wz); return [n.x + wx * U * s, n.y + (p[1] - .5) * U * s, s, wz]; };
     const J = { head: proj(head), neck: proj(neck), shL: proj(shL), shR: proj(shR), chest: proj(chest), waist: proj(waist), hipL: proj(hipL), hipR: proj(hipR), hipC: proj(hipC), waistL: proj(waistL), waistR: proj(waistR), elbows: elbows.map(proj), wrists: wrists.map(proj), knees: knees.map(proj), ankles: ankles.map(a => { const q = proj(a); q.push(a[3]); return q; }) };
+    J.spine = []; for (let j = 0; j < XS.length - 1; j++) for (let q = 0; q < 4; q++) { const u2 = q / 4, A = XS[j], B = XS[j + 1], p = V3.mix(A[0], B[0], u2), ax = V3.norm(V3.mix(A[1], B[1], u2)), hw = lerp(A[2], B[2], u2), hd = lerp(A[3], B[3], u2), c = proj(p), e = proj(V3.add(p, ax, hw)); J.spine.push({ c, ax: [e[0] - c[0], e[1] - c[1]], d: hd * U * c[2] }); }
+    { const A = XS[XS.length - 1], c = proj(A[0]), e = proj(V3.add(A[0], A[1], A[2])); J.spine.push({ c, ax: [e[0] - c[0], e[1] - c[1]], d: A[3] * U * c[2] }); }
     // hands carry on the line of the forearm with a soft lifted wrist; a gripping hand curls toward the blade
     const hAng = [], fAng = [], Kh = Math.pow(TAU * 2.2, 2);
     for (let i = 0; i < 2; i++) { const fdir = Math.atan2(J.wrists[i][1] - J.elbows[i][1], J.wrists[i][0] - J.elbows[i][0]), s = st.ha[i]; s.p = fdir + svAng(s.p - fdir); svSpr(s, fdir + (i ? -1 : 1) * .3 * (1 - cur.hold), Kh, 2 * .7 * Math.sqrt(Kh), dt); hAng.push(s);

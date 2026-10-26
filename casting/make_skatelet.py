@@ -9,7 +9,8 @@ SETS = r'''// Skatelet's positions (round 2, Oct 25, 2026), from Kennedy's refer
 // as a share of a typical adult's full range, shared out along the spine by SK_SPINE), side (side bend, share of the normal range),
 // bend (skating knee, 0 = straight), leg (free ankle from its hip: x out, y down, z toward the room; normalized), pole (which way that
 // knee points), arms ([left, right], from each shoulder in arm lengths: x outward, y down, z toward the room, in the chest's frame),
-// hold (both hands on the free blade), reach (the free-side hand reaching back to the blade).
+// hold (both hands on the free blade), reach (the free-side hand reaching back to the blade), curl (the free leg joins the curve of
+// the back: thigh a little shorter, knee bent more, foot closer in).
 const SK_SET = {
   glide: { spin: 0, tilt: -18, arch: .12, side: 0, bend: .3, leg: [.04, .3, -.95], pole: [.3, 0, 1], arms: [[.95, .05, -.05], [.9, .15, .22]], hold: 0, reach: 0 },
   entry: { spin: .75, tilt: -12, arch: .25, side: -.25, bend: .05, leg: [.35, -.05, -.94], pole: [.4, -.3, 1], arms: [[1, -.15, 0], [1, -.15, 0]], hold: 0, reach: 0 }, // clip 1–2
@@ -19,11 +20,11 @@ const SK_SET = {
 };
 // layback positions, dealt like a shuffled deck (each once before any repeats)
 const SK_LAY = [
-  { n: "Halo: arms ringed over the head", spin: 1, tilt: 6, arch: .45, side: 0, bend: .04, leg: [.45, .05, -.85], pole: [1, .5, -.2], arms: [[-.15, -.95, -.05], [-.15, -.95, -.05]], hold: 0, reach: 0 }, // clip 4
-  { n: "One arm up, one by the head", spin: 1, tilt: 4, arch: .4, side: .2, bend: .04, leg: [.45, .1, -.85], pole: [1, .5, -.2], arms: [[.15, -1.05, 0], [-.2, -.75, .15]], hold: 0, reach: 0 }, // clip 5
-  { n: "Arms open, leaning to the side", spin: 1, tilt: 2, arch: .32, side: .55, bend: .04, leg: [.45, .05, -.85], pole: [1, .4, -.3], arms: [[.95, -.1, -.1], [.9, -.35, -.05]], hold: 0, reach: 0 }, // clip 3, 7, 8
-  { n: "Framing the face", spin: 1, tilt: 6, arch: .5, side: -.2, bend: .04, leg: [.4, .1, -.88], pole: [1, .5, -.2], arms: [[-.25, -.7, -.15], [-.25, -.7, -.15]], hold: 0, reach: 0 }, // clip 6
-  { n: "Leg up behind, arms wide", spin: 1, tilt: -8, arch: .35, side: .25, bend: .04, leg: [.2, -.45, -.87], pole: [.5, .6, -.6], arms: [[1, -.2, 0], [1, -.05, .1]], hold: 0, reach: 0 }, // clip 9
+  { n: "Halo: arms ringed over the head", spin: 1, tilt: 6, arch: .45, side: 0, bend: .04, leg: [.5, .45, -.74], pole: [1, .3, -.3], arms: [[-.15, -.95, -.05], [-.15, -.95, -.05]], curl: .6, hold: 0, reach: 0 }, // clip 4
+  { n: "One arm up, one by the head", spin: 1, tilt: 4, arch: .4, side: .2, bend: .04, leg: [.5, .45, -.74], pole: [1, .3, -.3], arms: [[.15, -1.05, 0], [-.2, -.75, .15]], curl: .6, hold: 0, reach: 0 }, // clip 5
+  { n: "Arms open, leaning to the side", spin: 1, tilt: 2, arch: .32, side: .55, bend: .04, leg: [.55, .4, -.73], pole: [1, .3, -.3], arms: [[.95, -.1, -.1], [.9, -.35, -.05]], curl: .6, hold: 0, reach: 0 }, // clip 3, 7, 8
+  { n: "Framing the face", spin: 1, tilt: 6, arch: .5, side: -.2, bend: .04, leg: [.45, .45, -.77], pole: [1, .3, -.3], arms: [[-.25, -.7, -.15], [-.25, -.7, -.15]], curl: .6, hold: 0, reach: 0 }, // clip 6
+  { n: "Leg up behind, arms wide", spin: 1, tilt: -8, arch: .35, side: .25, bend: .04, leg: [.2, -.45, -.87], pole: [.5, .6, -.6], arms: [[1, -.2, 0], [1, -.05, .1]], curl: .6, hold: 0, reach: 0 }, // clip 9
 ];
 // the spine, hips up: [segment length, share of the backbend (degrees at a typical adult's full range), cap (degrees, × Flexibility),
 // side-bend degrees at full range]. Typical adult extension: lumbar ~31°, thoracic ~22°, cervical ~63° (anatomystandard.com).
@@ -56,6 +57,12 @@ NEW_SHAPE = r'''[
 
 # Servelet's drawing reads a few things Skatelet doesn't have; and the skates get blades
 DRAW_PATCHES = [
+  # a raised foot is pointed like a skater's: toes carry on the line of the shin, curling a little toward the sole, heel behind the
+  # ankle on the sole side (Kennedy, Oct 25: Servelet's raised foot flexed the wrong way, so a leg behind her read as a leg in front)
+  ('const d = V3.norm(V3.sub(a, knees[i])), pr = V3.add([0, -1, 0], d, d[1]), pn = V3.len(pr) > 1e-3 ? V3.norm(pr) : [0, 0, 1], f = V3.norm(V3.add(d, pn, .55));',
+   'const d = V3.norm(V3.sub(a, knees[i])), pn = soles[i], f = V3.norm(V3.add(d, pn, .2));'),
+  ('const hl2 = V3.add(V3.add(a, pn, -.018), d, .006), tp2 = V3.add(a, f, .075 * fl);',
+   'const hl2 = V3.add(V3.add(a, pn, .02), d, -.004), tp2 = V3.add(a, f, .08 * fl);'),
   # the torso: ellipses stamped along the spine (each as wide as the body there, seen from this angle), so it curves as one piece
   # in a backbend instead of a fixed shoulders-waist-hips outline that pinches when she arches
   ('TORSO', '        if (J.spine) J.spine.forEach(q => { const w = Math.hypot(q.ax[0], q.ax[1]); m.beginPath(); m.ellipse(q.c[0], q.c[1], Math.max(w, q.d), Math.max(.5, q.d * 1.05), Math.atan2(q.ax[1], q.ax[0]), 0, TAU); m.fill(); });\n'),

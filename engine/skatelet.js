@@ -8,7 +8,8 @@
 // as a share of a typical adult's full range, shared out along the spine by SK_SPINE), side (side bend, share of the normal range),
 // bend (skating knee, 0 = straight), leg (free ankle from its hip: x out, y down, z toward the room; normalized), pole (which way that
 // knee points), arms ([left, right], from each shoulder in arm lengths: x outward, y down, z toward the room, in the chest's frame),
-// hold (both hands on the free blade), reach (the free-side hand reaching back to the blade).
+// hold (both hands on the free blade), reach (the free-side hand reaching back to the blade), curl (the free leg joins the curve of
+// the back: thigh a little shorter, knee bent more, foot closer in).
 const SK_SET = {
   glide: { spin: 0, tilt: -18, arch: .12, side: 0, bend: .3, leg: [.04, .3, -.95], pole: [.3, 0, 1], arms: [[.95, .05, -.05], [.9, .15, .22]], hold: 0, reach: 0 },
   entry: { spin: .75, tilt: -12, arch: .25, side: -.25, bend: .05, leg: [.35, -.05, -.94], pole: [.4, -.3, 1], arms: [[1, -.15, 0], [1, -.15, 0]], hold: 0, reach: 0 }, // clip 1–2
@@ -18,11 +19,11 @@ const SK_SET = {
 };
 // layback positions, dealt like a shuffled deck (each once before any repeats)
 const SK_LAY = [
-  { n: "Halo: arms ringed over the head", spin: 1, tilt: 6, arch: .45, side: 0, bend: .04, leg: [.45, .05, -.85], pole: [1, .5, -.2], arms: [[-.15, -.95, -.05], [-.15, -.95, -.05]], hold: 0, reach: 0 }, // clip 4
-  { n: "One arm up, one by the head", spin: 1, tilt: 4, arch: .4, side: .2, bend: .04, leg: [.45, .1, -.85], pole: [1, .5, -.2], arms: [[.15, -1.05, 0], [-.2, -.75, .15]], hold: 0, reach: 0 }, // clip 5
-  { n: "Arms open, leaning to the side", spin: 1, tilt: 2, arch: .32, side: .55, bend: .04, leg: [.45, .05, -.85], pole: [1, .4, -.3], arms: [[.95, -.1, -.1], [.9, -.35, -.05]], hold: 0, reach: 0 }, // clip 3, 7, 8
-  { n: "Framing the face", spin: 1, tilt: 6, arch: .5, side: -.2, bend: .04, leg: [.4, .1, -.88], pole: [1, .5, -.2], arms: [[-.25, -.7, -.15], [-.25, -.7, -.15]], hold: 0, reach: 0 }, // clip 6
-  { n: "Leg up behind, arms wide", spin: 1, tilt: -8, arch: .35, side: .25, bend: .04, leg: [.2, -.45, -.87], pole: [.5, .6, -.6], arms: [[1, -.2, 0], [1, -.05, .1]], hold: 0, reach: 0 }, // clip 9
+  { n: "Halo: arms ringed over the head", spin: 1, tilt: 6, arch: .45, side: 0, bend: .04, leg: [.5, .45, -.74], pole: [1, .3, -.3], arms: [[-.15, -.95, -.05], [-.15, -.95, -.05]], curl: .6, hold: 0, reach: 0 }, // clip 4
+  { n: "One arm up, one by the head", spin: 1, tilt: 4, arch: .4, side: .2, bend: .04, leg: [.5, .45, -.74], pole: [1, .3, -.3], arms: [[.15, -1.05, 0], [-.2, -.75, .15]], curl: .6, hold: 0, reach: 0 }, // clip 5
+  { n: "Arms open, leaning to the side", spin: 1, tilt: 2, arch: .32, side: .55, bend: .04, leg: [.55, .4, -.73], pole: [1, .3, -.3], arms: [[.95, -.1, -.1], [.9, -.35, -.05]], curl: .6, hold: 0, reach: 0 }, // clip 3, 7, 8
+  { n: "Framing the face", spin: 1, tilt: 6, arch: .5, side: -.2, bend: .04, leg: [.45, .45, -.77], pole: [1, .3, -.3], arms: [[-.25, -.7, -.15], [-.25, -.7, -.15]], curl: .6, hold: 0, reach: 0 }, // clip 6
+  { n: "Leg up behind, arms wide", spin: 1, tilt: -8, arch: .35, side: .25, bend: .04, leg: [.2, -.45, -.87], pole: [.5, .6, -.6], arms: [[1, -.2, 0], [1, -.05, .1]], curl: .6, hold: 0, reach: 0 }, // clip 9
 ];
 // the spine, hips up: [segment length, share of the backbend (degrees at a typical adult's full range), cap (degrees, × Flexibility),
 // side-bend degrees at full range]. Typical adult extension: lumbar ~31°, thoracic ~22°, cervical ~63° (anatomystandard.com).
@@ -101,6 +102,7 @@ const SKATELET = { key: "skatelet", name: "Skatelet", fade: .55, init: () => Obj
     const stand = [-hipW * .55, floor - .015, 0], hipY = floor - .015 - legL * (.995 - .16 * cur.bend);
     { const c0 = chain([0, hipY, 0]).pts, freeA = V3.add([hipW, hipY, 0], V3.norm(cur.leg), legL * .9), com = [c0[2], c0[4], c0[6], freeA, V3.mix([hipW, hipY, 0], freeA, .5), [0, hipY, 0]], wt = [.22, .25, .1, .1, .15, .18];
       let cx = 0, cz = 0; com.forEach((q, j) => { cx += q[0] * wt[j]; cz += q[2] * wt[j]; }); svSpr3(st.hip, [stand[0] - cx * .9 + hipW * .3, hipY, -cz * .9], 500, 42, dt); }
+    { const hl = [st.hip.x.p - hipW, st.hip.y.p, st.hip.z.p], d = V3.sub(hl, stand), dl = V3.len(d), mx = legL * .995; if (dl > mx) { const q = V3.add(stand, d, mx / dl); st.hip.x.p = q[0] + hipW; st.hip.y.p = q[1]; st.hip.z.p = q[2]; } }
     const hipC = svP(st.hip), SP = chain(hipC), [, l3, waist, t8, chest, neck, head] = SP.pts, frC = SP.fr[4], frW = SP.fr[2];
     const rotC = v => turn(v, frC[0], frC[1]);
     const shDir = V3.norm(rotC([1, 0, 0])), shL = V3.add(chest, shDir, -shW), shR = V3.add(chest, shDir, shW), hipL = V3.add(hipC, [-hipW, 0, 0]), hipR = V3.add(hipC, [hipW, 0, 0]);
@@ -109,11 +111,18 @@ const SKATELET = { key: "skatelet", name: "Skatelet", fade: .55, init: () => Obj
     const XS = [[hipC, [1, 0, 0], hipW * 1.2, .068], [l3, turn([1, 0, 0], SP.fr[1][0], SP.fr[1][1]), wW + .014, .055], [waist, wd, wW + .004, .05], [t8, turn([1, 0, 0], SP.fr[3][0], SP.fr[3][1]), shW * .72, .06], [chest, shDir, shW * .74, .058]];
     // legs: the left blade stays planted under her; the free leg takes the position's shape (Free leg height tips it up or down)
     const up = (k("freeleg") - .5) * .7, lv = cur.leg, lvn = V3.norm(lv), lr = [lvn[0], lvn[1] * Math.cos(up) + lvn[2] * Math.sin(up), lvn[2] * Math.cos(up) - lvn[1] * Math.sin(up)];
-    const freeT = V3.add(hipR, lr, legL * Math.min(.97, V3.len(lv)));
+    // in a layback the free leg joins the curve of her back (Kennedy, Oct 25): the thigh shortens a little, the knee bends more and the
+    // foot comes in closer, instead of a full-length straight leg held out at the same distance (curl = how much, per position)
+    const curl = clamp(cur.curl || 0, 0, 1), thighF = thigh * (1 - .12 * curl), reachF = thighF + shin;
+    const freeT = V3.add(hipR, lr, reachF * Math.min(.97, V3.len(lv)) * (1 - .2 * curl));
     const Kleg = Math.pow(TAU * L("legspeed", .6, 6), 2), Cleg = 2 * .85 * Math.sqrt(Kleg);
     svSpr3(st.feet[0], stand, 4000, 2 * .95 * Math.sqrt(4000), dt); svSpr3(st.feet[1], freeT, Kleg, Cleg, dt);
+    // limbs never stretch: the free foot is held within leg length of its hip, and the hip within reach of the skating blade
+    { const f1 = st.feet[1], d = V3.sub(svP(f1), hipR), dl = V3.len(d), mx = reachF * .985; if (dl > mx) { const q = V3.add(hipR, d, mx / dl); f1.x.p = q[0]; f1.y.p = q[1]; f1.z.p = q[2]; } }
     const ankles = [svP(st.feet[0]), svP(st.feet[1])].map(a => (a.push(1), a));
-    const knees = [svIK(hipL, ankles[0], thigh, shin, [-.1, 0, 1]), svIK(hipR, ankles[1], thigh, shin, V3.norm(cur.pole))];
+    const knees = [svIK(hipL, ankles[0], thigh, shin, [-.1, 0, 1]), svIK(hipR, ankles[1], thighF, shin, V3.norm(cur.pole))]; st.legX = V3.len(V3.sub(ankles[1], hipR)) / reachF;
+    const soles = [0, 1].map(i => { const hp = i ? hipR : hipL, a = ankles[i], dd = V3.norm(V3.sub(a, knees[i])), kb = V3.sub(knees[i], V3.mix(hp, a, .5)), pole = i ? V3.norm(cur.pole) : [0, 0, 1];
+      const fr = V3.len(kb) > .01 ? kb : pole, dot = fr[0] * dd[0] + fr[1] * dd[1] + fr[2] * dd[2], pf = V3.add(fr, dd, -dot); return V3.len(pf) > 1e-3 ? V3.norm(pf).map(v => -v) : [0, -1, 0]; });
     // arms: the position's pose turns with the torso; they float a little; in the catch and the Biellmann the hands go to the blade
     const blade = V3.add(ankles[1], [0, -.015, 0]), handT = [];
     for (let i = 0; i < 2; i++) { const sd = i ? 1 : -1, sh = i ? shR : shL, pv = cur.arms[i], off = rotC([sd * pv[0], pv[1], pv[2]]), fl = (ua + fa) * .07 * k("float");
@@ -146,8 +155,8 @@ const SKATELET = { key: "skatelet", name: "Skatelet", fade: .55, init: () => Obj
         // a foot lifted well off the floor (the death drop's raised leg) follows its shin, toe softly pointed (Kennedy, Oct 23:
         // the flat-floor foot lined up with the raised shin and vanished, leaving a stump)
         const up = clamp((floor - a[1] - .05) / .08, 0, 1);
-        if (up > 0) { const d = V3.norm(V3.sub(a, knees[i])), pr = V3.add([0, -1, 0], d, d[1]), pn = V3.len(pr) > 1e-3 ? V3.norm(pr) : [0, 0, 1], f = V3.norm(V3.add(d, pn, .55));
-          const hl2 = V3.add(V3.add(a, pn, -.018), d, .006), tp2 = V3.add(a, f, .075 * fl); hl = V3.mix(hl, hl2, up); tp = V3.mix(tp, tp2, up); }
+        if (up > 0) { const d = V3.norm(V3.sub(a, knees[i])), pn = soles[i], f = V3.norm(V3.add(d, pn, .2));
+          const hl2 = V3.add(V3.add(a, pn, .02), d, -.004), tp2 = V3.add(a, f, .08 * fl); hl = V3.mix(hl, hl2, up); tp = V3.mix(tp, tp2, up); }
         J.heels.push(proj(hl)); J.toes.push(proj(tp)); { const fd = V3.norm(V3.sub(tp, hl)), mid = V3.mix(hl, tp, .5), d0 = V3.sub(mid, a), dn = V3.norm(V3.add(d0, fd, -(d0[0] * fd[0] + d0[1] * fd[1] + d0[2] * fd[2]))); (J.blades ||= []).push([proj(V3.add(V3.add(hl, dn, .026), fd, -.012)), proj(V3.add(V3.add(tp, dn, .026), fd, .018)), proj(V3.add(V3.add(tp, dn, .012), fd, .024))]); } }); }
     const DPRg = (g.getTransform ? g.getTransform().a : 1) || 1, mus = k("muscle"), defn = k("defn"), oglow = k("oglow");
     const lwO = Math.max(1, U * .004) * L("weight", .6, 2.4); // outline width in CSS px at full size

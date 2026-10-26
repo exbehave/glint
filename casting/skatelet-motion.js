@@ -52,7 +52,7 @@
     // balance: shift the hips so her weight (trunk, head, free leg) stays over the skating blade
     const stand = [-hipW * .55, floor - .015, 0], hipY = floor - .015 - legL * (.995 - .16 * cur.bend);
     { const c0 = chain([0, hipY, 0]).pts, freeA = V3.add([hipW, hipY, 0], V3.norm(cur.leg), legL * .9), com = [c0[2], c0[4], c0[6], freeA, V3.mix([hipW, hipY, 0], freeA, .5), [0, hipY, 0]], wt = [.22, .25, .1, .1, .15, .18];
-      let cx = 0, cz = 0; com.forEach((q, j) => { cx += q[0] * wt[j]; cz += q[2] * wt[j]; }); svSpr3(st.hip, [stand[0] - cx * .9 + hipW * .3, hipY, -cz * .9], 500, 42, dt); }
+      let cx = 0, cz = 0; com.forEach((q, j) => { cx += q[0] * wt[j]; cz += q[2] * wt[j]; }); svSpr3(st.hip, [stand[0] - cx * .9 + hipW * .3, hipY, -cz * .9 + (cur.push || 0)], 500, 42, dt); }
     { const hl = [st.hip.x.p - hipW, st.hip.y.p, st.hip.z.p], d = V3.sub(hl, stand), dl = V3.len(d), mx = legL * .995; if (dl > mx) { const q = V3.add(stand, d, mx / dl); st.hip.x.p = q[0] + hipW; st.hip.y.p = q[1]; st.hip.z.p = q[2]; } }
     const hipC = svP(st.hip), SP = chain(hipC), [, l3, waist, t8, chest, neck, head] = SP.pts, frC = SP.fr[4], frW = SP.fr[2];
     const rotC = v => turn(v, frC[0], frC[1]);
@@ -62,9 +62,9 @@
     const XS = [[hipC, [1, 0, 0], hipW * 1.2, .068], [l3, turn([1, 0, 0], SP.fr[1][0], SP.fr[1][1]), wW + .014, .055], [waist, wd, wW + .004, .05], [t8, turn([1, 0, 0], SP.fr[3][0], SP.fr[3][1]), shW * .72, .06], [chest, shDir, shW * .74, .058]];
     // legs: the left blade stays planted under her; the free leg takes the position's shape (Free leg height tips it up or down)
     const up = (k("freeleg") - .5) * .7, lv = cur.leg, lvn = V3.norm(lv), lr = [lvn[0], lvn[1] * Math.cos(up) + lvn[2] * Math.sin(up), lvn[2] * Math.cos(up) - lvn[1] * Math.sin(up)];
-    // in a layback the free leg joins the curve of her back (Kennedy, Oct 25): the thigh shortens a little, the knee bends more and the
-    // foot comes in closer, instead of a full-length straight leg held out at the same distance (curl = how much, per position)
-    const curl = clamp(cur.curl || 0, 0, 1), thighF = thigh * (1 - .12 * curl), reachF = thighF + shin;
+    // in a layback the free leg joins the curve of her back (Kennedy, Oct 25): the knee bends more and the foot comes in closer (curl =
+    // how much, per position). The thigh keeps its length: Kennedy, Oct 26, "the femur needs to stay proportional to the tibia"
+    const curl = clamp(cur.curl || 0, 0, 1), thighF = thigh, reachF = thighF + shin;
     const freeT = V3.add(hipR, lr, reachF * Math.min(.97, V3.len(lv)) * (1 - .2 * curl));
     const Kleg = Math.pow(TAU * L("legspeed", .6, 6), 2), Cleg = 2 * .85 * Math.sqrt(Kleg);
     svSpr3(st.feet[0], stand, 4000, 2 * .95 * Math.sqrt(4000), dt); svSpr3(st.feet[1], freeT, Kleg, Cleg, dt);
@@ -76,7 +76,7 @@
       const fr = V3.len(kb) > .01 ? kb : pole, dot = fr[0] * dd[0] + fr[1] * dd[1] + fr[2] * dd[2], pf = V3.add(fr, dd, -dot); return V3.len(pf) > 1e-3 ? V3.norm(pf).map(v => -v) : [0, -1, 0]; });
     // arms: the position's pose turns with the torso; they float a little; in the catch and the Biellmann the hands go to the blade
     const blade = V3.add(ankles[1], [0, -.015, 0]), handT = [];
-    for (let i = 0; i < 2; i++) { const sd = i ? 1 : -1, sh = i ? shR : shL, pv = cur.arms[i], off = rotC([sd * pv[0], pv[1], pv[2]]), fl = (ua + fa) * .07 * k("float");
+    for (let i = 0; i < 2; i++) { const sd = i ? 1 : -1, sh = i ? shR : shL, pv = cur.arms[i], aw = [sd * pv[0], pv[1], pv[2]], off = V3.mix(rotC(aw), aw, clamp(cur.up || 0, 0, 1)), fl = (ua + fa) * .07 * k("float");
       let h = V3.add(V3.add(sh, off, ua + fa), [Math.sin(t * .7 + i * 2.1) * fl, Math.sin(t * .53 + i) * fl, Math.cos(t * .61 + i) * fl * .6]);
       h = V3.mix(h, blade, Math.max(cur.hold, i === 1 ? cur.reach : 0)); handT.push(h); }
     const fArm = L("armspeed", .5, 5), Karm = Math.pow(TAU * fArm, 2), Carm = 2 * .8 * Math.sqrt(Karm);

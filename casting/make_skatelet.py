@@ -10,7 +10,7 @@ SETS = r'''// Skatelet's positions (round 2, Oct 25, 2026), from Kennedy's refer
 // bend (skating knee, 0 = straight), leg (free ankle from its hip: x out, y down, z toward the room; normalized), pole (which way that
 // knee points), arms ([left, right], from each shoulder in arm lengths: x outward, y down, z toward the room, in the chest's frame),
 // hold (both hands on the free blade), reach (the free-side hand reaching back to the blade), curl (the free leg joins the curve of
-// the back: thigh a little shorter, knee bent more, foot closer in).
+// the back: knee bent more, foot closer in; the thigh keeps its length).
 const SK_SET = {
   glide: { spin: 0, tilt: -18, arch: .12, side: 0, bend: .3, leg: [.04, .3, -.95], pole: [.3, 0, 1], arms: [[.95, .05, -.05], [.9, .15, .22]], hold: 0, reach: 0 },
   entry: { spin: .75, tilt: -12, arch: .25, side: -.25, bend: .05, leg: [.35, -.05, -.94], pole: [.4, -.3, 1], arms: [[1, -.15, 0], [1, -.15, 0]], hold: 0, reach: 0 }, // clip 1–2
@@ -20,16 +20,16 @@ const SK_SET = {
 };
 // layback positions, dealt like a shuffled deck (each once before any repeats)
 const SK_LAY = [
-  { n: "Halo: arms ringed over the head", spin: 1, tilt: 6, arch: .45, side: 0, bend: .04, leg: [.5, .45, -.74], pole: [1, .3, -.3], arms: [[-.15, -.95, -.05], [-.15, -.95, -.05]], curl: .6, hold: 0, reach: 0 }, // clip 4
-  { n: "One arm up, one by the head", spin: 1, tilt: 4, arch: .4, side: .2, bend: .04, leg: [.5, .45, -.74], pole: [1, .3, -.3], arms: [[.15, -1.05, 0], [-.2, -.75, .15]], curl: .6, hold: 0, reach: 0 }, // clip 5
-  { n: "Arms open, leaning to the side", spin: 1, tilt: 2, arch: .32, side: .55, bend: .04, leg: [.55, .4, -.73], pole: [1, .3, -.3], arms: [[.95, -.1, -.1], [.9, -.35, -.05]], curl: .6, hold: 0, reach: 0 }, // clip 3, 7, 8
-  { n: "Framing the face", spin: 1, tilt: 6, arch: .5, side: -.2, bend: .04, leg: [.45, .45, -.77], pole: [1, .3, -.3], arms: [[-.25, -.7, -.15], [-.25, -.7, -.15]], curl: .6, hold: 0, reach: 0 }, // clip 6
+  { n: "Halo: arms ringed over the head", spin: 1, tilt: 4, arch: .75, side: 0, bend: .03, push: .08, leg: [.4, .45, -.8], pole: [1, .3, -.3], up: .45, arms: [[-.15, -1, -.2], [-.15, -1, -.2]], curl: .6, hold: 0, reach: 0 }, // clip 4
+  { n: "One arm up, one by the head", spin: 1, tilt: 4, arch: .6, side: .1, bend: .03, push: .07, leg: [.4, .45, -.8], pole: [1, .3, -.3], up: .85, arms: [[.1, -1.05, .1], [-.1, -.6, -.5]], curl: .6, hold: 0, reach: 0 }, // clip 5
+  { n: "Arms open, leaning to the side", spin: 1, tilt: 2, arch: .45, side: .5, bend: .03, push: .05, up: .3, leg: [.5, .42, -.76], pole: [1, .3, -.3], arms: [[.95, -.1, -.1], [.9, -.35, -.05]], curl: .6, hold: 0, reach: 0 }, // clip 3, 7, 8
+  { n: "Framing the face", spin: 1, tilt: 4, arch: .6, side: -.15, bend: .03, push: .07, leg: [.4, .45, -.8], pole: [1, .3, -.3], arms: [[-.25, -.7, -.15], [-.25, -.7, -.15]], curl: .6, hold: 0, reach: 0 }, // clip 6
   { n: "Leg up behind, arms wide", spin: 1, tilt: -8, arch: .35, side: .25, bend: .04, leg: [.2, -.45, -.87], pole: [.5, .6, -.6], arms: [[1, -.2, 0], [1, -.05, .1]], curl: .6, hold: 0, reach: 0 }, // clip 9
 ];
 // the spine, hips up: [segment length, share of the backbend (degrees at a typical adult's full range), cap (degrees, × Flexibility),
 // side-bend degrees at full range]. Typical adult extension: lumbar ~31°, thoracic ~22°, cervical ~63° (anatomystandard.com).
-// The neck and head take less than the full cervical range so the head doesn't roll upside down in deep laybacks.
-const SK_SPINE = [[.075, 15.5, 18, 15], [.075, 15.5, 18, 15], [.085, 11, 12, 15], [.085, 11, 12, 15], [.045, 20, 22, 12], [.062, 20, 22, 12]];
+// Kennedy's layback silhouettes (Oct 26): the head drops back below the shoulders, the bend mostly in the upper back and neck.
+const SK_SPINE = [[.075, 15.5, 18, 15], [.075, 15.5, 18, 15], [.085, 11, 12, 15], [.085, 11, 12, 15], [.07, 31.5, 32, 12], [.075, 31.5, 32, 12]];
 const SK_DIR = -1; // spins turn this way (a left-foot spin, counterclockwise seen from above)
 '''
 

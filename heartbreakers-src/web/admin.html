@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Heartbreakers Quotes</title>
+<link rel="icon" href="icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&family=Montserrat:wght@600;700&display=swap">
+<style>
+/* Layout: one column of moment cards for the chosen Bad Girl; girl picker on top; admin only. */
+:root {
+  --ink: #12060f; --plate: rgba(26, 9, 23, .82); --line: rgba(214, 200, 214, .45);
+  --bone: #f6edf2; --mute: #c6b0bf; --red: #ff3d8e; --good: #4fe3b2;
+  --serif: "Quicksand", "Avenir Next", "Helvetica Neue", Arial, sans-serif;
+  --caps: "Montserrat", "Avenir Next", "Helvetica Neue", Arial, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); background: var(--ink); }
+body { margin: 0; min-height: 100dvh; background: var(--ink) url("img/bg-port.webp") center top / cover fixed no-repeat; color: var(--bone); font: 600 16px/1.4 var(--serif); }
+.wrap { max-width: 640px; margin: 0 auto; padding-block: 16px 120px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 16px; }
+header { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+header img { width: min(300px, 80%); filter: drop-shadow(0 0 12px rgba(255, 61, 142, .45)); }
+header .sub { font: 700 11px var(--caps); letter-spacing: .18em; text-transform: uppercase; color: var(--mute); }
+.card { background: var(--plate); border: 1.5px solid var(--line); border-radius: 16px; padding: 16px; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+h2 { margin: 0 0 4px; font: 700 19px var(--serif); }
+.desc { margin: 0; color: var(--mute); font-size: 14px; font-weight: 500; }
+.lab { font: 700 10.5px var(--caps); letter-spacing: .14em; text-transform: uppercase; color: var(--bone); }
+input, textarea, button { font: inherit; color: inherit; }
+.in { width: 100%; background: rgba(0, 0, 0, .35); border: 1.5px solid var(--line); border-radius: 10px; padding: 10px 12px; outline: none; font-size: 16px; }
+.in:focus { border-color: var(--red); }
+.btn { border: 1.5px solid var(--red); background: rgba(255, 61, 142, .14); border-radius: 99px; padding: 9px 18px; font-weight: 700; cursor: pointer; }
+.btn:disabled { border-color: var(--line); background: none; color: var(--mute); cursor: default; }
+.ghost { border: 1.5px solid var(--line); background: none; border-radius: 99px; padding: 7px 14px; font-weight: 600; cursor: pointer; color: var(--mute); }
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.spread { justify-content: space-between; }
+form.signin { display: flex; flex-direction: column; gap: 10px; }
+.msg { min-height: 1.2em; font-size: 14px; color: var(--mute); }
+.msg.err { color: var(--red); }
+.girls { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 8px; }
+.girl { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 4px 4px 6px; border: 1.5px solid var(--line); border-radius: 12px; background: rgba(0, 0, 0, .3); cursor: pointer; font-size: 12.5px; font-weight: 700; line-height: 1.15; text-align: center; }
+.girl .pw { width: 100%; aspect-ratio: 4 / 5; border-radius: 8px; overflow: hidden; display: grid; place-items: center; background: radial-gradient(85% 65% at 50% 32%, #3b2d48, #17131c 70%); font: 700 22px var(--caps); color: var(--mute); }
+.girl .pw img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 0; display: block; }
+.girl[aria-pressed="true"] { border-color: var(--red); box-shadow: 0 0 0 1px var(--red), 0 0 16px rgba(255, 61, 142, .35); }
+.girl .tag { font: 700 8.5px var(--caps); letter-spacing: .1em; color: var(--mute); text-transform: uppercase; }
+.moments { display: flex; flex-direction: column; gap: 12px; }
+.moment .lines { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.line { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: start; }
+.line textarea { resize: none; overflow: hidden; min-height: 44px; line-height: 1.35; }
+.x { width: 40px; height: 44px; border-radius: 10px; border: 1.5px solid var(--line); background: none; color: var(--mute); font-size: 20px; cursor: pointer; }
+.moment .foot { margin-top: 10px; }
+.state { font-size: 13px; color: var(--mute); }
+.state.saved { color: var(--good); }
+.state.dirty { color: var(--red); }
+.quiet { font-size: 13px; color: var(--mute); font-style: normal; }
+:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><img src="img/logo.webp" alt="BGC: Heartbreakers"><span class="sub">Quote editor</span></header>
+  <main id="main"><div class="card"><p class="desc">Loading…</p></div></main>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
+<script src="../account.js"></script>
+<script>
+const SUPA_URL = 'https://lwbbkwftkxjmrpyalrwu.supabase.co', SUPA_KEY = 'sb_publishable_j4FskQJtwZnxNBZXH61QJQ_U62I-eaY';
+const sb = window.supabase ? window.supabase.createClient(SUPA_URL, SUPA_KEY, { auth: { persistSession: true, autoRefreshToken: true } }) : null;
+const MOMENTS = [
+  ['qsGive', 'Dumps the Queen of Spades on someone', 'She speaks first; the one stuck with it answers right after.'],
+  ['qsGet', 'Gets stuck with the Queen of Spades', ''],
+  ['breaks', 'Breaks hearts', 'The first heart of the round.'],
+  ['fewHearts', 'Takes a trick with 1–2 hearts', 'Plays about half the time.'],
+  ['hearts', 'Takes a trick with 3–4 hearts', ''],
+  ['taunt', 'Takes a clean trick', 'Only sometimes, so it stays special.'],
+  ['moon', 'Shoots the moon', 'Shown on the round score screen.'],
+  ['moonVictim', 'Someone else shoots the moon', 'Shown on the round score screen.'],
+  ['win', 'Wins the game', 'Shown on the final score screen.']
+];
+// Order: the girls with sprites first (they're the ones in the game right now), then everyone else.
+const WITH_SPRITES = ['Natalie', 'Judi', 'Victor Twins', 'Amy'];
+const OTHERS = ['Ripsi', 'Amber M', 'Flo', 'Kristen', 'Char', 'Lucci Vee', 'Rocky', 'Sarah', 'Tanisha'];
+const IMG = { 'Natalie': 'img/natalie.webp', 'Judi': 'img/judi.webp', 'Victor Twins': 'img/victor-twins.webp', 'Amy': 'img/amy.webp' };
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const initials = n => n.split(/\s+/).map(w => w[0]).join('').slice(0, 2);
+let rows = {};          // girl -> moment -> saved lines
+let edits = {};         // girl -> moment -> lines being edited
+let girl = null;
+try { girl = localStorage.getItem('hb.admin.girl'); } catch (e) {}
+
+function signinView(note) {
+  $('#main').innerHTML = `<form class="card signin" id="signin">
+    <h2>Sign in</h2><p class="desc">Use your Glint username and password.</p>
+    <input class="in" id="u" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="Username" required>
+    <input class="in" id="pw" type="password" autocomplete="current-password" placeholder="Password" required>
+    <div class="row spread"><span class="msg${note ? ' err' : ''}" id="smsg">${esc(note || '')}</span><button class="btn" type="submit">Sign in</button></div></form>`;
+  $('#signin').addEventListener('submit', async e => {
+    e.preventDefault();
+    $('#smsg').className = 'msg'; $('#smsg').textContent = 'Signing in…';
+    const email = window.GlintAccount ? GlintAccount.email($('#u').value) : $('#u').value.trim();
+    const { error } = await sb.auth.signInWithPassword({ email, password: $('#pw').value });
+    if (error) { $('#smsg').className = 'msg err'; $('#smsg').textContent = error.message === 'Invalid login credentials' ? 'That username and password don’t match.' : error.message; return; }
+    start();
+  });
+}
+
+async function start() {
+  if (!sb) { $('#main').innerHTML = `<div class="card"><p class="desc">Couldn’t load the sign-in library. Check your connection and reload.</p></div>`; return; }
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) return signinView();
+  if (window.GlintAccount) GlintAccount.gate(sb, session.user, start);
+  const { data: isAdmin } = await sb.rpc('glint_is_admin');
+  if (!isAdmin) {
+    $('#main').innerHTML = `<div class="card"><h2>Admins only</h2><p class="desc">Signed in as ${esc(window.GlintAccount ? GlintAccount.name(session.user) : session.user.email)}. This page is for the game’s admin.</p><div class="row" style="margin-top:12px"><button class="ghost" id="out">Sign out</button></div></div>`;
+    $('#out').onclick = async () => { await sb.auth.signOut(); signinView(); };
+    return;
+  }
+  const { data, error } = await sb.from('hb_quotes').select('girl, moment, lines');
+  if (error) { $('#main').innerHTML = `<div class="card"><p class="desc">Couldn’t load the quotes: ${esc(error.message)}</p></div>`; return; }
+  rows = {};
+  for (const r of data) (rows[r.girl] = rows[r.girl] || {})[r.moment] = Array.isArray(r.lines) ? r.lines.map(String) : [];
+  if (!girl || !WITH_SPRITES.concat(OTHERS).includes(girl)) girl = WITH_SPRITES[0];
+  draw();
+}
+
+const linesFor = (g, m) => (edits[g] && edits[g][m]) || (rows[g] && rows[g][m]) || [];
+const isDirty = (g, m) => !!(edits[g] && edits[g][m]) && JSON.stringify(edits[g][m]) !== JSON.stringify((rows[g] && rows[g][m]) || []);
+
+function draw() {
+  const all = WITH_SPRITES.concat(OTHERS);
+  const pick = all.map(n => {
+    const unsaved = MOMENTS.some(([m]) => isDirty(n, m));
+    return `<button class="girl" type="button" data-g="${esc(n)}" aria-pressed="${n === girl}"><span class="pw">${IMG[n] ? `<img src="${IMG[n]}" alt="">` : esc(initials(n))}</span>${esc(n)}${unsaved ? '<span class="tag" style="color:var(--red)">unsaved</span>' : IMG[n] ? '' : '<span class="tag">no sprite yet</span>'}</button>`;
+  }).join('');
+  const cards = MOMENTS.map(([m, title, hint]) => {
+    const ls = linesFor(girl, m);
+    return `<section class="card moment" data-m="${m}"><h2>${esc(title)}</h2>${hint ? `<p class="desc">${esc(hint)}</p>` : ''}
+      <div class="lines">${ls.map((t, i) => `<div class="line"><textarea class="in" rows="1" data-i="${i}" aria-label="${esc(title)}, line ${i + 1}">${esc(t)}</textarea><button class="x" type="button" data-del="${i}" aria-label="Delete this line">×</button></div>`).join('') || `<p class="quiet">No lines: she stays quiet for this.</p>`}</div>
+      <div class="row spread foot"><button class="ghost" type="button" data-add>+ Add a line</button><span class="row"><span class="state ${isDirty(girl, m) ? 'dirty' : ''}" data-state>${isDirty(girl, m) ? 'Not saved' : ''}</span><button class="btn" type="button" data-save ${isDirty(girl, m) ? '' : 'disabled'}>Save</button></span></div></section>`;
+  }).join('');
+  $('#main').innerHTML = `<div class="card"><div class="row spread" style="margin-bottom:10px"><span class="lab">Pick a Bad Girl</span><button class="ghost" id="out" type="button">Sign out</button></div><div class="girls">${pick}</div></div>
+    <div class="card"><h2>${esc(girl)}</h2><p class="desc">Each moment picks one of her lines at random and never repeats the same line twice in a row. Changes show up in the game the next time it opens.</p></div>
+    <div class="moments">${cards}</div>`;
+  $('#out').onclick = async () => { await sb.auth.signOut(); signinView(); };
+  document.querySelectorAll('.girl').forEach(b => b.onclick = () => { girl = b.dataset.g; try { localStorage.setItem('hb.admin.girl', girl); } catch (e) {} draw(); scrollTo({ top: 0 }); });
+  document.querySelectorAll('.moment').forEach(card => {
+    const m = card.dataset.m;
+    const ensure = () => { edits[girl] = edits[girl] || {}; if (!edits[girl][m]) edits[girl][m] = linesFor(girl, m).slice(); return edits[girl][m]; };
+    const mark = () => { const d = isDirty(girl, m), st = card.querySelector('[data-state]'); st.className = 'state' + (d ? ' dirty' : ''); st.textContent = d ? 'Not saved' : ''; card.querySelector('[data-save]').disabled = !d; };
+    card.querySelectorAll('textarea').forEach(ta => {
+      const fit = () => { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; };
+      fit();
+      ta.addEventListener('input', () => { ensure()[+ta.dataset.i] = ta.value; fit(); mark(); });
+    });
+    card.querySelectorAll('[data-del]').forEach(b => b.onclick = () => { ensure().splice(+b.dataset.del, 1); draw(); });
+    card.querySelector('[data-add]').onclick = () => { ensure().push(''); draw(); const t = document.querySelector(`.moment[data-m="${m}"] textarea:last-of-type`); const all = document.querySelectorAll(`.moment[data-m="${m}"] textarea`); if (all.length) all[all.length - 1].focus(); };
+    card.querySelector('[data-save]').onclick = async () => {
+      const st = card.querySelector('[data-state]'), btn = card.querySelector('[data-save]');
+      const lines = ensure().map(s => s.trim()).filter(Boolean);
+      btn.disabled = true; st.className = 'state'; st.textContent = 'Saving…';
+      const { error } = await sb.from('hb_quotes').upsert({ girl, moment: m, lines, updated_at: new Date().toISOString() });
+      if (error) { st.className = 'state dirty'; st.textContent = 'Couldn’t save: ' + error.message; btn.disabled = false; return; }
+      (rows[girl] = rows[girl] || {})[m] = lines; delete edits[girl][m];
+      draw();
+      const again = document.querySelector(`.moment[data-m="${m}"] [data-state]`);
+      if (again) { again.className = 'state saved'; again.textContent = 'Saved'; }
+    };
+  });
+}
+addEventListener('beforeunload', e => { if (Object.keys(edits).some(g => MOMENTS.some(([m]) => isDirty(g, m)))) { e.preventDefault(); e.returnValue = ''; } });
+start();
+</script>
+</body>
+</html>

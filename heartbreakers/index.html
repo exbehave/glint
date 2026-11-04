@@ -1322,7 +1322,6 @@ function playCard(p, c) {
       const h = res.trick.filter(x => suit(x.c) === 3).length;
       if (h >= 3) say(res.w, 'hearts');
       else if (h && Math.random() < 0.5) say(res.w, 'fewHearts');
-      else if (!h && Math.random() < 0.2) say(res.w, 'taunt');
     }
   }, 420 + extra);
   setTimeout(() => {
@@ -1352,7 +1351,7 @@ function endHand() {
   else head = `Round ${G.handNo} done`;
   const nd = DIRS[G.handNo % 4];
   let react = '';
-  if (moon >= 0) react = quoteHTML(moon, 'moon') + quoteHTML(moon === 0 ? 1 + Math.floor(Math.random() * 3) : 0, 'moonVictim');
+  if (moon >= 0) react = quoteHTML(moon, 'moon');
   else if (over && winners.length === 1) react = quoteHTML(G.names.indexOf(winners[0]), 'win');
   const moonLine = moon >= 0 ? `<div class="moon">${moon === 0 ? 'You shot the moon. Everyone else takes 26.' : `${nameOf(moon)} shot the moon. Everyone else takes 26.`}</div>` : '';
   openVeil(`<div class="panel" role="dialog" aria-label="Scores">

@@ -250,7 +250,7 @@ The test runner keeps a running record for every girl, in a results file next to
 - How often she catches the Q♠, and how often she lands it on someone else (on a human, for Out for you girls).
 - Moon attempts, moons made, and moons she stopped, counted two ways:
   - **What she meant (computer players only):** the runner logs her decisions, so it knows exactly when her Goes for the moon dial switched her into moon mode, and when Covers made her take a heart to stop someone. That's her real intent, not a guess.
-  - **What anyone could see (works for humans too, and for the stats card):** a **live moon** is when one player has taken every point so far and at least 10 of them (or the Q♠ and a heart), and nobody else has taken any. An *observed attempt* = she had a live moon going. A *stop* = she takes a point card while someone else has a live moon. A point trick taken before anyone has a live moon is not a stop, since no moon was on yet. Cutoffs are first guesses.
+  - **What anyone could see (works for humans too, and for the stats card):** a **live moon** is when one player has won more than one trick with points in it and nobody else has taken any points (Kennedy, Nov 4: no point minimum). An *observed attempt* = she had a live moon going. A *stop* = she takes a point card while someone else has a live moon. A point trick taken before anyone has a live moon is not a stop, since no moon was on yet.
 - How often each stand-out dial fired, and what it cost or saved her on average.
 - Results by hand tag (does she fall apart on All middle hands?) and before vs after the pass.
 

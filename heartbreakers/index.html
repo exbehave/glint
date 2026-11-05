@@ -959,8 +959,18 @@ function chooseByGoal(T, p, scores) { // scores: [{x, own, hum}] averaged
   near.sort((a, b) => b.hum - a.hum || a.own - b.own);
   return near[0].x;
 }
+// Leading the Q♠ is only allowed when it can't come back to her: someone after her in the trick holds nothing but
+// the A♠/K♠ in spades, so they're forced to win it. Otherwise it's a gamble on someone else's choice (Kennedy, Nov 5:
+// Natalie led it at trick 2, nobody covered, and she ate it).
+function qsLeadSafe(st, p) {
+  return [1, 2, 3].some(i => {
+    const sp = st.hands[(p + i) % 4].filter(c => suit(c) === 2);
+    return sp.length && sp.every(c => rank(c) > 12);
+  });
+}
 function pickPsychic(T, p, st) {
-  const L = legalFor(st, p);
+  let L = legalFor(st, p);
+  if (!st.trick.length && L.includes(QS) && L.length > 1 && !qsLeadSafe(st, p)) L = L.filter(c => c !== QS);
   if (L.length === 1) return L[0];
   const R = randomish(T, p) ? Math.max(8, Math.floor(160 / L.length)) : 1;
   const hum = T.humans.filter(h => h !== p);

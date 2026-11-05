@@ -982,7 +982,10 @@ function pickPsychic(T, p, st) {
       const f = playOut(T, s, p);
       own += f[p]; hu += hum.reduce((a, h) => a + f[h], 0);
     }
-    return { x: c, own: own / R, hum: hu / R };
+    // Never eat the queen early when holding on costs the same (Kennedy, Nov 5): playing it now onto a spade trick
+    // she'd win counts as a point worse, so she keeps her other spades and leaves the others time to slip up.
+    const winsNow = c === QS && st.trick.length && suit(st.trick[0].c) === 2 && !st.trick.some(x => suit(x.c) === 2 && rank(x.c) > 12);
+    return { x: c, own: own / R + (winsNow && L.some(x => suit(x) === 2 && x !== QS) ? 1.5 : 0), hum: hu / R };
   });
   return chooseByGoal(T, p, scores);
 }

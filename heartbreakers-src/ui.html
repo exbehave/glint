@@ -679,11 +679,66 @@ function lineFor(p, ev) {
   lastLine[nm] = l; lastByMoment[nm + '|' + ev] = l; used.add(l);
   return l;
 }
-function playClip(nm, ev) {
-  if (!S.sound) return;
-  const list = CLIPS[nm] && CLIPS[nm][ev];
-  if (!list || !list.length) return;
-  try { new Audio(list[Math.floor(Math.random() * list.length)]).play().catch(() => {}); } catch (e) {}
+// ---------- real voice clips (hb_bites table + the private hb-bites bucket) ----------
+// Each clip is tied to the exact quote line it voices, so it plays whenever she says that line (even a borrowed one).
+// The bucket is private: only signed-in players get links. Signed out (artifact, local copies) she just shows the bubble.
+// Clips play through the game's own AudioContext (unlocked on the first tap), so iPhone plays them mid-game without a tap.
+const BITES = {};          // girl -> normalized line -> [{ path, url, ab, buf }]
+const normLine = s => String(s).toLowerCase().replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/\s+/g, ' ').trim();
+let voiceEnd = 0;          // when the clip that's playing now finishes (performance.now() ms)
+let bitesLoading = null;
+async function loadBites() {
+  if (!sb || bitesLoading) return bitesLoading;
+  bitesLoading = (async () => {
+    try {
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) return;
+      const { data, error } = await sb.from('hb_bites').select('path, girl, line');
+      if (error || !Array.isArray(data) || !data.length) return;
+      const { data: signed } = await sb.storage.from('hb-bites').createSignedUrls(data.map(r => r.path), 12 * 3600);
+      const urls = {};
+      (signed || []).forEach(s => { if (s && s.signedUrl) urls[s.path] = s.signedUrl; });
+      const old = {};
+      for (const g in BITES) for (const k in BITES[g]) BITES[g][k].forEach(b => { old[b.path] = b; });
+      for (const g in BITES) delete BITES[g];
+      for (const r of data) {
+        const url = urls[r.path]; if (!url) continue;
+        const prev = old[r.path];
+        const b = { path: r.path, url, ab: prev ? prev.ab : null, buf: prev ? prev.buf : null };
+        const byLine = BITES[r.girl] || (BITES[r.girl] = {});
+        (byLine[normLine(r.line)] = byLine[normLine(r.line)] || []).push(b);
+        if (!b.ab && !b.buf) fetch(url).then(res => res.ok ? res.arrayBuffer() : null).then(ab => { if (ab) b.ab = ab; }).catch(() => {});
+      }
+    } catch (e) {}
+  })();
+  try { await bitesLoading; } finally { bitesLoading = null; }
+}
+async function playBuf(b) {
+  const c = SFX.ready(); if (!c) return 0;
+  if (!b.buf && b.ab) { try { b.buf = await c.decodeAudioData(b.ab.slice(0)); } catch (e) { b.ab = null; } }
+  if (!b.buf) return 0;
+  const src = c.createBufferSource(), g = c.createGain();
+  g.gain.value = 0.9; src.buffer = b.buf; src.connect(g); g.connect(c.destination); src.start();
+  return b.buf.duration;
+}
+// Plays her clip for this line if she has one; returns true when a clip exists (so the caller can wait for it).
+function playClip(nm, ev, text) {
+  if (!S.sound) return false;
+  const list = text && BITES[nm] && BITES[nm][normLine(text)];
+  if (list && list.length) {
+    const b = list[Math.floor(Math.random() * list.length)];
+    const est = b.buf ? b.buf.duration : 2;
+    voiceEnd = performance.now() + est * 1000;
+    playBuf(b).then(d => { voiceEnd = d ? performance.now() + d * 1000 - 40 : 0; });
+    return true;
+  }
+  const old = CLIPS[nm] && CLIPS[nm][ev];
+  if (old && old.length) { try { new Audio(old[Math.floor(Math.random() * old.length)]).play().catch(() => {}); } catch (e) {} }
+  return false;
+}
+if (sb) {
+  try { sb.auth.onAuthStateChange((e, session) => { if (session && /INITIAL|SIGNED_IN|TOKEN/.test(e)) setTimeout(loadBites, 0); }); } catch (e) {}
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) loadBites(); });
 }
 // Reactions wait their turn: each starts at least SPEAK_GAP ms after the one before, in the order they were triggered.
 const SPEAK_GAP = 1300;
@@ -697,9 +752,12 @@ function say(p, ev) {
 }
 function sayNow(p, ev) {
   if (!G || !G.names) return;
+  // a real clip is still playing: wait for it to finish so nobody talks over her
+  const wait = voiceEnd - performance.now();
+  if (wait > 0) { const game = G; speakFree = Math.max(speakFree, voiceEnd + 150 + SPEAK_GAP); setTimeout(() => { if (G === game) sayNow(p, ev); }, wait + 150); return; }
   const nm = voiceOf(p), text = lineFor(p, ev);
   if (!text) return;
-  playClip(nm, ev);
+  if (playClip(nm, ev, text)) speakFree = Math.max(speakFree, voiceEnd + 150);
   const plate = p === 0 ? $('mechip') : $('plate' + p);
   if (!plate) return;
   if (bubbles[p]) bubbles[p].remove();
@@ -746,9 +804,9 @@ function portraitHTML(nm, flip) {
 }
 function quoteHTML(p, ev) {
   const nm = voiceOf(p);
-  playClip(nm, ev);
   const text = lineFor(p, ev);
   if (!text) return '';
+  playClip(nm, ev, text);
   return `<div class="quote">${portraitHTML(nm)}<div><div class="who">${esc(nm)}</div><div class="q">“${esc(text)}”</div></div></div>`;
 }
 

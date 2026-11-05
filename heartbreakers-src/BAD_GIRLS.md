@@ -16,7 +16,7 @@ Seasons as given in the Google Sheet. Blank = not decided yet. Every girl gets a
 
 | Girl | Season | Sprite | Level | Stand-out dials | Bio |
 |---|---|---|---|---|---|
-| Natalie | 4 | Done | Genius | Judgment high, Out for you high, Learns the table (aimed at the human) | |
+| Natalie | 4 | Done | Genius | Goal: her points lowest first, then the human's highest. Judgment high, Out for you high, Learns the table (aimed at the human), Psychic: sees the human players' hands only (for now) | |
 | Judi | 7 | Done | | | |
 | Victor Twins | 8 | Done | | | |
 | Amy | 8 | Done | | | |
@@ -100,11 +100,11 @@ Natalie and Ripsi's entries come from Kennedy's examples (Natalie: the hardest o
 **Special abilities** (on or off, Genius girls only, and only a few of them):
 - **Learns the table:** watches how everyone plays during the game, the human most of all, and adjusts: stops covering a girl she's caught bluffing, bluffs the girl who always covers, leads into whoever always ducks. Keeps a tally of each player's passes, so someone who keeps passing uncovered moon hands gets read. Her notes carry across games in story mode.
 - **Intuit:** sees every stats card at the table before a card is played: the other girls' and each signed-in human's long-term card. Fair play: she never sees anyone's cards.
-- **Psychic (she cheats):** actually sees cards she shouldn't. The one deliberate exception to the no-cheating rule; built for Natalie. How much she sees is not decided yet.
+- **Psychic (she cheats):** actually sees cards she shouldn't. The one deliberate exception to the no-cheating rule; built for Natalie, who (for now) sees only the human players' hands.
 
 **Pickers** (one choice from a few; Claude's suggestions):
 - **Out for you, with more than one human:** Random (default) / Whoever's winning / Whoever beat her last time.
-- **Psychic mode:** Sometimes / Your hand only / Key moments only / Boss match only. Not decided.
+- **Psychic mode:** Sometimes / The humans' hands only / Key moments only / Boss match only. Natalie: the humans' hands only, for now.
 - **Discard plan, when she's out of the suit led:** Danger first (Q♠, then the A♠/K♠ while the queen is out, then high hearts, then other high cards) / Make more voids (throws from her shortest suit to run out of it too) / Keep my exits (throws high but keeps one low card per suit) / Whatever's highest. Applies on any trick, including the first (where no points can be thrown, so she sheds a high non-point card).
 - **Moon payoff:** Smart (default; picks the better of +26 and −26) / Show-off (always everyone else +26) / Safe (always me −26). Easy girls pick at random.
 
@@ -125,7 +125,9 @@ When she plays a card:
 
 Passing has its own shorter list: Keeps the queen, Moon pass, Spade panic, Voids a suit, then Helps the table and Gangs-up targeting, then Judgment's veto.
 
-**Signature dial:** each girl can have one dial marked as her signature. It jumps to the top of its own step (Natalie's Out for you goes first among the queen and points steps). Whether a signature can jump ahead of a whole step, like Out for you over a moon emergency, is not decided.
+**Goal (settles conflicts):** each girl has a ranked goal, and it's the formula the cost check scores every card with. It's what decides when two dials pull different ways. Natalie's goal (Kennedy, Nov 4): **first keep her own points as low as possible, then give the human as many as possible**, using every tool she has. In practice: she finds the cards that cost her the least; among those that are nearly as good (within about half a point), she picks the one that hurts the human most. So if someone else is shooting the moon, she stops it, because a moon would cost her 26. Other goals to choose from (Claude's suggestions): Me first (just minimize her points), Me first then the leader, Win the game (her total vs the leader's, not just this hand), Chaos (random).
+
+**Signature dial:** each girl can still have one dial marked as her signature, which jumps to the top of its own step. Her goal still has the final say.
 
 ## Starting cards by level
 

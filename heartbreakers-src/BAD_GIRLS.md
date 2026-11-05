@@ -108,6 +108,25 @@ Natalie and Ripsi's entries come from Kennedy's examples (Natalie: the hardest o
 - **Discard plan, when she's out of the suit led:** Danger first (Q♠, then the A♠/K♠ while the queen is out, then high hearts, then other high cards) / Make more voids (throws from her shortest suit to run out of it too) / Keep my exits (throws high but keeps one low card per suit) / Whatever's highest. Applies on any trick, including the first (where no points can be thrown, so she sheds a high non-point card).
 - **Moon payoff:** Smart (default; picks the better of +26 and −26) / Show-off (always everyone else +26) / Safe (always me −26). Easy girls pick at random.
 
+## Priority: which dial wins when two disagree (draft, Kennedy to confirm)
+
+On every decision, dials are checked top to bottom. Each one that applies rolls; **the first dial that fires decides the move**, and everything below it is skipped for that decision. Then Judgment gets the last word.
+
+When she plays a card:
+1. **The rules.** Only legal cards count. Always first.
+2. **Mood.** Hothead, Gets cocky and Comeback don't pick a card; they raise or lower her Judgment and memory for a while, so they're applied before anything else.
+3. **What she knows.** Card memory, Queen tracking, Reads the pass, Learns the table, Intuit and Psychic don't pick a card either; they decide what information the rest of the list works from.
+4. **Filters.** Softie and Season sisters remove choices (she won't dump on those players at all) before anything ranks them.
+5. **Moon emergencies.** Her own moon attempt in progress (Goes for the moon), or stopping a real one (Covers, Bluffs).
+6. **The queen.** Hot potato, Out for you, Keeps the queen.
+7. **Who gets the points.** Out for you, Holds a grudge, Takes down the leader, Piles on the loser, in that order.
+8. **How she plays the trick.** Trick hog, Ducking, Sheds high cards and her Discard plan.
+9. **Judgment's veto.** The cost check compares the chosen card with her best card. If it costs more than her Judgment allows, she plays her best card instead.
+
+Passing has its own shorter list: Keeps the queen, Moon pass, Spade panic, Voids a suit, then Helps the table and Gangs-up targeting, then Judgment's veto.
+
+**Signature dial:** each girl can have one dial marked as her signature. It jumps to the top of its own step (Natalie's Out for you goes first among the queen and points steps). Whether a signature can jump ahead of a whole step, like Out for you over a moon emergency, is not decided.
+
 ## Starting cards by level
 
 Every girl starts from her level's card; Kennedy gives each girl's level and any specific dials, and Claude fills the rest from here (Kennedy corrects as needed). The test games then check that she plays at her level. Dials 18 and 20–23 are personality, not skill, so they start low for every level and get set per girl. Switches start off.

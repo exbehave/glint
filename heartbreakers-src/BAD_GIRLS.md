@@ -238,6 +238,8 @@ Every signed-in player's games are tracked over time with the same dials as the 
 5. **Round robin:** every girl plays mixed tables with every other girl, giving one overall ranking, so the levels line up across the whole roster.
 6. **Human stand-ins:** reference cards for a beginner, an average player and a sharp player, to see how each girl treats a human (Out for you, Psychic).
 
+7. **Calibrating the live-moon rule:** the computer girls' logged intent is the answer key. Every candidate rule gets scored against it: "more than one point trick" (the current rule), and "at least N points" for N from 1 to 25, alone or combined. For each one, two numbers: how many of the attempts it flags were real (not accidents), and how many real attempts it catches. Plotted against N, the best rule is where both stay high, plus how early in the hand it catches them. The winner replaces the current rule. Needs girls that really try for the moon (the Goes for the moon dial) first.
+
 Results are reported as win rate and average points per hand (points are steadier than wins, so they settle faster). With 1,000 games a 25% win rate is accurate to about ±3 percentage points.
 
 ## Results log (planned; starts once the engine is settled)

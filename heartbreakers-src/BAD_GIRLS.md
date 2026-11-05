@@ -80,6 +80,9 @@ Natalie and Ripsi's entries come from Kennedy's examples (Natalie: the hardest o
 | 19 | Heart breaker | Breaks hearts at the first chance, whatever she's holding | Hurts |
 | 20 | Never breaks hearts | Holds every heart until she has no choice, even high ones she'll get stuck with | Hurts |
 | 21 | Cashes out early | Leads her aces and kings of clubs and diamonds in the first few tricks, then can't win the lead back | Hurts |
+| | **Receiving** | | |
+| 40 | Reads the pass | Re-reads her hand after the pass and works out what the passer is holding from what she got (high spades passed to her? the passer is probably short in spades and may hold the queen) | Helps |
+| 41 | Stuck on her plan | Keeps the plan she made before passing even when what she received changes everything (gets three high hearts and still won't try for the moon, or gets the Q♠ and plays as if she didn't) | Hurts |
 | | **Dumping points** | | |
 | 22 | Point grabber | Wins tricks full of points instead of playing under | Hurts a lot |
 | 23 | Hot potato | Dumps the Q♠ on the first trick she can, on whoever wins it | Helps a little |
@@ -134,6 +137,8 @@ Shooting the moon only needs every trick with a heart or the Q♠ in it, so low 
 | Protected queen | the Q♠ with four or more low spades | 4% |
 
 **Short suit:** two or fewer clubs or diamonds (55% of hands).
+
+**Passing changes the hand.** The tags are read twice: before passing (to choose the three cards, aiming at the hand she wants to end up with, and depending on who receives them and which way the pass goes) and again after receiving (her real hand for the round). A pass can turn a good hand bad or a bad hand good, so the test games report both readings: the hand she was dealt and the hand she played.
 
 ## Rules decided so far
 

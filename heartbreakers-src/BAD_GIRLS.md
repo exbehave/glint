@@ -149,7 +149,9 @@ Every signed-in player's games are tracked over time with the same vocabulary as
 - **The card:** the player's tendencies, shown on their profile.
 - **Coaching:** short tips with the reason behind them, for habits that cost points (not covering your pass hands the receiver a moon; leading spades into the low player lets them dump the queen safely) and for good habits worth doing more.
 - **Psychic girls** (trait 43) read this history before the game starts. Learns the table (42) builds it during the game and, in story mode, across games.
-- Not decided: whether other players can see someone's card.
+- **Private.** Only the player sees their own card. They can choose to share it (a share button), but no one else can look it up.
+- **Every Bad Girl has a stats card too, in the same format** (Kennedy, Nov 4). Her card is what decides how she plays: the game reads her tendencies the same way it would describe a human's.
+- **Psychic girls see every card at the table:** the other girls' and the humans', even though humans can't see each other's.
 
 ## Rules decided so far
 

@@ -649,15 +649,25 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) load
 
 // ---------- cast reactions ----------
 const lastLine = {}, bubbles = {};
+const lastByMoment = {};
+// Small hits (1–2 hearts) come up often: she mostly uses her small-hit lines, sometimes borrows a big-hit line,
+// never repeats the small-hit line she used last time, and borrows a big-hit line whenever that's the only fresh option.
+const BORROW_BIG = 0.25;
 function lineFor(p, ev) {
   const nm = voiceOf(p);
-  const own = LINES[nm] && LINES[nm][ev];
-  if (Array.isArray(own) && !own.length) return null; // the admin cleared this moment: she stays quiet
-  const set = own || GENERIC_LINES[ev];
-  let opts = set.filter(l => l !== lastLine[nm]);
+  const pool = e => { const own = LINES[nm] && LINES[nm][e]; return own || GENERIC_LINES[e] || []; };
+  const set = pool(ev);
+  if (!set.length) return null; // the admin cleared this moment: she stays quiet
+  const said = e => lastByMoment[nm + '|' + e];
+  const fresh = list => list.filter(l => l !== said(ev) && l !== lastLine[nm]);
+  let opts = fresh(set);
+  if (ev === 'fewHearts') {
+    const big = fresh(pool('hearts')).filter(l => l !== said('hearts'));
+    if (big.length && (!opts.length || Math.random() < BORROW_BIG)) opts = big;
+  }
   if (!opts.length) opts = set;
   const l = opts[Math.floor(Math.random() * opts.length)];
-  lastLine[nm] = l;
+  lastLine[nm] = l; lastByMoment[nm + '|' + ev] = l;
   return l;
 }
 function playClip(nm, ev) {

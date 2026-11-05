@@ -220,6 +220,17 @@ Every signed-in player's games are tracked over time with the same dials as the 
 - **No cheating.** Computer players only use what a real player at the table could know: their own hand, cards played, what was passed to them, and how people have played. They never peek at anyone's hand, except a girl with the Psychic ability, who cheats on purpose.
 - **Quotes:** up to three per moment; the game picks one at random. A moment with no quote stays quiet.
 
+## Test plan (the simulator plays every seat)
+
+1. **Fairness check:** four copies of the same girl at one table should each win about 25% of games. Anything else means the table itself is lopsided (seat order, who leads first), and it gets fixed before anything else is measured.
+2. **The reference girl:** a fixed, ordinary Medium card that never changes, used as the yardstick. Each real girl plays against three copies of her. About 25% wins means Medium; first-guess bands: Easy under 15%, Hard 35–40%, Genius 45% or more (to be tuned once real numbers come in).
+3. **Same deals for everyone** (like duplicate bridge): when comparing two girls, both play the exact same set of deals from the same seat, so luck cancels out and far fewer games are needed.
+4. **One dial at a time:** change one dial, rerun on the same deals, and see how much it moves her results. That shows which dials matter and how much a habit really costs.
+5. **Round robin:** every girl plays mixed tables with every other girl, giving one overall ranking, so the levels line up across the whole roster.
+6. **Human stand-ins:** reference cards for a beginner, an average player and a sharp player, to see how each girl treats a human (Out for you, Psychic).
+
+Results are reported as win rate and average points per hand (points are steadier than wins, so they settle faster). With 1,000 games a 25% win rate is accurate to about ±3 percentage points.
+
 ## Build order
 
 1. This file: assign levels, dial values and bios.

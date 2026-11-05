@@ -12,7 +12,7 @@ The working sheet for who's in the game, how each girl plays, and the rules behi
 
 ## Roster
 
-Seasons as given in the Google Sheet. Blank = not decided yet. Every girl gets a full stats card (all 29 dials, starting from her level's card below); this column lists only what stands out.
+Seasons as given in the Google Sheet. Blank = not decided yet. Every girl gets a full stats card (all 30 dials, starting from her level's card below); this column lists only what stands out.
 
 | Girl | Season | Sprite | Level | Stand-out dials | Bio |
 |---|---|---|---|---|---|
@@ -78,6 +78,8 @@ Natalie and Ripsi's entries come from Kennedy's examples (Natalie: the hardest o
 | | **Following** | | | |
 | 15 | Ducking | Saves her low cards, keeps two for the end | Ducks under every winning card, even if it strands her with the last tricks | Worse |
 | 16 | Takes points | Plays under whenever she can | Wins tricks full of points | Worse |
+| | **Discarding (out of the suit led, no points going anywhere)** | | | |
+| 30 | Sheds high cards | Throws her lowest card | Throws her highest card. Judgment keeps a low card in each suit as a way out | Higher is better, mostly |
 | | **Dumping points: who gets them** | | | |
 | 17 | Hot potato | Waits for the best moment to dump the Q♠ | Dumps it on the first trick she can | Slightly better |
 | 18 | Out for you | Treats humans like anyone else | Saves the Q♠ and hearts for one human (random each game if there's more than one) | Depends on Judgment |
@@ -103,6 +105,7 @@ Natalie and Ripsi's entries come from Kennedy's examples (Natalie: the hardest o
 **Pickers** (one choice from a few; Claude's suggestions):
 - **Out for you, with more than one human:** Random (default) / Whoever's winning / Whoever beat her last time.
 - **Psychic mode:** Sometimes / Your hand only / Key moments only / Boss match only. Not decided.
+- **Discard plan, when she's out of the suit led:** Danger first (Q♠, then the A♠/K♠ while the queen is out, then high hearts, then other high cards) / Make more voids (throws from her shortest suit to run out of it too) / Keep my exits (throws high but keeps one low card per suit) / Whatever's highest. Applies on any trick, including the first (where no points can be thrown, so she sheds a high non-point card).
 - **Moon payoff:** Smart (default; picks the better of +26 and −26) / Show-off (always everyone else +26) / Safe (always me −26). Easy girls pick at random.
 
 ## Starting cards by level
@@ -140,6 +143,7 @@ Every girl starts from her level's card; Kennedy gives each girl's level and any
 | 27 Hothead | 50% | 30% | 15% | 5% |
 | 28 Gets cocky | 50% | 30% | 15% | 5% |
 | 29 Comeback | 0% | 10% | 20% | 30% |
+| 30 Sheds high cards | 40% | 60% | 75% | 85% |
 
 ## Hand tags
 

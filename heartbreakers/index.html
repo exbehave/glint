@@ -1414,18 +1414,36 @@ function lineFor(p, ev) {
 const BITES = {};          // girl -> normalized line -> [{ path, url, ab, buf }]
 const normLine = s => String(s).toLowerCase().replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/\s+/g, ' ').trim();
 let voiceEnd = 0;          // when the clip that's playing now finishes (performance.now() ms)
-let bitesLoading = null;
+let bitesLoading = null, bitesAgain = false, bitesTry = 0, bitesTimer = 0, bitesLastTry = 0;
+const bitesLoaded = () => Object.keys(BITES).length > 0;
+// Nov 5: on a phone that had been idle, the clip list was asked for with an expired sign-in a moment before
+// the sign-in renewed itself; it got refused (401), and the follow-up load was skipped because one was "in flight".
+// So: renew first when it's (nearly) expired, retry a few times on failure, and re-run if asked again mid-load.
 async function loadBites() {
-  if (!sb || bitesLoading) return bitesLoading;
+  if (!sb) return;
+  if (bitesLoading) { bitesAgain = true; return bitesLoading; }
+  bitesLastTry = Date.now();
+  let ok = false;
   bitesLoading = (async () => {
     try {
-      const { data: { session } } = await sb.auth.getSession();
+      let { data: { session } } = await sb.auth.getSession();
       if (!session) return;
-      const { data, error } = await sb.from('hb_bites').select('path, girl, line, duration_s');
-      if (error || !Array.isArray(data) || !data.length) return;
-      const { data: signed } = await sb.storage.from('hb-bites').createSignedUrls(data.map(r => r.path), 12 * 3600);
+      if (!session.expires_at || session.expires_at * 1000 < Date.now() + 60000) {
+        const { data: fresh } = await sb.auth.refreshSession();
+        if (fresh && fresh.session) session = fresh.session;
+      }
+      let { data, error } = await sb.from('hb_bites').select('path, girl, line, duration_s');
+      if (error) {                                   // most likely an expired sign-in: renew once and ask again
+        await sb.auth.refreshSession().catch(() => {});
+        ({ data, error } = await sb.from('hb_bites').select('path, girl, line, duration_s'));
+      }
+      if (error || !Array.isArray(data)) return;
+      if (!data.length) { ok = true; return; }
+      const { data: signed, error: sErr } = await sb.storage.from('hb-bites').createSignedUrls(data.map(r => r.path), 12 * 3600);
+      if (sErr) return;
       const urls = {};
       (signed || []).forEach(s => { if (s && s.signedUrl) urls[s.path] = s.signedUrl; });
+      ok = Object.keys(urls).length > 0;
       const old = {};
       for (const g in BITES) for (const k in BITES[g]) BITES[g][k].forEach(b => { old[b.path] = b; });
       for (const g in BITES) delete BITES[g];
@@ -1440,11 +1458,20 @@ async function loadBites() {
     } catch (e) {}
   })();
   try { await bitesLoading; } finally { bitesLoading = null; }
+  clearTimeout(bitesTimer);
+  if (ok) bitesTry = 0;
+  else if (bitesTry < 4) { bitesTry++; bitesTimer = setTimeout(loadBites, [2000, 5000, 15000, 45000][bitesTry - 1]); }
+  if (bitesAgain) { bitesAgain = false; setTimeout(loadBites, 0); }
 }
 async function playBuf(b) {
   const c = SFX.ready(); if (!c) return 0;
+  // the download may not have finished yet (or was dropped): fetch it now
+  if (!b.buf && !b.ab && b.url) { try { const res = await fetch(b.url); if (res.ok) b.ab = await res.arrayBuffer(); } catch (e) {} }
   if (!b.buf && b.ab) { try { b.buf = await c.decodeAudioData(b.ab.slice(0)); } catch (e) { b.ab = null; } }
-  if (!b.buf) return 0;
+  if (!b.buf) {                                      // couldn't decode it here: let the browser's own player try
+    if (b.url) { try { const a = new Audio(b.url); a.volume = 0.9; await a.play(); return b.dur || 2; } catch (e) {} }
+    return 0;
+  }
   const src = c.createBufferSource(), g = c.createGain();
   g.gain.value = 0.9; src.buffer = b.buf; src.connect(g); g.connect(c.destination); src.start();
   return b.buf.duration;
@@ -1452,6 +1479,8 @@ async function playBuf(b) {
 // Plays her clip for this line if she has one; returns true when a clip exists (so the caller can wait for it).
 function playClip(nm, ev, text) {
   if (!S.sound) return false;
+  // no clips loaded yet (e.g. every load failed): try again quietly, at most every 30 s
+  if (!bitesLoaded() && !bitesLoading && Date.now() - bitesLastTry > 30000) loadBites();
   const list = text && BITES[nm] && BITES[nm][normLine(text)];
   if (list && list.length) {
     const b = list[Math.floor(Math.random() * list.length)];

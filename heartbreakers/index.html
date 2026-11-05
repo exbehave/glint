@@ -1309,11 +1309,14 @@ function playCard(p, c) {
     if (el) setTimeout(() => glassBreak(center(el)), 160);
     setTimeout(() => SFX.glass(), 150);
     extra = Math.max(extra, 700);
-    setTimeout(() => say(p, 'breaks'), 500);
+    G.breaker = p; // her quote waits for the end of the trick: the queen trumps it
   }
   if (!res) return step(extra);
   const qsP = res.trick.find(x => x.c === QS);
+  const breaker = G.breaker; G.breaker = null;
   setTimeout(() => {
+    // the Q♠ in the trick trumps every other reaction (breaking hearts, hearts taken)
+    if (!qsP && breaker != null) say(breaker, 'breaks');
     if (qsP) {
       // whoever dumped the queen speaks first, then whoever got stuck with her
       if (qsP.p !== res.w) say(qsP.p, 'qsGive');
@@ -1351,8 +1354,9 @@ function endHand() {
   else head = `Round ${G.handNo} done`;
   const nd = DIRS[G.handNo % 4];
   let react = '';
-  if (moon >= 0) react = quoteHTML(moon, 'moon');
-  else if (over && winners.length === 1) react = quoteHTML(G.names.indexOf(winners[0]), 'win');
+  // end of the round: the moon line first, then the winner's line if the game is over (both play)
+  if (moon >= 0) react += quoteHTML(moon, 'moon');
+  if (over && winners.length === 1) react += quoteHTML(G.names.indexOf(winners[0]), 'win');
   const moonLine = moon >= 0 ? `<div class="moon">${moon === 0 ? 'You shot the moon. Everyone else takes 26.' : `${nameOf(moon)} shot the moon. Everyone else takes 26.`}</div>` : '';
   openVeil(`<div class="panel" role="dialog" aria-label="Scores">
     <div><h2>${head}</h2><div class="sub">${over ? `Game to ${S.target}. Lowest score wins.` : `Next round: ${nd === 'hold' ? 'no passing' : 'pass ' + nd}.`}</div></div>

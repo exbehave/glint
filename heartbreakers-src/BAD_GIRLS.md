@@ -16,10 +16,10 @@ Seasons as given in the Google Sheet. Blank = not decided yet. Every girl gets a
 
 | Girl | Season | Sprite | Level | Stand-out dials | Bio |
 |---|---|---|---|---|---|
-| Natalie | 4 | Done | Genius | Goal: her points lowest first, then the human's highest. Judgment high, Out for you high, Learns the table (aimed at the human), Intuit (knows everyone's stats cards), Psychic: sees the human players' hands only (for now). Moon pass about 40% (2 in 5), only when passing her high cards helps her, mixed up so no one can read a pattern; against a receiver who never tries for the moon, she passes her high cards every time | |
-| Judi | 7 | Done | | | |
-| Victor Twins | 8 | Done | | | |
-| Amy | 8 | Done | | | |
+| Natalie | 4 | Done | Genius (maxed, Kennedy Nov 4: make her essentially unbeatable, tone down later if needed) | Goal: her points lowest first, then the human's highest. Every helpful dial at 100% (Judgment, Card memory, Queen tracking, Reads the pass), every careless one at 0% (Spade panic, Careless spades, Trick hog, Hothead, Gets cocky, Softie). Learns the table, Intuit. Psychic: sees **every** hand (widened from human players only). The strategic dials (Moon pass, Keeps the queen, Bold leads, Bluffs, Goes for the moon, Covers) don't roll for her: since she can see every card, she does each one exactly when it's the best move. Engine: no guessing about hidden cards, so the extra time goes into looking further ahead | |
+| Judi | 7 | Done | Hard (proposed) | Patient and sneaky: Breaks hearts early 5%, Ducking 70%, Keeps the queen 60% (holds it to dump later), Covers 70%, Card memory 70%. Signature: Keeps the queen | |
+| Victor Twins | 8 | Done | Medium (proposed) | Holds a grudge 80% (whoever sticks them with the queen or a big heart trick becomes their target for the rest of the game), Takes down the leader 40%, Hot potato 40%. Signature: Holds a grudge | |
+| Amy | 8 | Done | Easy (proposed) | Panics: Hot potato 85% (dumps the queen on the first trick she can), Spade panic 70% (passes the Q♠ away even when safe), Breaks hearts early 60%, Hothead 70%. Signature: Hot potato | |
 | Ripsi | 1 | Needed | Easy | Trick hog high | |
 | Tanisha | 2 | Needed | | | |
 | Amber M | 3 | Needed | | | |
@@ -41,6 +41,8 @@ Seasons as given in the Google Sheet. Blank = not decided yet. Every girl gets a
 | Delilah | | Needed | Genius (just below Natalie) | Goal: the human's points highest first, even at her own expense; when no move changes what happens to the human, she plays for herself. Otherwise like Natalie: Judgment high, Out for you high, Learns the table (aimed at the human). Psychic: sees the human players' hands only | |
 
 23 girls listed; four levels of four would be 16, so either the levels grow or some girls get cut.
+
+First test table (Nov 4): Natalie, Judi, Victor Twins, Amy, one per level. Judi, the Twins and Amy are Claude's proposals, awaiting Kennedy.
 
 Natalie and Ripsi's entries come from Kennedy's examples (Natalie: the hardest opponent, hunting the human with the queen; Ripsi: an Easy who takes point tricks). Not confirmed as final.
 

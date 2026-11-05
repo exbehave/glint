@@ -123,11 +123,20 @@ When she plays a card:
 8. **How she plays the trick.** Trick hog, Ducking, Sheds high cards and her Discard plan.
 9. **Judgment's veto.** The cost check compares the chosen card with her best card. If it costs more than her Judgment allows, she plays her best card instead.
 
-Passing has its own shorter list: Keeps the queen, Moon pass, Spade panic, Voids a suit, then Helps the table and Gangs-up targeting, then Judgment's veto.
+Passing has its own shorter list: Keeps the queen, Moon pass, Spade panic, Voids a suit, then Helps the table and Takes down the leader (who she passes her worst to), then Judgment's veto.
 
 **Goal (settles conflicts):** each girl has a ranked goal, and it's the formula the cost check scores every card with. It's what decides when two dials pull different ways. Natalie's goal (Kennedy, Nov 4): **first keep her own points as low as possible, then give the human as many as possible**, using every tool she has. In practice: she finds the cards that cost her the least; among those that are nearly as good (within about half a point), she picks the one that hurts the human most. So if someone else is shooting the moon, she stops it, because a moon would cost her 26. **You first, then me** (Kennedy, Nov 4: Delilah): the same tools as Natalie with the order flipped. She picks the cards that hurt the human most, and only among those does she protect herself, even if it risks her own points. Exploitable: she'll let another girl shoot the moon if it also lands 26 on the human. Other goals to choose from (Claude's suggestions): Me first (just minimize her points), Me first then the leader, Win the game (her total vs the leader's, not just this hand), Chaos (random).
 
 **Signature dial:** each girl can still have one dial marked as her signature, which jumps to the top of its own step. Her goal still has the final say.
+
+## How she judges what's good for her (the cost check)
+
+- **Imagined deals:** before a move she deals the cards she can't see many different ways, but only ways that fit what she knows (who's out of a suit, what was passed). For each card she could play, she plays the rest of the hand out in her head and counts the points. The average is that card's cost. This is how Genius plays today; it's the standard method for hidden-card games (the one bridge programs use), not a Stockfish-style full search, since the other hands are hidden.
+- **Judgment as a tolerance:** her habits suggest a card; the cost check compares it with her best card. Judgment sets how many extra points she'll accept to follow the habit: 100% accepts none, 0% accepts any. Example: holding the Q♠ for the human gets riskier every trick as her spades run low; the trick it costs more than her Judgment allows, she dumps it.
+- **Her goal is the formula** the cost check scores with (see Goal above), so a girl like Natalie compares two numbers per card (her points, then the human's).
+- **Memory dials shape the imagined deals:** low Card memory means she imagines deals with cards already played, so her estimates get sloppy; high Queen tracking puts the queen where it most likely is. So a high-Judgment girl can still misjudge, if her information is bad.
+- **How accurate (quick test, Nov 4, 12 hands per point, rough):** with 60 imagined deals per card, early in the hand (trick 2) she picks the truly best card 7 times in 12 and one within half a point of it 10 in 12, each card's cost uncertain by about ±0.8 points, in about 21 ms per decision; mid-hand (trick 7) 9 in 12 exact and 12 in 12 within half a point, ±0.3 points, 9 ms. Early misses are mostly near-ties. Four times the samples halves the uncertainty. In the last few tricks there are few enough possible deals to check every one, which would make a Genius endgame nearly perfect (option, not built). Possible deals of the unseen cards: about 84 quadrillion at trick 1, 400 million at trick 7, 1,680 at trick 11.
+- **Its known blind spots:** it assumes everyone else plays like the Hard level (Learns the table, Intuit and Psychic fix that), it undervalues keeping her options hidden, and it can't plan a bluff on its own.
 
 ## Starting cards by level
 
@@ -231,8 +240,18 @@ Every signed-in player's games are tracked over time with the same dials as the 
 
 Results are reported as win rate and average points per hand (points are steadier than wins, so they settle faster). With 1,000 games a 25% win rate is accurate to about ±3 percentage points.
 
+## Ideas waiting on Kennedy
+
+- **Pass seat smarts** (new dial): never pass the Q♠ to the left while keeping the A♠/K♠, since the left player plays after her on spade tricks.
+- **Keeps exit cards** (new dial): holds one low card in as many suits as possible so she can always give up the lead late.
+- **Rename Cashes out early to Burns her exits:** playing high clubs and diamonds on a suit's first round is usually good (no one's out of the suit yet); the bad habit is using up every high card and losing her way back to the lead.
+- **House rules as game settings:** J♦ is −10; the Q♠ breaks hearts; points allowed on the first trick. Check what the game enforces now before adding any.
+- **Genius endgame:** check every possible deal in the last few tricks instead of sampling.
+- **Bios:** Kennedy writes them, or Claude drafts for Kennedy to edit.
+- **Ladder size:** 23 girls for four levels of four.
+
 ## Build order
 
 1. This file: assign levels, dial values and bios.
-2. Hand tagging plus a test runner that plays thousands of games and reports results by girl and by hand tag.
+2. Hand tagging plus the test runner (see Test plan): fairness check, reference girl, fixed-deal swaps, reports by girl and by hand tag.
 3. Dials a few at a time, measuring after each batch: overrides and passing first, then targeting (the computer players need the game totals and who's human), then the moon and bluffing.

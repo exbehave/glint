@@ -83,7 +83,7 @@ Natalie and Ripsi's entries come from Kennedy's examples (Natalie: the hardest o
 | | **Receiving** | | |
 | 40 | Reads the pass | Re-reads her hand after the pass and works out what the passer is holding from what she got. A lone Q♠ with no spades: the passer was short in spades and scared of it. High cards and aces: the passer is playing safe, not shooting. Low cards while the passer kept their high ones: a possible moon | Helps |
 | 41 | Stuck on her plan | Keeps the plan she made before passing even when what she received changes everything (gets three high hearts and still won't try for the moon, or gets the Q♠ and plays as if she didn't) | Hurts |
-| 42 | Learns the table | Watches how everyone plays during the game, the human most of all, and changes her play to match: stops covering a girl she's caught bluffing, bluffs the girl who always covers, leads into whoever always ducks. Rare: Genius girls only, and only a few of them | Helps a lot |
+| 42 | Learns the table | Watches how everyone plays during the game, the human most of all, and changes her play to match: stops covering a girl she's caught bluffing, bluffs the girl who always covers, leads into whoever always ducks. Example: she keeps a tally of each player's passes; once someone has passed her an uncovered moon hand (their high hearts with nothing to stop a moon) a few times, she starts planning a moon whenever that player passes to her. Rare: Genius girls only, and only a few of them | Helps a lot |
 | | **Dumping points** | | |
 | 22 | Point grabber | Wins tricks full of points instead of playing under | Hurts a lot |
 | 23 | Hot potato | Dumps the Q♠ on the first trick she can, on whoever wins it | Helps a little |

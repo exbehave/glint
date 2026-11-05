@@ -240,6 +240,22 @@ Every signed-in player's games are tracked over time with the same dials as the 
 
 Results are reported as win rate and average points per hand (points are steadier than wins, so they settle faster). With 1,000 games a 25% win rate is accurate to about ±3 percentage points.
 
+## Results log (planned; starts once the engine is settled)
+
+The test runner keeps a running record for every girl, in a results file next to this one, and every change to a girl's card or to the engine gets an entry showing her numbers before and after.
+
+**Per girl:**
+- Win rate against the reference girl and in the round robin, and her overall ranking.
+- Average points per hand (steadier than wins), and how often she ends a hand with 0.
+- How often she catches the Q♠, and how often she lands it on someone else (on a human, for Out for you girls).
+- Moon attempts, moons made, and moons she stopped.
+- How often each stand-out dial fired, and what it cost or saved her on average.
+- Results by hand tag (does she fall apart on All middle hands?) and before vs after the pass.
+
+**Change log:** date, what changed (one dial, a goal, the engine), and the before/after numbers for every girl it touched.
+
+**Versions:** each engine change starts a new version. Numbers are kept per version, so an old result never gets mixed with a new one; "all-time" totals are only compared within the same version.
+
 ## Ideas waiting on Kennedy
 
 - **Pass seat smarts** (new dial): never pass the Q♠ to the left while keeping the A♠/K♠, since the left player plays after her on spade tricks.

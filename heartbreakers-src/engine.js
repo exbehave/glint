@@ -25,7 +25,7 @@ function winnerOf(trick) {
 function newHandState(hands) {
   const lead = hands.findIndex(h => h.includes(0));
   return {
-    hands, pts: [0, 0, 0, 0], won: [0, 0, 0, 0], trick: [], turn: lead,
+    hands, pts: [0, 0, 0, 0], won: [0, 0, 0, 0], ptTricks: [0, 0, 0, 0], trick: [], turn: lead,
     broken: false, trickNo: 0, played: new Uint8Array(52),
     voids: [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]
   };
@@ -33,7 +33,7 @@ function newHandState(hands) {
 
 function cloneSt(st, hands) {
   return {
-    hands: hands || st.hands.map(h => h.slice()), pts: st.pts.slice(), won: st.won.slice(),
+    hands: hands || st.hands.map(h => h.slice()), pts: st.pts.slice(), won: st.won.slice(), ptTricks: (st.ptTricks || [0, 0, 0, 0]).slice(),
     trick: st.trick.slice(), turn: st.turn, broken: st.broken, trickNo: st.trickNo,
     played: st.played.slice(), voids: st.voids.map(v => v.slice())
   };
@@ -74,6 +74,7 @@ function doPlay(st, p, c) {
     for (const x of st.trick) s += pts(x.c);
     st.pts[w] += s;
     st.won[w]++;
+    if (s && st.ptTricks) st.ptTricks[w]++;
     st.trickNo++;
     const t = st.trick;
     st.trick = [];
@@ -150,22 +151,25 @@ function pickMedium(st, p) {
   return desc(L)[0];
 }
 
-function pickHard(st, p) {
+// o (optional, for the girls): o.seen = what she remembers as played (Card memory), o.live = spot a moon by the live-moon rule (Covers)
+function pickHard(st, p, known, o) {
   const L = legalFor(st, p);
   if (L.length === 1) return L[0];
   const h = st.hands[p], t = st.trick;
-  const qsOut = !st.played[QS] && !h.includes(QS);
+  const seen = (o && o.seen) || st.played;
+  const qsOut = !seen[QS] && !h.includes(QS);
   const hi = c => { // unseen cards that beat c in its suit
     let n = 0;
     for (let r = rank(c) + 1; r <= 14; r++) {
       const x = cardId(suit(c), r);
-      if (!st.played[x] && !h.includes(x)) n++;
+      if (!seen[x] && !h.includes(x)) n++;
     }
     return n;
   };
   const total = st.pts[0] + st.pts[1] + st.pts[2] + st.pts[3];
   let shooter = -1;
   for (let q = 0; q < 4; q++) if (q !== p && st.pts[q] >= 10 && st.pts[q] === total) shooter = q;
+  if (shooter < 0 && o && o.live) shooter = liveMoon(st, p);
 
   if (!t.length) {
     if (shooter >= 0 && st.broken) {
@@ -179,7 +183,7 @@ function pickHard(st, p) {
       let s = hi(c) * 3 - rank(c);
       if (suit(c) === 3) s -= 6;
       if (c === QS) s -= 60;
-      if (suit(c) === 2 && rank(c) > 12 && !st.played[QS]) s -= 40;
+      if (suit(c) === 2 && rank(c) > 12 && !seen[QS]) s -= 40;
       if (hi(c) === 0) s -= 25;
       if (s > bs) { bs = s; best = c; }
     }
@@ -269,10 +273,17 @@ function moveCost(P, p) {
   return f[p] - others * 0.35;
 }
 
-function pickGenius(st, p, known) {
-  const L = legalFor(st, p);
-  if (L.length === 1) return L[0];
-  const N = Math.min(120, Math.max(30, Math.floor(1400 / L.length)));
+// live moon (Kennedy's rule, to be calibrated): one other player has won more than one trick with points, and nobody else has any
+function liveMoon(st, p) {
+  for (let q = 0; q < 4; q++) {
+    if (q === p || (st.ptTricks || [])[q] < 2) continue;
+    if ([0, 1, 2, 3].every(r => r === q || !st.pts[r])) return q;
+  }
+  return -1;
+}
+
+// average cost of each card over N imagined deals (rest of the hand played out by Hard)
+function evalCards(st, p, known, L, N) {
   const sum = new Map(L.map(c => [c, 0]));
   let runs = 0;
   for (let i = 0; i < N; i++) {
@@ -286,9 +297,19 @@ function pickGenius(st, p, known) {
       sum.set(c, sum.get(c) + moveCost(s.pts, p));
     }
   }
-  if (!runs) return pickHard(st, p);
+  if (!runs) return null;
+  for (const c of L) sum.set(c, sum.get(c) / runs);
+  return sum;
+}
+
+function pickGenius(st, p, known) {
+  const L = legalFor(st, p);
+  if (L.length === 1) return L[0];
+  const N = Math.min(120, Math.max(30, Math.floor(1400 / L.length)));
+  const cost = evalCards(st, p, known, L, N);
+  if (!cost) return pickHard(st, p);
   let best = L[0], bv = Infinity;
-  for (const c of L) if (sum.get(c) < bv) { bv = sum.get(c); best = c; }
+  for (const c of L) if (cost.get(c) < bv) { bv = cost.get(c); best = c; }
   return best;
 }
 

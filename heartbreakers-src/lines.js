@@ -57,13 +57,13 @@ const LINES = {
   'Judi': {
     qsGive: ["Are you hungry?","I served you breakfast in bed!","That's your bad"],
     qsGet: ["I will sacrifice my body—and my blood—to get her outta this house","You can sleep in glass","Trouble for being real?"],
-    breaks: ["I have a question","Who's hungry?"],
+    breaks: ["I have a question","Who's hungry?","Some drama is about to happen!"],
     fewHearts: ["Maybe so…","I feel like cereal tonight"],
-    hearts: ["Who drew on my picture!?"],
+    hearts: ["Who drew on my picture!?","At the end of the day, Judi has feelings too"],
     taunt: ['Flawless.', 'Take notes, sweetie.'],
-    moon: ["I got the voodoo for you","That's your bad"],
+    moon: ["I got the voodoo for you","That's your bad","I just tossed your skull in the lake. Hope you can swim."],
     moonVictim: ['How tacky.', 'I’m not even mad. Okay, I’m mad.'],
-    win: ["I will shave your face off and wear it for Mardi Gras 2012"]
+    win: ["I will shave your face off and wear it for Mardi Gras 2012","That's Judi!","I am Jesus"]
   },
   'Amy': {
     qsGive: ["Nobody touches my weave","I may be a schizo but I love you!"],
@@ -79,11 +79,11 @@ const LINES = {
   'Victor Twins': {
     qsGive: ["I'm just gonna put a lil trash in your bedroom","Guess we can add to the decoration in this room?","You can go sleep in the pool, where your weave is at the bottom"],
     qsGet: ["So scary!","Dani, they took our mac and cheese","Ooh, granola thrown on the floor! Guess who's not cleaning it?"],
-    breaks: ["Rino? The casino?","A little bit of trash for you guys"],
-    fewHearts: ["Rino's a state!","Is that like a warning?"],
-    hearts: ["Final destination one, two, three, and four!","It's four against two. It isn't fair"],
+    breaks: ["Reno? The casino?","A little bit of trash for you guys"],
+    fewHearts: ["Reno's a state!","Is that like a warning?"],
+    hearts: ["Final destination one, two, three, and four!","Its unfair. It's four against two."],
     taunt: ['Two against three. Still winning.', 'Twin magic.'],
-    moon: ["This is the Bad Girls Club, not the Kiddie Club","Please don't die, girls"],
+    moon: ["This is the Bad Girls Club, not the Kiddie Club","Please don't die, girls","If I can't keep it cute I'll do what I always do and that's run my mouth until I probably get my ass beat"],
     moonVictim: ['We both hate this.', 'Unbelievable. Times two.'],
     win: ["Are we done? Cuz I have Chipotle, I need to eat it. Yeah, I'm pretty hungry."]
   },

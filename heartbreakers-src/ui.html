@@ -288,6 +288,7 @@ button:focus-visible, .card:focus-visible, label:focus-within { outline: 2px sol
 .seatrow { display: grid; grid-template-columns: 58px 1fr; gap: 10px; align-items: center; }
 .seatrow .sn { font-size: 14px; font-weight: 700; }
 .foot { font-size: 12.5px; color: var(--mute); line-height: 1.5; }
+.linkish { background: none; border: 0; padding: 0; font: inherit; color: var(--bone); text-decoration: underline; cursor: pointer; }
 .btns { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
 .tbl { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
 .tbl th { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--mute); font-weight: 600; text-align: right; padding: 6px 4px; border-bottom: 1px solid var(--line); }
@@ -759,6 +760,9 @@ function cardHTML(c, cls = '', attrs = '') {
 // ---------- game flow ----------
 function startGame() {
   G = { totals: [0, 0, 0, 0], handNo: 0, names: pickCast() };
+  // the table the girls play at: each one plays by her own stats card (girls.js); a girl without a card plays her seat's level
+  G.T = { cards: G.names.map((n, p) => (p && GIRLS[n]) || null), levels: G.names.map((n, p) => (p ? (GIRLS[n] ? GIRLS[n].level : S.levels[p]) : 'hard')),
+    humans: [0], totals: G.totals, mem: newTableMem() };
   closeVeil();
   newHand();
 }
@@ -779,7 +783,8 @@ function newHand() {
 function confirmPass() {
   if (!G || G.phase !== 'pass' || G.passSel.size !== 3) return;
   const off = [1, 3, 2][G.dir];
-  const passes = [0, 1, 2, 3].map(p => p === 0 ? [...G.passSel] : LEVELS[S.levels[p]].pass(G.hands[p]));
+  Object.assign(G.T, { hands: G.hands, dir: G.dir, known: G.known });
+  const passes = [0, 1, 2, 3].map(p => p === 0 ? [...G.passSel] : girlPass(G.T, p, G.hands[p]));
   passes.forEach((ps, p) => ps.forEach(c => G.hands[p].splice(G.hands[p].indexOf(c), 1)));
   passes.forEach((ps, p) => {
     const q = (p + off) % 4;
@@ -815,11 +820,12 @@ function step(extra) {
   if (st.trickNo === 13) return endHand();
   render();
   if (st.turn !== 0) {
-    const lv = S.levels[st.turn];
+    const lv = G.T.levels[st.turn];
     setTimeout(() => {
       if (!G || G.phase !== 'play') return;
       const p = G.st.turn;
-      playCard(p, LEVELS[S.levels[p]].pick(G.st, p, G.known[p]));
+      G.T.known = G.known;
+      playCard(p, girlPick(G.T, p, G.st));
     }, (lv === 'genius' ? 520 : 640) + (extra || 0));
   }
 }
@@ -830,6 +836,7 @@ function playCard(p, c) {
   if (st.trickNo === 0 && !st.trick.length) G.received.clear(); // first card of the round: passed cards settle back down
   G.table.push({ p, c });
   const res = doPlay(st, p, c);
+  if (res) girlsAfterTrick(G.T, res);
   if (p === 0) G.sel = null;
   const brokeNow = !wasBroken && st.broken;
   if (brokeNow) G.popBroken = true;
@@ -875,7 +882,7 @@ function moonOptions(p) {
   return { up, down };
 }
 function botMoonChoice(p) {
-  if (S.levels[p] === 'easy') return Math.random() < 0.5 ? 'up' : 'down';
+  if (G.T.levels[p] === 'easy') return Math.random() < 0.5 ? 'up' : 'down';
   // everyone else +26 only when it leaves her in front (that also ends a game she wins); otherwise take −26
   const after = G.totals.map((t, i) => t + (i === p ? 0 : 26));
   const low = Math.min(...after);
@@ -1092,7 +1099,7 @@ function showSetup() {
     <div class="field"><label class="lab" for="handle">Your name</label><input class="handle-in" id="handle" name="handle" maxlength="16" autocomplete="nickname" autocapitalize="words" spellcheck="false" placeholder="Name or handle" value="${esc(S.handle)}"></div>
     <div class="field"><span class="lab">Play as</span><div class="girls">${playable().map(n => `<label class="girl"><input type="radio" id="me-${n.replace(/\W/g, '')}" name="me" value="${esc(n)}" ${n === S.me ? 'checked' : ''}>${portraitHTML(n)}<span>${esc(n)}</span></label>`).join('')}</div></div>
     <div class="field"><span class="lab">Computer players</span>
-      ${[1, 2, 3].map(p => `<div class="seatrow"><span class="sn">${SEATS[p]}</span>${segHTML('lv' + p, lv, S.levels[p])}</div>`).join('')}
+      <div class="sub">Every girl plays her own way: Amy is Easy, the Victor Twins are Medium, Judi is Hard and Natalie is Genius.</div>
     </div>
     <div class="field"><span class="lab">Play to</span>${segHTML('target', [[50, '50 points'], [100, '100 points']], S.target)}</div>
     <div class="field"><span class="lab">Table layout</span>${segHTML('layout', LAYOUTS, S.layout)}</div>
@@ -1103,7 +1110,6 @@ function showSetup() {
   $('setup').addEventListener('submit', e => {
     e.preventDefault();
     const f = new FormData(e.target);
-    S.levels = [null, f.get('lv1'), f.get('lv2'), f.get('lv3')];
     S.target = +f.get('target');
     S.me = f.get('me') || S.me;
     S.handle = String(f.get('handle') || '').trim().slice(0, 16);
@@ -1116,6 +1122,59 @@ function showSetup() {
   });
 }
 
+// ---------- sign-in: friends get a username and password (the same accounts as Glint; added and reset from admin.html) ----------
+// Only the real site asks; the private Claude artifact and local copies play without it.
+const GATED = !!sb && /(^|\.)glint\.haus$|\.netlify\.app$/.test(location.hostname);
+const acctEmail = u => { u = String(u || '').trim().toLowerCase(); return !u || u.includes('@') ? u : u + '@glint.haus'; };
+const acctName = u => (u && u.user_metadata && u.user_metadata.username) || ((u && u.email) || '').replace(/@.*$/, '');
+let ME = null;
+async function bootGate() {
+  if (!GATED) return showSetup();
+  try { const { data: { session } } = await sb.auth.getSession(); ME = session ? session.user : null; } catch (e) { ME = null; }
+  if (!ME) return showSignIn();
+  if (ME.user_metadata && ME.user_metadata.must_change) return showNewPassword();
+  showSetup();
+}
+function showSignIn(note) {
+  openVeil(`<form class="panel" id="signin" aria-label="Sign in">
+    <div><h1><img class="logo" src="brand/logo.webp" alt="BGC: Heartbreakers"></h1><div class="sub">Sign in with the username and password you were given.</div></div>
+    <div class="field"><label class="lab" for="si-u">Username</label><input class="handle-in" id="si-u" autocomplete="username" autocapitalize="none" spellcheck="false" required></div>
+    <div class="field"><label class="lab" for="si-p">Password</label><input class="handle-in" id="si-p" type="password" autocomplete="current-password" required></div>
+    <div class="foot" id="si-msg" role="status">${esc(note || '')}</div>
+    <div class="btns"><button class="cta" type="submit">Sign in</button></div>
+  </form>`);
+  $('signin').addEventListener('submit', async e => {
+    e.preventDefault();
+    $('si-msg').textContent = 'Signing in…';
+    const { data, error } = await sb.auth.signInWithPassword({ email: acctEmail($('si-u').value), password: $('si-p').value });
+    if (error) { $('si-msg').textContent = /invalid/i.test(error.message) ? 'That username and password don’t match.' : 'Couldn’t sign in: ' + error.message; return; }
+    ME = data.user;
+    if (!S.handle) { S.handle = acctName(ME).replace(/^./, c => c.toUpperCase()).slice(0, 16); saveSettings(); }
+    bootGate();
+  });
+  setTimeout(() => $('si-u') && $('si-u').focus(), 60);
+}
+function showNewPassword() {
+  openVeil(`<form class="panel" id="newpw" aria-label="Pick your password">
+    <div><h2>Pick your own password</h2><div class="sub">You signed in with a temporary one. Choose a password only you know (at least 8 characters).</div></div>
+    <div class="field"><label class="lab" for="np-1">New password</label><input class="handle-in" id="np-1" type="password" autocomplete="new-password" minlength="8" required></div>
+    <div class="field"><label class="lab" for="np-2">Type it again</label><input class="handle-in" id="np-2" type="password" autocomplete="new-password" minlength="8" required></div>
+    <div class="foot" id="np-msg" role="status"></div>
+    <div class="btns"><button class="cta" type="submit">Save password</button></div>
+  </form>`);
+  $('newpw').addEventListener('submit', async e => {
+    e.preventDefault();
+    const a = $('np-1').value, b = $('np-2').value;
+    if (a.length < 8) return ($('np-msg').textContent = 'At least 8 characters, please.');
+    if (a !== b) return ($('np-msg').textContent = 'Those don’t match.');
+    $('np-msg').textContent = 'Saving…';
+    const { data, error } = await sb.auth.updateUser({ password: a, data: { must_change: false } });
+    if (error) return ($('np-msg').textContent = 'Couldn’t save: ' + error.message);
+    ME = data.user;
+    showSetup();
+  });
+}
+
 function showMenu() {
   openVeil(`<div class="panel" role="dialog" aria-label="Menu">
     <h2>Menu</h2>
@@ -1123,11 +1182,13 @@ function showMenu() {
     <div class="field"><span class="lab">Sound effects</span>${segHTML('msound', [['on', 'On'], ['off', 'Off']], S.sound ? 'on' : 'off')}</div>
     <div class="foot">New game ends this one and clears the scores.</div>
     <div class="btns"><button class="ghost" id="b-new">New game</button><button class="cta" id="b-keep">Back to game</button></div>
+    ${ME ? `<div class="foot">Signed in as ${esc(acctName(ME))} · <button class="linkish" id="b-out" type="button">Sign out</button></div>` : ''}
   </div>`);
   $('veil').querySelectorAll('input[name="mlayout"]').forEach(r => r.onchange = () => { S.layout = r.value; applyLayout(); saveSettings(); render(); });
   $('veil').querySelectorAll('input[name="msound"]').forEach(r => r.onchange = () => { S.sound = r.value === 'on'; if (S.sound) SFX.unlock(); saveSettings(); renderRail(); });
   $('b-keep').onclick = closeVeil;
   $('b-new').onclick = () => { G = null; showSetup(); };
+  if ($('b-out')) $('b-out').onclick = async () => { try { await sb.auth.signOut(); } catch (e) {} ME = null; G = null; showSignIn(); };
 }
 
 // boot: a dealt sample table behind the setup panel
@@ -1135,5 +1196,5 @@ applyLayout();
 G = { totals: [0, 0, 0, 0], handNo: 0, names: pickCast() };
 Object.assign(G, { hands: dealHands(), dir: 0, known: [[], [], [], []], received: new Set(), passSel: new Set(), phase: 'pass', st: null, table: [], shown: [0, 0, 0, 0], drawnPts: [0, 0, 0, 0] });
 render();
-showSetup();
+bootGate();
 </script>

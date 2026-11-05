@@ -57,13 +57,24 @@ form.signin { display: flex; flex-direction: column; gap: 10px; }
 .state.saved { color: var(--good); }
 .state.dirty { color: var(--red); }
 .quiet { font-size: 13px; color: var(--mute); font-style: normal; }
+/* Friends card (GlintAccount.members from ../account.js) */
+#friends h3 { margin: 0 0 6px; font-size: 18px; }
+#friends .now { font-size: 12.5px; color: var(--mute); font-weight: 600; }
+#friends .name-in { flex: 1; min-width: 0; background: rgba(0, 0, 0, .35); border: 1.5px solid var(--line); border-radius: 10px; padding: 9px 12px; font-size: 16px; color: var(--bone); outline: none; }
+#friends form { margin: 12px 0; flex-wrap: nowrap; }
+.mem-list { display: grid; gap: 6px; }
+.mem { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 0; border-top: 1px solid var(--line); }
+.mem-name { font-size: 15px; overflow-wrap: anywhere; }
+.mem .btn { padding: 6px 12px; font-size: 13px; }
+#mem-msg { margin-top: 10px; user-select: text; -webkit-user-select: text; }
 :focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <header><img src="img/logo.webp" alt="BGC: Heartbreakers"><span class="sub">Quote editor</span></header>
+  <header><img src="img/logo.webp" alt="BGC: Heartbreakers"><span class="sub">Quotes and friends</span></header>
   <main id="main"><div class="card"><p class="desc">Loading…</p></div></main>
+  <section class="card" id="friends" hidden aria-label="Friends"></section>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
 <script src="../account.js"></script>
@@ -118,6 +129,7 @@ async function start() {
     $('#out').onclick = async () => { await sb.auth.signOut(); signinView(); };
     return;
   }
+  if (window.GlintAccount && $('#friends').hidden) { $('#friends').hidden = false; GlintAccount.members(sb, $('#friends'), session.user); }
   const { data, error } = await sb.from('hb_quotes').select('girl, moment, lines');
   if (error) { $('#main').innerHTML = `<div class="card"><p class="desc">Couldn’t load the quotes: ${esc(error.message)}</p></div>`; return; }
   rows = {};
@@ -144,7 +156,7 @@ function draw() {
   $('#main').innerHTML = `<div class="card"><div class="row spread" style="margin-bottom:10px"><span class="lab">Pick a Bad Girl</span><button class="ghost" id="out" type="button">Sign out</button></div><div class="girls">${pick}</div></div>
     <div class="card"><h2>${esc(girl)}</h2><p class="desc">Each moment picks one of her lines at random and never repeats the same line twice in a row. Changes show up in the game the next time it opens.</p></div>
     <div class="moments">${cards}</div>`;
-  $('#out').onclick = async () => { await sb.auth.signOut(); signinView(); };
+  $('#out').onclick = async () => { await sb.auth.signOut(); $('#friends').hidden = true; signinView(); };
   document.querySelectorAll('.girl').forEach(b => b.onclick = () => { girl = b.dataset.g; try { localStorage.setItem('hb.admin.girl', girl); } catch (e) {} draw(); scrollTo({ top: 0 }); });
   document.querySelectorAll('.moment').forEach(card => {
     const m = card.dataset.m;

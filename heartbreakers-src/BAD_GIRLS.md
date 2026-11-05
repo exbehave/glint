@@ -264,6 +264,30 @@ The test runner keeps a running record for every girl, in a results file next to
 
 **Versions:** each engine change starts a new version. Numbers are kept per version, so an old result never gets mixed with a new one; "all-time" totals are only compared within the same version.
 
+### Built: the first four girls (Nov 5, 2026, engine v1)
+
+Their cards live in `girls.js` (`GIRLS`); the game and the test runner both use it. How each dial is coded:
+- **Judgment's veto:** when a dial picks a different card from her base brain's card, she imagines 24 deals and compares the two. If the habit costs more than her tolerance, she plays the base card. Tolerance = 3 × (1 − J) ÷ J points: Judi (70%) ≈ 1.3, the Twins (40%) ≈ 4.5, Amy (10%) ≈ 27, which is more than a whole hand, so Amy is never overruled.
+- **Hot potato:** whenever the Q♠ is playable and can't win the trick, roll: dump it.
+- **Holds a grudge:** after each trick she wins, whoever put the Q♠ on it (or the off-suit heart dumper on her biggest heart trick so far) becomes her target for the rest of the game. When she's out of the suit led: if the target is winning the trick, she loads it with the Q♠ or her highest heart; if not, she keeps the queen for later.
+- **Takes down the leader:** the same, aimed at the other player with the lowest game total.
+- **Breaks hearts early:** while hearts are unbroken and she could play one, roll: she does (her highest on a discard, her lowest on a lead). A miss means she holds them: if her base brain was about to break hearts, she plays a non-heart instead. So Judi (5%) almost never breaks hearts and Amy (60%) usually does.
+- **Ducking:** following suit, roll: slip under the winning card with her highest card that still loses. (Hard already does this most of the time, so on Judi it changes little.)
+- **Hothead:** after a trick worth 5+ points, roll: for 3 tricks she slams her highest card.
+- **Spade panic / Keeps the queen** (passing): the A♠, K♠ and Q♠ go in the pass / the Q♠ stays (with Judgment above 50%, only when she has 2+ other spades).
+- **Card memory:** a miss means she forgets about 30% of the cards played so far for that decision. **Covers:** a hit means she spots a moon by the live-moon rule, not only once someone has 10 points.
+- **Natalie:** sees every hand, so she never guesses. For each card she plays the rest of the hand out against the real cards, with every other girl playing by her own card (Intuit) and humans imagined as Hard, and picks by her goal: lowest own points; among cards within half a point of that, the one that gives the humans the most. Passing: she tries about 35 three-card passes the same way (everyone else's pass predicted from their own cards) and keeps the best, so covering, moon passes and keeping the queen are whatever works best that hand. Not built yet: Learns the table.
+
+**First results** (`node sim.js 80 7`: 80 games' worth of fixed deals, each replayed 4 times with everyone rotated through every seat, games to 100). "You (Hard)" is a stand-in human playing the Hard brain.
+
+| Table | Natalie | Judi | Victor Twins | Amy | You (Hard) |
+|---|---|---|---|---|---|
+| The four girls | 74% wins · 2.1 pts/hand | 18% · 4.7 | 8% · 6.2 | 0% · 13.6 | |
+| You vs Natalie, Judi, Twins | 90% · 2.1 | 7% · 6.7 | 3% · 8.3 | | 0% · 10.7 |
+| You vs Judi, Twins, Amy | | 41% · 4.1 | 21% · 5.2 | 1% · 12.7 | 36% · 4.2 |
+
+Reading it: the levels come out in order. Natalie wins 9 games in 10 against a Hard human and shoots the moon about once every 4 hands. Amy hands out a lot of free points (and shoots accidental moons when Hothead has her slamming high cards). Judi is about as strong as a plain Hard player. Not yet measured: hand tags, the reference Medium girl and the round robin.
+
 ## Ideas waiting on Kennedy
 
 - **Pass seat smarts** (new dial): never pass the Q♠ to the left while keeping the A♠/K♠, since the left player plays after her on spade tricks.

@@ -1421,7 +1421,7 @@ async function loadBites() {
     try {
       const { data: { session } } = await sb.auth.getSession();
       if (!session) return;
-      const { data, error } = await sb.from('hb_bites').select('path, girl, line');
+      const { data, error } = await sb.from('hb_bites').select('path, girl, line, duration_s');
       if (error || !Array.isArray(data) || !data.length) return;
       const { data: signed } = await sb.storage.from('hb-bites').createSignedUrls(data.map(r => r.path), 12 * 3600);
       const urls = {};
@@ -1432,7 +1432,7 @@ async function loadBites() {
       for (const r of data) {
         const url = urls[r.path]; if (!url) continue;
         const prev = old[r.path];
-        const b = { path: r.path, url, ab: prev ? prev.ab : null, buf: prev ? prev.buf : null };
+        const b = { path: r.path, url, dur: Number(r.duration_s) || 0, ab: prev ? prev.ab : null, buf: prev ? prev.buf : null };
         const byLine = BITES[r.girl] || (BITES[r.girl] = {});
         (byLine[normLine(r.line)] = byLine[normLine(r.line)] || []).push(b);
         if (!b.ab && !b.buf) fetch(url).then(res => res.ok ? res.arrayBuffer() : null).then(ab => { if (ab) b.ab = ab; }).catch(() => {});
@@ -1455,9 +1455,13 @@ function playClip(nm, ev, text) {
   const list = text && BITES[nm] && BITES[nm][normLine(text)];
   if (list && list.length) {
     const b = list[Math.floor(Math.random() * list.length)];
-    const est = b.buf ? b.buf.duration : 2;
-    voiceEnd = performance.now() + est * 1000;
-    playBuf(b).then(d => { voiceEnd = d ? performance.now() + d * 1000 - 40 : 0; });
+    // Never talk over a clip that's still playing (e.g. the moon line then the win line on the score screen):
+    // queue this one to start once the current one ends.
+    const now = performance.now(), start = voiceEnd > now ? voiceEnd + 150 : now;
+    const est = b.buf ? b.buf.duration : (b.dur || 2);
+    voiceEnd = start + est * 1000;
+    const go = () => { if (S.sound) playBuf(b).then(d => { if (d) voiceEnd = Math.max(voiceEnd, performance.now() + d * 1000 - 40); }); };
+    if (start > now) setTimeout(go, start - now); else go();
     return true;
   }
   const old = CLIPS[nm] && CLIPS[nm][ev];

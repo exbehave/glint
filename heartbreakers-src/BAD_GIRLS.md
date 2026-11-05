@@ -16,7 +16,7 @@ Seasons as given in the Google Sheet. Blank = not decided yet. Every girl gets a
 
 | Girl | Season | Sprite | Level | Stand-out dials | Bio |
 |---|---|---|---|---|---|
-| Natalie | 4 | Done | Genius | Goal: her points lowest first, then the human's highest. Judgment high, Out for you high, Learns the table (aimed at the human), Psychic: sees the human players' hands only (for now) | |
+| Natalie | 4 | Done | Genius | Goal: her points lowest first, then the human's highest. Judgment high, Out for you high, Learns the table (aimed at the human), Intuit (knows everyone's stats cards), Psychic: sees the human players' hands only (for now). Moon pass about 40% (2 in 5), only when passing her high cards helps her, mixed up so no one can read a pattern; against a receiver who never tries for the moon, she passes her high cards every time | |
 | Judi | 7 | Done | | | |
 | Victor Twins | 8 | Done | | | |
 | Amy | 8 | Done | | | |
@@ -126,6 +126,8 @@ When she plays a card:
 Passing has its own shorter list: Keeps the queen, Moon pass, Spade panic, Voids a suit, then Helps the table and Takes down the leader (who she passes her worst to), then Judgment's veto.
 
 **Goal (settles conflicts):** each girl has a ranked goal, and it's the formula the cost check scores every card with. It's what decides when two dials pull different ways. Natalie's goal (Kennedy, Nov 4): **first keep her own points as low as possible, then give the human as many as possible**, using every tool she has. In practice: she finds the cards that cost her the least; among those that are nearly as good (within about half a point), she picks the one that hurts the human most. So if someone else is shooting the moon, she stops it, because a moon would cost her 26. **You first, then me** (Kennedy, Nov 4: Delilah): the same tools as Natalie with the order flipped. She picks the cards that hurt the human most, and only among those does she protect herself, even if it risks her own points. Exploitable: she'll let another girl shoot the moon if it also lands 26 on the human. Other goals to choose from (Claude's suggestions): Me first (just minimize her points), Me first then the leader, Win the game (her total vs the leader's, not just this hand), Chaos (random).
+
+**Strategic dials (Kennedy, Nov 4, from Natalie's moon pass):** for a high-Judgment girl, a dial like Moon pass isn't a careless habit, it's a weapon. Passing her high cards gets danger out of her own hand, so she does it when it helps her, at a mixed rate (about 2 in 5) so a player who's watching can't count on her either way: pass a moon hand, then cover twice, then sometimes cover with a low heart to throw them off. She also reads the receiver: against someone whose card says they rarely try for the moon (low Goes for the moon, heavy Ducking), the risk is near zero, so she passes her high cards every time. This needs Intuit or Learns the table to know the receiver.
 
 **Signature dial:** each girl can still have one dial marked as her signature, which jumps to the top of its own step. Her goal still has the final say.
 

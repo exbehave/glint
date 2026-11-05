@@ -12,7 +12,7 @@ The working sheet for who's in the game, how each girl plays, and the rules behi
 
 ## Roster
 
-Seasons as given in the Google Sheet. Blank = not decided yet. Every girl will get a full stats card (all 29 dials); this column lists only what stands out.
+Seasons as given in the Google Sheet. Blank = not decided yet. Every girl gets a full stats card (all 29 dials, starting from her level's card below); this column lists only what stands out.
 
 | Girl | Season | Sprite | Level | Stand-out dials | Bio |
 |---|---|---|---|---|---|
@@ -99,6 +99,47 @@ Natalie and Ripsi's entries come from Kennedy's examples (Natalie: the hardest o
 - **Learns the table:** watches how everyone plays during the game, the human most of all, and adjusts: stops covering a girl she's caught bluffing, bluffs the girl who always covers, leads into whoever always ducks. Keeps a tally of each player's passes, so someone who keeps passing uncovered moon hands gets read. Her notes carry across games in story mode.
 - **Intuit:** sees every stats card at the table before a card is played: the other girls' and each signed-in human's long-term card. Fair play: she never sees anyone's cards.
 - **Psychic (she cheats):** actually sees cards she shouldn't. The one deliberate exception to the no-cheating rule; built for Natalie. How much she sees is not decided yet.
+
+**Pickers** (one choice from a few; Claude's suggestions):
+- **Out for you, with more than one human:** Random (default) / Whoever's winning / Whoever beat her last time.
+- **Psychic mode:** Sometimes / Your hand only / Key moments only / Boss match only. Not decided.
+- **Moon payoff:** Smart (default; picks the better of +26 and −26) / Show-off (always everyone else +26) / Safe (always me −26). Easy girls pick at random.
+
+## Starting cards by level
+
+Every girl starts from her level's card; Kennedy gives each girl's level and any specific dials, and Claude fills the rest from here (Kennedy corrects as needed). The test games then check that she plays at her level. Dials 18 and 20–23 are personality, not skill, so they start low for every level and get set per girl. Switches start off.
+
+| Dial | Easy | Medium | Hard | Genius |
+|---|---|---|---|---|
+| 1 Judgment | 10% | 40% | 70% | 90% |
+| 2 Card memory | 10% | 40% | 75% | 95% |
+| 3 Queen tracking | 0% | 25% | 60% | 90% |
+| 4 Bold leads | 0% | 5% | 20% | 40% |
+| 5 Reads the pass | 0% | 20% | 55% | 85% |
+| 6 Moon pass | 60% | 30% | 10% | 5% |
+| 7 Spade panic | 60% | 40% | 15% | 5% |
+| 8 Keeps the queen | 30% | 30% | 40% | 50% |
+| 9 Voids a suit | 30% | 50% | 70% | 80% |
+| 10 Helps the table | 0% | 20% | 40% | 60% |
+| 11 Digs for the queen | 10% | 30% | 50% | 60% |
+| 12 Careless spades | 60% | 40% | 15% | 5% |
+| 13 Breaks hearts early | 50% | 40% | 30% | 30% |
+| 14 Cashes out early | 50% | 30% | 15% | 10% |
+| 15 Ducking | 80% | 70% | 45% | 30% |
+| 16 Takes points | 40% | 15% | 5% | 2% |
+| 17 Hot potato | 70% | 50% | 30% | 20% |
+| 18 Out for you | 10% | 10% | 10% | 10% |
+| 19 Takes down the leader | 5% | 20% | 40% | 60% |
+| 20 Piles on the loser | 20% | 15% | 10% | 10% |
+| 21 Holds a grudge | 30% | 20% | 15% | 10% |
+| 22 Softie | 10% | 10% | 5% | 0% |
+| 23 Season sisters | 0% | 0% | 0% | 0% |
+| 24 Goes for the moon | 30% | 15% | 15% | 15% |
+| 25 Bluffs | 0% | 5% | 15% | 25% |
+| 26 Covers | 40% | 50% | 55% | 60% |
+| 27 Hothead | 50% | 30% | 15% | 5% |
+| 28 Gets cocky | 50% | 30% | 15% | 5% |
+| 29 Comeback | 0% | 10% | 20% | 30% |
 
 ## Hand tags
 

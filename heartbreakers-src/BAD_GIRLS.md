@@ -97,7 +97,8 @@ Natalie and Ripsi's entries come from Kennedy's examples (Natalie: the hardest o
 
 **Special abilities** (on or off, Genius girls only, and only a few of them):
 - **Learns the table:** watches how everyone plays during the game, the human most of all, and adjusts: stops covering a girl she's caught bluffing, bluffs the girl who always covers, leads into whoever always ducks. Keeps a tally of each player's passes, so someone who keeps passing uncovered moon hands gets read. Her notes carry across games in story mode.
-- **Psychic:** sees every stats card at the table before a card is played: the other girls' and each signed-in human's long-term card. Still never sees anyone's cards.
+- **Intuit:** sees every stats card at the table before a card is played: the other girls' and each signed-in human's long-term card. Fair play: she never sees anyone's cards.
+- **Psychic (she cheats):** actually sees cards she shouldn't. The one deliberate exception to the no-cheating rule; built for Natalie. How much she sees is not decided yet.
 
 ## Hand tags
 
@@ -139,10 +140,10 @@ Every signed-in player's games are tracked over time with the same dials as the 
 - **The card:** the player's tendencies, shown on their profile.
 - **Coaching:** short tips with the reason behind them, for habits that cost points (not covering your pass hands the receiver a moon; leading spades into the low player lets them dump the queen safely) and for good habits worth doing more.
 - **Girls' cards are a mystery at first** (Kennedy, Nov 4). A player can't see a girl's stats card until they've beaten that girl's level; then every girl in that level unlocks. Before that, the bio is the only hint.
-- **Psychic girls** read this history before the game starts. Learns the table builds it during the game and, in story mode, across games.
+- **Intuit girls** read this history before the game starts. Learns the table builds it during the game and, in story mode, across games.
 - **Private.** Only the player sees their own card. They can choose to share it (a share button), but no one else can look it up.
 - **Every Bad Girl has a stats card too, in the same format** (Kennedy, Nov 4). Her card is what decides how she plays: the game reads her tendencies the same way it would describe a human's.
-- **Psychic girls see every card at the table:** the other girls' and the humans', even though humans can't see each other's.
+- **Intuit girls see every stats card at the table:** the other girls' and the humans', even though humans can't see each other's.
 
 ## Rules decided so far
 
@@ -150,7 +151,7 @@ Every signed-in player's games are tracked over time with the same dials as the 
 - **End of the game:** the moon line plays, then the win line, even when they're two different girls. (Built.)
 - **Quote pile-ups:** when several girls' quotes go off at once, one girl (two at most) is picked at random to speak, rotating so everyone gets a turn before anyone repeats. (Not built yet.)
 - **Shooting the moon:** the shooter always chooses "everyone else +26" or "me −26". Scores can go below 0. (Built.)
-- **No cheating.** Computer players only use what a real player at the table could know: their own hand, cards played, what was passed to them, and how people have played. They never peek at anyone's hand. Natalie hunting you has to feel earned, not rigged.
+- **No cheating.** Computer players only use what a real player at the table could know: their own hand, cards played, what was passed to them, and how people have played. They never peek at anyone's hand, except a girl with the Psychic ability, who cheats on purpose.
 - **Quotes:** up to three per moment; the game picks one at random. A moment with no quote stays quiet.
 
 ## Build order

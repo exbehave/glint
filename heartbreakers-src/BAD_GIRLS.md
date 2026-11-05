@@ -4,23 +4,23 @@ The working sheet for who's in the game, how each girl plays, and the rules behi
 
 ## How a girl is put together
 
-- **Bio:** one or two cheeky, unflattering lines on her character card, plus a hint at how she plays, so a player who reads it can work out her quirk.
-- **Traits:** what she does at the table. Traits are either good play (they **help** her win) or habits a smart player can use against her (they **hurt** her). Genius girls carry mostly helpful traits plus one weakness. Easy girls carry mostly hurtful ones.
-- **Strength (only for Out for you):** **Smart** means she drops her trait when it would cost her. **Stubborn** means she sticks to it even when it backfires.
-- **Level:** Easy / Medium / Hard / Genius. Set by her traits, then checked by running thousands of test games and measuring her actual win rate.
-- Traits that contradict each other can't go on the same girl (5 and 6, 8 and 9, 10 and 11, and so on).
+- **Bio:** one or two cheeky, unflattering lines on her character card, plus a hint at how she plays.
+- **Stats card:** a set of dials, each 0–100%. The card *is* her play style: the same card format describes a human's habits on their own stats card. Dials replace the old on/off traits, so opposites (always ducks vs saves her low cards) are just two ends of one dial, and nothing can contradict.
+- **How a dial is used:** every time she makes a decision, the game checks the dials that matter for it and rolls a number from 1 to 100 for each. A 10% Moon pass dial means about 1 pass in 10 she hands over her top cards uncovered; the other 9 she covers. Roll once per decision (one roll for the whole pass, not one per card). When several dials apply to one decision they're checked in a fixed order, written per decision when it's built.
+- **Judgment** is one dial that sits over all the others: high Judgment means she only follows a habit when it won't cost her (Smart); low Judgment means she follows it even when it backfires (Stubborn).
+- **Level:** Easy / Medium / Hard / Genius. Set by her dials, then checked by running thousands of test games and measuring her actual win rate.
 
 ## Roster
 
-Seasons as given in the Google Sheet. Level, traits, strength and bio: blank = not decided yet.
+Seasons as given in the Google Sheet. Blank = not decided yet. Every girl will get a full stats card (all 29 dials); this column lists only what stands out.
 
-| Girl | Season | Sprite | Level | Traits (by number) | Bio |
+| Girl | Season | Sprite | Level | Stand-out dials | Bio |
 |---|---|---|---|---|---|
-| Natalie | 4 | Done | Genius | 24 Out for you (Smart), 42 Learns the table (aimed at the human) | |
+| Natalie | 4 | Done | Genius | Judgment high, Out for you high, Learns the table (aimed at the human) | |
 | Judi | 7 | Done | | | |
 | Victor Twins | 8 | Done | | | |
 | Amy | 8 | Done | | | |
-| Ripsi | 1 | Needed | Easy | 22 Point grabber | |
+| Ripsi | 1 | Needed | Easy | Takes points high | |
 | Tanisha | 2 | Needed | | | |
 | Amber M | 3 | Needed | | | |
 | Flo | 4 | Needed | | | |
@@ -51,63 +51,53 @@ Natalie and Ripsi's entries come from Kennedy's examples (Natalie: the hardest o
 - **Amy:** "Gets bored fast, panics faster. Hand her the queen and she'll throw it at whoever's closest."
 - **Victor Twins:** "Two of them, one grudge, zero forgiveness. Cross one twin and you've crossed both."
 
-## Traits
+## Dials (the stats card)
 
-| # | Trait | What she does | Helps or hurts |
-|---|---|---|---|
-| | **Memory** | | |
-| 1 | Card counter | Remembers every card played, so she never leads a card that's already beaten | Helps |
-| 2 | Queen tracker | Works out who likely has the Q♠ from spades played, who's run out of spades, and what was passed | Helps |
-| 3 | Bold leads | Uses that tracking for risky plays, like leading the Q♠ herself when she knows the A♠ or K♠ holder has to win the trick | Helps |
-| 4 | Goldfish | Forgets what's been played | Hurts |
-| | **Ducking** | | |
-| 5 | Saves her low cards | Ducks under the winning card only while she has low cards to spare, and keeps two back for the end of the hand | Helps |
-| 6 | Ducks every time | Always plays just under the winning card, even if it uses up her low cards and gets her stuck with the last tricks | Hurts |
-| | **Passing** | | |
-| 7 | Moon passer | Passes her three highest cards, hearts included, leaving the receiver an easy moon | Hurts |
-| 8 | Passes high spades when short | Passes the A♠ and K♠ only when she has three spades or fewer to protect them | Helps |
-| 9 | Spade panic | Always passes the A♠ and K♠, even with five or more spades | Hurts |
-| 10 | Keeps a protected queen | Keeps the Q♠ when she has four or more low spades | Helps |
-| 11 | Never passes the queen | Keeps the Q♠ even with almost no spades to protect it | Hurts |
-| 12 | Voids a high suit | Passes away a short suit of high cards so she can start dumping early | Helps |
-| 13 | Voids any short suit | Passes away a short suit even when it's all low cards she'll want later | Hurts |
-| 14 | Gangs up on the leader | When she passes the Q♠ to someone who isn't winning, she adds spades so they can hide it, and saves her worst passes for the leader | Helps |
-| | **Leading** | | |
-| 15 | Smart spade digger | Leads low spades to flush out the queen, but only when she holds no A♠ or K♠ | Helps |
-| 16 | Always digs | Leads spades to flush out the queen even while holding the A♠ or K♠ | Hurts |
-| 17 | Careless spade leader | Leads spades even when the player to her left has the lowest score, so that player can play a high spade safely | Hurts |
-| 18 | Breaks with low hearts | Breaks hearts early only when she has low hearts to lead | Helps |
-| 19 | Heart breaker | Breaks hearts at the first chance, whatever she's holding | Hurts |
-| 20 | Never breaks hearts | Holds every heart until she has no choice, even high ones she'll get stuck with | Hurts |
-| 21 | Cashes out early | Leads her aces and kings of clubs and diamonds in the first few tricks, then can't win the lead back | Hurts |
-| | **Receiving** | | |
-| 40 | Reads the pass | Re-reads her hand after the pass and works out what the passer is holding from what she got. A lone Q♠ with no spades: the passer was short in spades and scared of it. High cards and aces: the passer is playing safe, not shooting. Low cards while the passer kept their high ones: a possible moon | Helps |
-| 41 | Stuck on her plan | Keeps the plan she made before passing even when what she received changes everything (gets three high hearts and still won't try for the moon, or gets the Q♠ and plays as if she didn't) | Hurts |
-| 42 | Learns the table | Watches how everyone plays during the game, the human most of all, and changes her play to match: stops covering a girl she's caught bluffing, bluffs the girl who always covers, leads into whoever always ducks. Example: she keeps a tally of each player's passes; once someone has passed her an uncovered moon hand (their high hearts with nothing to stop a moon) a few times, she starts planning a moon whenever that player passes to her. Rare: Genius girls only, and only a few of them | Helps a lot | Her notes carry across games in story mode.
-| 43 | Psychic | Walks in already knowing each signed-in human's habits from their whole play history (the stats card below), before a single card is played. Still never sees anyone's cards. Rare: Genius girls only | Helps a lot |
-| | **Dumping points** | | |
-| 22 | Point grabber | Wins tricks full of points instead of playing under | Hurts a lot |
-| 23 | Hot potato | Dumps the Q♠ on the first trick she can, on whoever wins it | Helps a little |
-| 24 | Out for you | Saves the Q♠ and hearts for one human player (chosen at random each game if there's more than one). Smart: dumps elsewhere if waiting would leave her stuck. Stubborn: saves them for that human even if she eats them herself | Smart: helps a little. Stubborn: hurts |
-| 25 | Takes down the leader | Dumps on whoever has the lowest total | Helps |
-| 26 | Closer | When she's winning, dumps on whoever's closest to 100 to end the game | Helps |
-| 27 | Kicks you when you're down | Always dumps on whoever's losing, even when that helps the leader | Hurts |
-| 28 | Holds a grudge | Dumps on whoever gave her the queen or her biggest pile of hearts, whatever the scores | Hurts a little |
-| 29 | Softie | Never dumps points on a human | Hurts a little |
-| 30 | Season sisters | Never dumps points on a girl from her own season | Hurts a little |
-| | **The moon** | | |
-| 31 | Shoots a real moon | Goes for the moon only when her hand is Hard to stop (see hand tags), and plays low early to hide it | Helps |
-| 32 | Moon chaser | Goes for the moon with any handful of high hearts | Hurts |
-| 33 | Bluffer | Leads a lone high heart (like the K♥) hoping someone takes it with a higher heart just to stop a "moon" and eats the points | Helps, unless the table stops falling for it |
-| 34 | Always covers | Takes any high heart that could be a moon threat, even when it's probably a bluff | Hurts |
-| 35 | Reads the bluff | Covers only when the moon is real: the shooter has taken every point so far and could still win the rest | Helps |
-| 36 | Never covers | Lets a high heart go even when the moon is real | Hurts |
-| | **Mood** | | |
-| 37 | Hothead | After taking five or more points in one trick, plays carelessly for the next three tricks | Hurts |
-| 38 | Gets cocky | Plays carelessly while she has the lowest total | Hurts |
-| 39 | Comeback queen | Plays sharper while she's in last place | Helps |
+0% = the left description, 100% = the right. Every girl (and every human's stats card) has a value for each.
 
-Every trait still needs a precise rule for each kind of hand when it's built ("in this kind of hand, she does this"), written trait by trait.
+| # | Dial | 0% | 100% | Higher is |
+|---|---|---|---|---|
+| | **Overall** | | | |
+| 1 | Judgment | Follows her habits even when they backfire | Only follows a habit when it won't cost her | Better |
+| | **Memory and reading** | | | |
+| 2 | Card memory | Forgets what's been played | Remembers every card | Better |
+| 3 | Queen tracking | No idea who has the Q♠ | Works it out from spades played, who's out of spades, and the pass | Better |
+| 4 | Bold leads | Never takes a risky lead | Leads the Q♠ herself when she knows the A♠/K♠ holder must win it | Better (if her tracking is good) |
+| 5 | Reads the pass | Ignores what she was passed | Re-plans her hand and infers the passer's hand from it | Better |
+| | **Passing** | | | |
+| 6 | Moon pass | Always covers her pass (keeps a heart to stop a moon) | Passes her top cards uncovered, an easy moon for the receiver | Worse |
+| 7 | Spade panic | Passes the A♠/K♠ only when short in spades | Always passes them, even with five or more spades | Worse |
+| 8 | Keeps the queen | Always passes the Q♠ | Always keeps it, even unprotected (Judgment keeps it only when protected) | Depends on Judgment |
+| 9 | Voids a suit | Never empties a short suit | Always does, even a short suit of low cards she'll want later (Judgment picks high ones) | Depends on Judgment |
+| 10 | Helps the table | Passes for herself only | When passing the Q♠ to someone who isn't winning, adds spades so they can hide it | Better |
+| | **Leading** | | | |
+| 11 | Digs for the queen | Never leads spades to flush the Q♠ | Always does, even holding the A♠/K♠ (Judgment skips it then) | Depends on Judgment |
+| 12 | Careless spades | Never leads spades into the low player | Leads spades even when the player to her left has the lowest score | Worse |
+| 13 | Breaks hearts early | Holds every heart until she has no choice | Breaks hearts at the first chance (Judgment does it only with low hearts) | Depends on Judgment |
+| 14 | Cashes out early | Saves her aces and kings | Leads them in the first few tricks, then can't win the lead back | Worse |
+| | **Following** | | | |
+| 15 | Ducking | Saves her low cards, keeps two for the end | Ducks under every winning card, even if it strands her with the last tricks | Worse |
+| 16 | Takes points | Plays under whenever she can | Wins tricks full of points | Worse |
+| | **Dumping points: who gets them** | | | |
+| 17 | Hot potato | Waits for the best moment to dump the Q♠ | Dumps it on the first trick she can | Slightly better |
+| 18 | Out for you | Treats humans like anyone else | Saves the Q♠ and hearts for one human (random each game if there's more than one) | Depends on Judgment |
+| 19 | Takes down the leader | Ignores the scores | Dumps on whoever has the lowest total | Better |
+| 20 | Piles on the loser | Ignores the scores | Dumps on whoever's losing (Judgment: only when she's winning, to end the game) | Depends on Judgment |
+| 21 | Holds a grudge | Forgives | Dumps on whoever gave her the queen or her biggest pile of hearts | Slightly worse |
+| 22 | Softie | Dumps on anyone | Never dumps on a human | Slightly worse |
+| 23 | Season sisters | Dumps on anyone | Never dumps on a girl from her own season | Slightly worse |
+| | **The moon** | | | |
+| 24 | Goes for the moon | Never tries | Tries with any high hearts (Judgment: only when her hand is Hard to stop) | Depends on Judgment |
+| 25 | Bluffs | Never bluffs | Leads a lone high heart hoping someone covers it and eats the points | Better, unless the table catches on |
+| 26 | Covers | Never takes a heart to stop a moon | Takes any high heart that might be a moon threat (Judgment: only when the moon is real) | Depends on Judgment |
+| | **Mood** | | | |
+| 27 | Hothead | Shrugs off a bad trick | Plays carelessly for three tricks after taking five or more points | Worse |
+| 28 | Gets cocky | Stays sharp in the lead | Plays carelessly while she has the lowest total | Worse |
+| 29 | Comeback | Plays the same in last place | Plays sharper the further behind she is | Better |
+
+**Special abilities** (on or off, Genius girls only, and only a few of them):
+- **Learns the table:** watches how everyone plays during the game, the human most of all, and adjusts: stops covering a girl she's caught bluffing, bluffs the girl who always covers, leads into whoever always ducks. Keeps a tally of each player's passes, so someone who keeps passing uncovered moon hands gets read. Her notes carry across games in story mode.
+- **Psychic:** sees every stats card at the table before a card is played: the other girls' and each signed-in human's long-term card. Still never sees anyone's cards.
 
 ## Hand tags
 
@@ -144,11 +134,12 @@ Shooting the moon only needs every trick with a heart or the Q♠ in it, so low 
 
 ## Player stats card (planned)
 
-Every signed-in player's games are tracked over time with the same vocabulary as the traits above, so the game can say how someone plays: "You pass an uncovered moon hand 40% of the time", "You duck every time", "You lead spades into the leader".
+Every signed-in player's games are tracked over time with the same dials as the girls' cards above, so the game can say how someone plays: "You pass an uncovered moon hand 40% of the time", "You duck every time", "You lead spades into the leader".
 
 - **The card:** the player's tendencies, shown on their profile.
 - **Coaching:** short tips with the reason behind them, for habits that cost points (not covering your pass hands the receiver a moon; leading spades into the low player lets them dump the queen safely) and for good habits worth doing more.
-- **Psychic girls** (trait 43) read this history before the game starts. Learns the table (42) builds it during the game and, in story mode, across games.
+- **Girls' cards are a mystery at first** (Kennedy, Nov 4). A player can't see a girl's stats card until they've beaten that girl's level; then every girl in that level unlocks. Before that, the bio is the only hint.
+- **Psychic girls** read this history before the game starts. Learns the table builds it during the game and, in story mode, across games.
 - **Private.** Only the player sees their own card. They can choose to share it (a share button), but no one else can look it up.
 - **Every Bad Girl has a stats card too, in the same format** (Kennedy, Nov 4). Her card is what decides how she plays: the game reads her tendencies the same way it would describe a human's.
 - **Psychic girls see every card at the table:** the other girls' and the humans', even though humans can't see each other's.
@@ -164,6 +155,6 @@ Every signed-in player's games are tracked over time with the same vocabulary as
 
 ## Build order
 
-1. This file: assign levels, traits and bios.
+1. This file: assign levels, dial values and bios.
 2. Hand tagging plus a test runner that plays thousands of games and reports results by girl and by hand tag.
-3. Traits a few at a time, measuring after each batch: overrides and passing first, then targeting (the computer players need the game totals and who's human), then the moon and bluffing.
+3. Dials a few at a time, measuring after each batch: overrides and passing first, then targeting (the computer players need the game totals and who's human), then the moon and bluffing.

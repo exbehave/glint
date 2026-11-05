@@ -16,7 +16,7 @@ Seasons as given in the Google Sheet. Level, traits, strength and bio: blank = n
 
 | Girl | Season | Sprite | Level | Traits (by number) | Bio |
 |---|---|---|---|---|---|
-| Natalie | 4 | Done | Genius | 24 Out for you (Smart) | |
+| Natalie | 4 | Done | Genius | 24 Out for you (Smart), 42 Learns the table (aimed at the human) | |
 | Judi | 7 | Done | | | |
 | Victor Twins | 8 | Done | | | |
 | Amy | 8 | Done | | | |
@@ -147,6 +147,7 @@ Shooting the moon only needs every trick with a heart or the Q♠ in it, so low 
 - **End of the game:** the moon line plays, then the win line, even when they're two different girls. (Built.)
 - **Quote pile-ups:** when several girls' quotes go off at once, one girl (two at most) is picked at random to speak, rotating so everyone gets a turn before anyone repeats. (Not built yet.)
 - **Shooting the moon:** the shooter always chooses "everyone else +26" or "me −26". Scores can go below 0. (Built.)
+- **No cheating.** Computer players only use what a real player at the table could know: their own hand, cards played, what was passed to them, and how people have played. They never peek at anyone's hand. Natalie hunting you has to feel earned, not rigged.
 - **Quotes:** up to three per moment; the game picks one at random. A moment with no quote stays quiet.
 
 ## Build order

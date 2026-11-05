@@ -20,7 +20,7 @@ Seasons as given in the Google Sheet. Blank = not decided yet. Every girl gets a
 | Judi | 7 | Done | | | |
 | Victor Twins | 8 | Done | | | |
 | Amy | 8 | Done | | | |
-| Ripsi | 1 | Needed | Easy | Takes points high | |
+| Ripsi | 1 | Needed | Easy | Trick hog high | |
 | Tanisha | 2 | Needed | | | |
 | Amber M | 3 | Needed | | | |
 | Flo | 4 | Needed | | | |
@@ -77,7 +77,7 @@ Natalie and Ripsi's entries come from Kennedy's examples (Natalie: the hardest o
 | 14 | Cashes out early | Saves her aces and kings | Leads them in the first few tricks, then can't win the lead back | Worse |
 | | **Following** | | | |
 | 15 | Ducking | Saves her low cards, keeps two for the end | Ducks under every winning card, even if it strands her with the last tricks | Worse |
-| 16 | Takes points | Plays under whenever she can | Wins tricks full of points | Worse |
+| 16 | Trick hog | Plays under whenever she can | Plays her highest card to win every trick she can, points or no points | Worse |
 | | **Discarding (out of the suit led, no points going anywhere)** | | | |
 | 30 | Sheds high cards | Throws her lowest card | Throws her highest card. Judgment keeps a low card in each suit as a way out | Higher is better, mostly |
 | | **Dumping points: who gets them** | | | |
@@ -129,7 +129,7 @@ Every girl starts from her level's card; Kennedy gives each girl's level and any
 | 13 Breaks hearts early | 50% | 40% | 30% | 30% |
 | 14 Cashes out early | 50% | 30% | 15% | 10% |
 | 15 Ducking | 80% | 70% | 45% | 30% |
-| 16 Takes points | 40% | 15% | 5% | 2% |
+| 16 Trick hog | 40% | 15% | 5% | 2% |
 | 17 Hot potato | 70% | 50% | 30% | 20% |
 | 18 Out for you | 10% | 10% | 10% | 10% |
 | 19 Takes down the leader | 5% | 20% | 40% | 60% |

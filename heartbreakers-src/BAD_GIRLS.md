@@ -38,7 +38,7 @@ Seasons as given in the Google Sheet. Blank = not decided yet. Every girl gets a
 | Jela | | Needed | | | |
 | Bri | | Needed | | | |
 | Morgan | | Needed | | | |
-| Delilah | | Needed | Genius (just below Natalie) | Goal: the human's points highest first, even at her own expense; when no move changes what happens to the human, she plays for herself. Otherwise like Natalie: Judgment high, Out for you high, Learns the table (aimed at the human). Psychic: not confirmed (Natalie's is) | |
+| Delilah | | Needed | Genius (just below Natalie) | Goal: the human's points highest first, even at her own expense; when no move changes what happens to the human, she plays for herself. Otherwise like Natalie: Judgment high, Out for you high, Learns the table (aimed at the human). Psychic: sees the human players' hands only | |
 
 23 girls listed; four levels of four would be 16, so either the levels grow or some girls get cut.
 
@@ -100,11 +100,11 @@ Natalie and Ripsi's entries come from Kennedy's examples (Natalie: the hardest o
 **Special abilities** (on or off, Genius girls only, and only a few of them):
 - **Learns the table:** watches how everyone plays during the game, the human most of all, and adjusts: stops covering a girl she's caught bluffing, bluffs the girl who always covers, leads into whoever always ducks. Keeps a tally of each player's passes, so someone who keeps passing uncovered moon hands gets read. Her notes carry across games in story mode.
 - **Intuit:** sees every stats card at the table before a card is played: the other girls' and each signed-in human's long-term card. Fair play: she never sees anyone's cards.
-- **Psychic (she cheats):** actually sees cards she shouldn't. The one deliberate exception to the no-cheating rule; built for Natalie, who (for now) sees only the human players' hands.
+- **Psychic (she cheats):** actually sees cards she shouldn't. The one deliberate exception to the no-cheating rule; Natalie and Delilah have it, and both see only the human players' hands (for now).
 
 **Pickers** (one choice from a few; Claude's suggestions):
 - **Out for you, with more than one human:** Random (default) / Whoever's winning / Whoever beat her last time.
-- **Psychic mode:** Sometimes / The humans' hands only / Key moments only / Boss match only. Natalie: the humans' hands only, for now.
+- **Psychic mode:** Sometimes / The humans' hands only / Key moments only / Boss match only. Natalie and Delilah: the humans' hands only, for now.
 - **Discard plan, when she's out of the suit led:** Danger first (Q♠, then the A♠/K♠ while the queen is out, then high hearts, then other high cards) / Make more voids (throws from her shortest suit to run out of it too) / Keep my exits (throws high but keeps one low card per suit) / Whatever's highest. Applies on any trick, including the first (where no points can be thrown, so she sheds a high non-point card).
 - **Moon payoff:** Smart (default; picks the better of +26 and −26) / Show-off (always everyone else +26) / Safe (always me −26). Easy girls pick at random.
 

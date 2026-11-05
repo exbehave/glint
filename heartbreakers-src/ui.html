@@ -857,15 +857,16 @@ function playCard(p, c) {
     const el = $('trick').querySelector(`.card[data-c="${c}"]`);
     if (el) setTimeout(() => glassBreak(center(el)), 160);
     setTimeout(() => SFX.glass(), 150);
-    extra = Math.max(extra, 700);
-    G.breaker = p; // her quote waits for the end of the trick: the queen trumps it
+    // she speaks the moment she breaks them (Kennedy, Nov 5), before the next card — unless the Q♠ is already
+    // on the table in this trick, which trumps it. If the queen lands later in the trick, both get said.
+    const qsOnTable = (res ? res.trick : st.trick).some(x => x.c === QS && x.c !== c);
+    if (!qsOnTable) { setTimeout(() => say(p, 'breaks'), 380); extra = Math.max(extra, 1400); }
+    else extra = Math.max(extra, 700);
   }
   if (!res) return step(extra);
   const qsP = res.trick.find(x => x.c === QS);
-  const breaker = G.breaker; G.breaker = null;
   setTimeout(() => {
-    // the Q♠ in the trick trumps every other reaction (breaking hearts, hearts taken)
-    if (!qsP && breaker != null) say(breaker, 'breaks');
+    // the Q♠ in the trick trumps the hearts-taken reactions
     if (qsP) {
       // whoever dumped the queen speaks first, then whoever got stuck with her
       if (qsP.p !== res.w) say(qsP.p, 'qsGive');

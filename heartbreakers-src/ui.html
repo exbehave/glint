@@ -691,11 +691,17 @@ let heartRun = null;
 // lines are one combined pool for it (a Q♠ in the same trick still wins: the queen quotes play instead).
 // When every line she could use has been said this hand, she stays quiet.
 const POOLED = { hearts: ['hearts', 'fewHearts'] };
+// second half of a two-part quote -> its first half (both normalized with normLine)
+const ONLY_AFTER = {
+  'Amy': { "i'll show you something funny": 'you think this is so funny?' },
+};
 function lineFor(p, ev) {
   const nm = voiceOf(p);
   const pool1 = e => { const own = LINES[nm] && LINES[nm][e]; return own || GENERIC_LINES[e] || []; };
   const pool = e => [...new Set((POOLED[e] || [e]).flatMap(pool1))];
-  const set = pool(ev);
+  // two-part quotes: the second half only once she has said the first half earlier in this game (Kennedy, Nov 6)
+  const saidG = (G && G.saidGame) || new Set();
+  const set = pool(ev).filter(l => { const first = (ONLY_AFTER[nm] || {})[normLine(l)]; return !first || saidG.has(nm + '|' + first); });
   if (!set.length) return null; // the admin cleared this moment: she stays quiet
   const used = saidThisHand[nm] || (saidThisHand[nm] = new Set());
   const unsaid = list => list.filter(l => !used.has(l));
@@ -705,6 +711,7 @@ function lineFor(p, ev) {
   if (!opts.length) return null; // she's used every line she has for this: quiet rather than repeat
   const l = opts[Math.floor(Math.random() * opts.length)];
   lastLine[nm] = l; lastByMoment[nm + '|' + ev] = l; used.add(l);
+  if (G) (G.saidGame || (G.saidGame = new Set())).add(nm + '|' + normLine(l));
   return l;
 }
 // ---------- real voice clips (hb_bites table + the private hb-bites bucket) ----------
@@ -924,7 +931,7 @@ function saveGame() {
     localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 1, who: whoAmI(), at: Date.now(), target: S.target, heartRun, said, g: {
       totals: G.totals, handNo: G.handNo, names: G.names, hands: G.hands, dir: G.dir, known: G.known, phase: G.phase,
       st: G.st ? Object.assign({}, G.st, { played: Array.from(G.st.played) }) : null,
-      table: G.table, shown: G.shown, drawnPts: G.drawnPts, rec: G.rec || null, mem: G.T.mem, qsSaid: !!G.qsSaid } }));
+      table: G.table, shown: G.shown, drawnPts: G.drawnPts, rec: G.rec || null, mem: G.T.mem, qsSaid: !!G.qsSaid, saidGame: [...(G.saidGame || [])] } }));
   } catch (e) {}
 }
 function clearSave() { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} }
@@ -943,7 +950,7 @@ function resumeGame() {
     if (st) st.played = Uint8Array.from(st.played);
     Object.assign(G, { hands: st ? st.hands : g.hands, dir: g.dir, known: g.known, received: new Set(), passSel: new Set(), phase: g.phase, st,
       table: g.table || [], sel: null, busy: false, wonBy: null, shown: g.shown || [0, 0, 0, 0], drawnPts: g.drawnPts || [0, 0, 0, 0], popBroken: false,
-      rec: g.rec || null, qsSaid: !!g.qsSaid });
+      rec: g.rec || null, qsSaid: !!g.qsSaid, saidGame: new Set(g.saidGame || []) });
     Object.assign(G.T, { hands: G.hands, dir: G.dir, known: G.known });
     for (const k in saidThisHand) delete saidThisHand[k];
     for (const k in d.said || {}) saidThisHand[k] = new Set(d.said[k]);

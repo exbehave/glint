@@ -69,7 +69,7 @@ const LINES = {
     qsGive: ["Nobody touches my weave","I may be a schizo but I love you!"],
     qsGet: ["Whoever wants to laugh can get their ass slapped","Cuz he was holding my arms! Bytche","I feel like I'm about to kill somebody"],
     breaks: ["Honey, I'm not tryna interrupt you","Hey. You."],
-    fewHearts: ["You think this is funny?","I'll show you something funny"],
+    fewHearts: ["You think this is so funny?","I'll show you something funny"],
     hearts: ["Thrash me if you want","You know, it’s really fake."],
     taunt: ['Too easy, sweetie.', 'Bye.'],
     moon: ["And you're jealous. And you're jealous. And you're jealous."],

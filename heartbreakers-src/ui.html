@@ -475,6 +475,8 @@ const pickCast = () => {
 };
 // who is speaking: seat 0 is you, voiced by the girl you play as
 const voiceOf = p => (p === 0 ? S.me : nameOf(p));
+const isPlural = n => /twins|clermonts/i.test(String(n));
+const vb = (n, one, many) => (isPlural(n) ? many : one);   // "Natalie takes" / "Victor Twins take"
 const nameOf = p => (G && G.names ? G.names[p] : SEATS[p]);
 const initials = n => n.split(/\s+/).map(w => w[0]).join('').slice(0, 2);
 // Portrait art drops in here later: PORTRAITS[deck][rank] = image URL
@@ -963,9 +965,9 @@ function playCard(p, c) {
       if (qsP.p !== res.w) say(qsP.p, 'qsGive');
       say(res.w, 'qsGet');
     } else {
+      // Kennedy, Nov 5: quotes for every heart taken were too busy; only a trick with all four hearts gets one
       const h = res.trick.filter(x => suit(x.c) === 3).length;
-      if (h >= 3) say(res.w, 'hearts');
-      else if (h && Math.random() < 0.5) say(res.w, 'fewHearts');
+      if (h === 4) say(res.w, 'hearts');
     }
   }, 420 + extra);
   setTimeout(() => {
@@ -1021,14 +1023,14 @@ function finishHand(raw, moon, choice) {
   const rows = order.map(i => `<tr class="${G.totals[i] === low ? 'lead' : ''}"><td>${nameOf(i)}</td><td>${fin[i] < 0 ? '−' + -fin[i] : '+' + fin[i]}</td><td class="big">${G.totals[i]}</td></tr>`).join('');
   const winners = order.filter(i => G.totals[i] === low).map(i => nameOf(i));
   let head;
-  if (over) head = winners.length === 1 ? (winners[0] === 'You' ? 'You win.' : `${winners[0]} ${winners[0] === 'Victor Twins' ? 'win' : 'wins'}.`) : `${winners.join(' & ')} tie.`;
+  if (over) head = winners.length === 1 ? (winners[0] === 'You' ? 'You win.' : `${winners[0]} ${vb(winners[0], 'wins', 'win')}.`) : `${winners.join(' & ')} tie.`;
   else head = `Round ${G.handNo} done`;
   const nd = DIRS[G.handNo % 4];
   let react = '';
   // end of the round: the moon line first, then the winner's line if the game is over (both play)
   if (moon >= 0) react += quoteHTML(moon, 'moon');
   if (over && winners.length === 1) react += quoteHTML(G.names.indexOf(winners[0]), 'win');
-  const how = choice === 'down' ? (moon === 0 ? 'You take 26 off your score.' : (/twins/i.test(nameOf(moon)) ? 'They take 26 off their score.' : 'She takes 26 off her score.')) : 'Everyone else takes 26.';
+  const how = choice === 'down' ? (moon === 0 ? 'You take 26 off your score.' : (isPlural(nameOf(moon)) ? 'They take 26 off their score.' : 'She takes 26 off her score.')) : 'Everyone else takes 26.';
   const moonLine = moon >= 0 ? `<div class="moon">${moon === 0 ? 'You shot the moon.' : `${nameOf(moon)} shot the moon.`} ${how}</div>` : '';
   openVeil(`<div class="panel" role="dialog" aria-label="Scores">
     <div><h2>${head}</h2><div class="sub">${over ? `Game to ${S.target}. Lowest score wins.` : `Next round: ${nd === 'hold' ? 'no passing' : 'pass ' + nd}.`}</div></div>
@@ -1109,12 +1111,12 @@ function renderStatus() {
   const st = G.st;
   let msg;
   if (G.looking) msg = 'Here’s what you got <span class="skip">· tap to start</span>';
-  else if (G.busy) msg = G.wonBy === 0 ? 'You take the trick' : `${nameOf(G.wonBy)} takes the trick`;
+  else if (G.busy) msg = G.wonBy === 0 ? 'You take the trick' : `${nameOf(G.wonBy)} ${vb(nameOf(G.wonBy), 'takes', 'take')} the trick`;
   else if (st.turn === 0) {
     if (st.trickNo === 0 && !st.trick.length) msg = 'Lead the <b>2♣</b>';
     else if (G.sel != null) msg = 'Tap again to play';
     else msg = st.trick.length ? 'Your turn. Follow suit if you can' : 'Your lead';
-  } else msg = `${nameOf(st.turn)} is thinking…`;
+  } else msg = `${nameOf(st.turn)} ${vb(nameOf(st.turn), 'is', 'are')} thinking…`;
   const left = 13 - st.trickNo;
   const mine = myChip();
   el.innerHTML = `<div class="row">${mine}<span class="pill count">${left} trick${left === 1 ? '' : 's'} left</span>${st.broken ? `<span class="pill broken${G.popBroken ? ' pop' : ''}">${suitMark(3)} broken</span>` : ''}</div><div class="msg">${msg}</div>`;

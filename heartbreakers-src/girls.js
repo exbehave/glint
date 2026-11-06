@@ -3,7 +3,7 @@
 // her dials (0–1 = 0–100%, rolled fresh on every decision), and Natalie's special powers.
 // Girls without a card yet play their table level, as before.
 const GIRLS = {
-  'Natalie': { level: 'genius', judgment: 1, goal: 'me-then-human', psychic: 'all', intuit: true, dials: {} },
+  'Natalie': { level: 'genius', judgment: 1, goal: 'ruin-you', rate: 3, psychic: 'all', intuit: true, dials: {} },
   'Judi': { level: 'hard', judgment: 0.7, signature: 'keepQueen', dials: { breakEarly: 0.05, ducking: 0.7, keepQueen: 0.6, covers: 0.7, memory: 0.7 } },
   'Victor Twins': { level: 'medium', judgment: 0.4, signature: 'grudge', dials: { grudge: 0.8, leader: 0.4, hotPotato: 0.4 } },
   'Amy': { level: 'easy', judgment: 0.1, signature: 'hotPotato', dials: { hotPotato: 0.85, spadePanic: 0.7, breakEarly: 0.6, hothead: 0.7 } }
@@ -160,10 +160,44 @@ const natalieModel = (T, q) => (s, x) => {
 };
 function playOut(T, s, p) {
   while (s.trickNo < 13) { const q = s.turn; doPlay(s, q, q === p ? pickHard(s, q, T.known[q]) : natalieModel(T, q)(s, q)); }
-  return settle(s.pts);
+  return s.pts.slice();   // raw points; valueOf() works out what a moon really costs
+}
+// What a moon actually does: the shooter takes "everyone else +26" only when that leaves her strictly lowest
+// (same rule the game's computer players use, and a sensible human); otherwise she takes 26 off her own score.
+function moonFinal(T, P) {
+  const m = P.indexOf(26);
+  if (m < 0) return P.slice();
+  const tot = T.totals || [0, 0, 0, 0];
+  const after = tot.map((t, i) => t + (i === m ? 0 : 26)), low = Math.min(...after);
+  const up = after[m] === low && after.filter(t => t === low).length === 1;
+  return P.map((_, i) => (up ? (i === m ? 0 : 26) : (i === m ? -26 : 0)));
+}
+// Natalie's goal (Kennedy, Nov 5): ruin the human, within a budget. One of her own points is worth `rate` of yours,
+// so at 3 she'll eat a heart or two to stick you with the queen, but never take the queen to do it.
+// Another girl's moon only half-registers (Kennedy: no "Captain Save-A-Ho"): she stops it when it's cheap or when
+// stopping it lands points on you, and lets it ride when someone else will stop it (her playouts already show that).
+const OTHER_MOON = 0.4;
+function valueOf(T, p, raw) {
+  const hum = T.humans.filter(h => h !== p), f = moonFinal(T, raw), m = raw.indexOf(26);
+  let own = f[p];
+  if (m >= 0 && m !== p && !T.humans.includes(m)) own *= OTHER_MOON;
+  return { own, hum: hum.reduce((a, h) => a + f[h], 0) };
+}
+// How much of herself she'll spend: her card's rate, but when she's close to losing the game she plays it safe
+// (needs 10 of your points for each of hers) — near the end and less than a queen's worth ahead of the next-lowest.
+function rateFor(T, p) {
+  const card = T.cards[p] || {}, base = card.rate || 3;
+  const tot = T.totals || [0, 0, 0, 0], target = T.target || 100;
+  const others = Math.min(...tot.filter((_, i) => i !== p));
+  const nearEnd = Math.max(...tot) >= target - 26;
+  return nearEnd && others - tot[p] < 13 ? Math.max(base, 10) : base;
 }
 const randomish = (T, p) => [0, 1, 2, 3].some(q => q !== p && T.cards[q] && T.cards[q].psychic !== 'all');
 function chooseByGoal(T, p, scores) { // scores: [{x, own, hum}] averaged
+  if ((T.cards[p] || {}).goal === 'ruin-you') {
+    const k = rateFor(T, p);
+    return scores.slice().sort((a, b) => (b.hum - k * b.own) - (a.hum - k * a.own) || a.own - b.own)[0].x;
+  }
   const best = Math.min(...scores.map(o => o.own));
   const near = scores.filter(o => o.own <= best + 0.5);
   near.sort((a, b) => b.hum - a.hum || a.own - b.own);
@@ -189,8 +223,8 @@ function pickPsychic(T, p, st) {
     for (let r = 0; r < R; r++) {
       const s = cloneSt(st);
       doPlay(s, p, c);
-      const f = playOut(T, s, p);
-      own += f[p]; hu += hum.reduce((a, h) => a + f[h], 0);
+      const v = valueOf(T, p, playOut(T, s, p));
+      own += v.own; hu += v.hum;
     }
     // Never eat the queen early when holding on costs the same (Kennedy, Nov 5): playing it now onto a spade trick
     // she'd win counts as a point worse, so she keeps her other spades and leaves the others time to slip up.
@@ -217,8 +251,8 @@ function passPsychic(T, p, hand) {
       passes.forEach((ps, q) => ps.forEach(c => hands[q].splice(hands[q].indexOf(c), 1)));
       passes.forEach((ps, q) => ps.forEach(c => { hands[(q + off) % 4].push(c); known[q].push({ c, q: (q + off) % 4 }); }));
       const s = newHandState(hands);
-      const f = playOut({ ...T, known }, s, p);
-      own += f[p]; hu += hum.reduce((a, h) => a + f[h], 0);
+      const v = valueOf(T, p, playOut({ ...T, known }, s, p));
+      own += v.own; hu += v.hum;
     }
     return { x: pick, own: own / R, hum: hu / R };
   });

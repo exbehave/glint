@@ -893,7 +893,7 @@ function startGame() {
   G = { totals: [0, 0, 0, 0], handNo: 0, names: pickCast() };
   // the table the girls play at: each one plays by her own stats card (girls.js); a girl without a card plays her seat's level
   G.T = { cards: G.names.map((n, p) => (p && GIRLS[n]) || null), levels: G.names.map((n, p) => (p ? (GIRLS[n] ? GIRLS[n].level : S.levels[p]) : 'hard')),
-    humans: [0], totals: G.totals, mem: newTableMem() };
+    humans: [0], totals: G.totals, target: S.target, mem: newTableMem() };
   closeVeil();
   newHand();
 }

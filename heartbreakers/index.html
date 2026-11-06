@@ -1542,6 +1542,7 @@ async function playBuf(b) {
   // the download may not have finished yet (or was dropped): fetch it now
   if (!b.buf && !b.ab && b.url) { try { const res = await fetch(b.url); if (res.ok) b.ab = await res.arrayBuffer(); } catch (e) {} }
   if (!b.buf && b.ab) { try { b.buf = await c.decodeAudioData(b.ab.slice(0)); } catch (e) { b.ab = null; } }
+  if (b.buf && b.sp == null) b.sp = speechEnd(b.buf);
   if (!b.buf) {                                      // couldn't decode it here: let the browser's own player try
     if (b.url) { try { const a = new Audio(b.url); a.volume = 0.9; await a.play(); return b.dur || 2; } catch (e) {} }
     return 0;
@@ -1550,8 +1551,20 @@ async function playBuf(b) {
   g.gain.value = 0.9; src.buffer = b.buf; src.connect(g); g.connect(c.destination); src.start();
   return b.buf.duration;
 }
+// Where her last word ends inside a clip, in seconds: every clip has ~0.9–1.1 s of reverb tail after it
+// (Kennedy, Nov 6: the trombone and the next speaker go right after the last word; the tail rings under them).
+// The last 20 ms stretch within 22 dB of the loudest one counts as speech; the tail starts well below that.
+function speechEnd(buf) {
+  const x = buf.getChannelData(0), n = Math.max(1, Math.round(buf.sampleRate * 0.02)), rms = [];
+  for (let i = 0; i + n <= x.length; i += n) { let e = 0; for (let j = i; j < i + n; j++) e += x[j] * x[j]; rms.push(Math.sqrt(e / n)); }
+  const top = Math.max(...rms, 1e-6), cut = top * Math.pow(10, -22 / 20);
+  let last = rms.length - 1; while (last > 0 && rms[last] < cut) last--;
+  return Math.min(buf.duration, (last + 1) * n / buf.sampleRate);
+}
+const TAIL_GUESS = 0.9;                                // when the clip couldn't be decoded here
 // Plays her clip for this line if she has one; returns true when a clip exists (so the caller can wait for it).
-function playClip(nm, ev, text) {
+// onSpoken runs the moment her last word ends (the tail keeps ringing).
+function playClip(nm, ev, text, onSpoken) {
   if (!S.sound) return false;
   // no clips loaded yet (e.g. every load failed): try again quietly, at most every 30 s
   if (!bitesLoaded() && !bitesLoading && Date.now() - bitesLastTry > 30000) loadBites();
@@ -1560,10 +1573,18 @@ function playClip(nm, ev, text) {
     const b = list[Math.floor(Math.random() * list.length)];
     // Never talk over a clip that's still playing (e.g. the moon line then the win line on the score screen):
     // queue this one to start once the current one ends.
+    // voiceEnd marks when her words end, not the tail, so the next line can start under the ring-out
     const now = performance.now(), start = voiceEnd > now ? voiceEnd + 150 : now;
-    const est = b.buf ? b.buf.duration : (b.dur || 2);
+    const est = b.sp != null ? b.sp : Math.max(0.3, (b.buf ? b.buf.duration : (b.dur || 2)) - TAIL_GUESS);
     voiceEnd = start + est * 1000;
-    const go = () => { if (S.sound) playBuf(b).then(d => { if (d) voiceEnd = Math.max(voiceEnd, performance.now() + d * 1000 - 40); }); };
+    const go = () => {
+      if (!S.sound) { if (onSpoken) onSpoken(); return; }
+      playBuf(b).then(d => {
+        const sp = d ? (b.sp != null ? b.sp : Math.max(0.3, d - TAIL_GUESS)) : 0;
+        if (d) voiceEnd = Math.max(voiceEnd, performance.now() + sp * 1000 - 40);
+        if (onSpoken) setTimeout(onSpoken, Math.max(0, sp * 1000 - 40));
+      });
+    };
     if (start > now) setTimeout(go, start - now); else go();
     return true;
   }
@@ -1593,9 +1614,10 @@ function sayNow(p, ev, then) {
   if (wait > 0) { const game = G; speakFree = Math.max(speakFree, voiceEnd + 150 + SPEAK_GAP); setTimeout(() => { if (G === game) sayNow(p, ev, then); }, wait + 150); return; }
   const nm = voiceOf(p), text = lineFor(p, ev);
   if (!text) { if (then) then(); return; }
-  const clip = playClip(nm, ev, text);
+  const game = G, done = then ? () => { if (G === game) then(); } : null;
+  const clip = playClip(nm, ev, text, done);
   if (clip) speakFree = Math.max(speakFree, voiceEnd + 150);
-  if (then) { const game = G; setTimeout(() => { if (G === game) then(); }, clip ? Math.max(0, voiceEnd - performance.now()) + 120 : 450); }
+  else if (done) setTimeout(done, 450);
   const plate = p === 0 ? $('mechip') : $('plate' + p);
   if (!plate) return;
   if (bubbles[p]) bubbles[p].remove();

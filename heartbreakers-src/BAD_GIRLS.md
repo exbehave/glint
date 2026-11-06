@@ -48,7 +48,7 @@ Natalie and Ripsi's entries come from Kennedy's examples (Natalie: the hardest o
 
 ### Sample bios (Claude's drafts — tone check only, not approved)
 
-- **Natalie:** "Thinks she owns the house, the table and you. Plays to win, but mostly plays to ruin your night. She will find you."
+- **Natalie:** "Thinks she owns the house, the table and you. Plays to win, but mostly plays to ruin your night. She will find you." Tagline (Kennedy, Nov 6): **"Kicking ass and taking notes."**
 - **Judi:** "Too glamorous to start anything messy, hearts included. She'll wait until someone else gets their hands dirty."
 - **Amy:** "Gets bored fast, panics faster. Hand her the queen and she'll throw it at whoever's closest."
 - **Victor Twins:** "Two of them, one grudge, zero forgiveness. Cross one twin and you've crossed both."

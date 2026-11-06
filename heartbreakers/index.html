@@ -397,6 +397,10 @@ body { background: var(--ink) url("data:image/webp;base64,UklGRpJ4AABXRUJQVlA4II
 .quote .who { font-family: var(--caps); }
 .quote .q { font-family: var(--serif); font-size: 17px; font-weight: 600; }
 
+/* your own seat chip: a bigger picture (Kennedy, Nov 5) */
+.mechip .pw { width: 44px; }
+.mechip .mn { font-size: 15px; }
+.mechip .mp { font-size: 13px; }
 /* layout: landscape phones — seats tall on the sides, Across on top, hand full width */
 @media (orientation: landscape) and (max-height: 560px), (orientation: landscape) and (min-width: 900px) {
   .app {
@@ -442,6 +446,32 @@ body { background: var(--ink) url("data:image/webp;base64,UklGRpJ4AABXRUJQVlA4II
   .hand .card .ix i { font-size: min(4vh, 19px); }
   .hand .card .big { font-size: calc(var(--ch) * .3); }
 }
+/* big landscape screens (a computer window): Kennedy, Nov 5 — side portraits were huge while the table cards,
+   the top seat and your own seat stayed tiny. Everything now scales off the window height together. */
+@media (orientation: landscape) and (min-width: 900px) and (min-height: 561px) {
+  .app { --tc: min(17vh, 150px); }
+  .app[data-layout] .plate.seat.side .pw { height: min(38vh, 290px); }
+  .app[data-layout] .plate.seat.side .pinfo .nm { font-size: min(2.6vh, 20px); }
+  .app[data-layout] #plate2.seat .pw { height: min(19vh, 180px); }
+  .app[data-layout] #plate2.seat .nm { font-size: min(3.4vh, 28px); }
+  .app[data-layout] #plate2.seat .nm { white-space: nowrap; }
+  .app[data-layout] .trick { max-width: calc(var(--tc) * 2.6 + 40px); min-height: calc(var(--tc) * 1.9); }
+  .app[data-layout] .trick::before { width: calc(var(--tc) * .8); height: var(--tc); }
+  .app[data-layout] .slot .card { height: var(--tc); width: calc(var(--tc) * .7); }
+  .app[data-layout] .slot .card .ix { top: 5px; left: 7px; }
+  .app[data-layout] .slot .card .ix.br { top: auto; left: auto; right: 7px; bottom: 5px; }
+  .app[data-layout] .slot .card .ix b { font-size: calc(var(--tc) * .3); }
+  .app[data-layout] .slot .card .ix i { font-size: calc(var(--tc) * .2); }
+  .app[data-layout] .slot .card .big { font-size: calc(var(--tc) * .4); }
+  .status .msg { font-size: min(3.4vh, 28px); }
+  .mechip { padding: 4px 16px 4px 4px; gap: 12px; border-radius: 14px; }
+  .mechip .pw { width: min(9vh, 76px); }
+  .mechip .mn { font-size: min(2.6vh, 20px); }
+  .mechip .mh { font-size: min(1.6vh, 12px); }
+  .mechip .mp { font-size: min(2.2vh, 17px); }
+  .mechip .rp { font-size: min(2.8vh, 22px); }
+}
+
 </style>
 
 <div class="app" id="app">
@@ -1859,7 +1889,7 @@ function renderHand() {
   el.style.height = '';
   const land = matchMedia('(orientation: landscape) and (max-height: 560px), (orientation: landscape) and (min-width: 900px)').matches;
   if (land) {
-    const lch = Math.min(innerHeight * 0.18, 100);
+    const lch = Math.min(innerHeight * 0.18, innerHeight > 560 && innerWidth >= 900 ? 160 : 100);   // computers get bigger cards
     el.style.setProperty('--ch', lch.toFixed(0) + 'px');
     el.style.setProperty('--cw', (lch * 0.7).toFixed(0) + 'px');
   } else { el.style.removeProperty('--ch'); el.style.removeProperty('--cw'); }

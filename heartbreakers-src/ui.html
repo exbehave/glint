@@ -715,6 +715,7 @@ function lineFor(p, ev) {
   if (!opts.length) opts = unsaid(set);
   if (!opts.length) return null; // she's used every line she has for this: quiet rather than repeat
   const l = opts[Math.floor(Math.random() * opts.length)];
+  const rh = recHand(); if (rh) (rh.says || (rh.says = [])).push([p, ev, l, Date.now() - rh.t0]);
   lastLine[nm] = l; lastByMoment[nm + '|' + ev] = l; used.add(l);
   if (G) (G.saidGame || (G.saidGame = new Set())).add(nm + '|' + normLine(l));
   return l;

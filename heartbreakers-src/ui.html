@@ -911,6 +911,64 @@ function recSave() {
   });
 }
 
+// ---------- saved game: refresh or close the page and you land back where you were (Kennedy, Nov 6) ----------
+// Saved on this device after the deal, before every turn and between rounds; cleared when the game ends or you exit.
+const SAVE_KEY = 'hb-save';
+const whoAmI = () => (ME && ME.id) || '';
+function saveGame() {
+  if (!G || !G.T || !G.names) return;
+  try {
+    if (G.phase === 'over') { localStorage.removeItem(SAVE_KEY); return; }
+    const said = {};
+    for (const k in saidThisHand) said[k] = [...saidThisHand[k]];
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 1, who: whoAmI(), at: Date.now(), target: S.target, heartRun, said, g: {
+      totals: G.totals, handNo: G.handNo, names: G.names, hands: G.hands, dir: G.dir, known: G.known, phase: G.phase,
+      st: G.st ? Object.assign({}, G.st, { played: Array.from(G.st.played) }) : null,
+      table: G.table, shown: G.shown, drawnPts: G.drawnPts, rec: G.rec || null, mem: G.T.mem, qsSaid: !!G.qsSaid } }));
+  } catch (e) {}
+}
+function clearSave() { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} }
+function resumeGame() {
+  let d = null;
+  try { d = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); } catch (e) {}
+  if (!d || d.v !== 1 || !d.g || d.who !== whoAmI() || Date.now() - d.at > 30 * 864e5) return false;
+  const g = d.g;
+  if (!['pass', 'play', 'between'].includes(g.phase)) return false;
+  try {
+    S.target = d.target || S.target;
+    G = { totals: g.totals, handNo: g.handNo, names: g.names };
+    G.T = { cards: G.names.map((n, p) => (p && GIRLS[n]) || null), levels: G.names.map((n, p) => (p ? (GIRLS[n] ? GIRLS[n].level : S.levels[p]) : 'hard')),
+      humans: [0], totals: G.totals, target: S.target, mem: g.mem || newTableMem() };
+    const st = g.st;
+    if (st) st.played = Uint8Array.from(st.played);
+    Object.assign(G, { hands: st ? st.hands : g.hands, dir: g.dir, known: g.known, received: new Set(), passSel: new Set(), phase: g.phase, st,
+      table: g.table || [], sel: null, busy: false, wonBy: null, shown: g.shown || [0, 0, 0, 0], drawnPts: g.drawnPts || [0, 0, 0, 0], popBroken: false,
+      rec: g.rec || null, qsSaid: !!g.qsSaid });
+    Object.assign(G.T, { hands: G.hands, dir: G.dir, known: G.known });
+    for (const k in saidThisHand) delete saidThisHand[k];
+    for (const k in d.said || {}) saidThisHand[k] = new Set(d.said[k]);
+    heartRun = d.heartRun || null;
+  } catch (e) { clearSave(); G = null; return false; }
+  closeVeil();
+  $('trick').innerHTML = '';
+  if (G.phase === 'play') { render(); step(0); }
+  else if (G.phase === 'pass') render();
+  else {                                             // between rounds: the scores, then deal on
+    render();
+    const low = Math.min(...G.totals);
+    const rows = [0, 1, 2, 3].sort((a, b) => G.totals[a] - G.totals[b]).map(i => `<tr class="${G.totals[i] === low ? 'lead' : ''}"><td>${nameOf(i)}</td><td class="big">${G.totals[i]}</td></tr>`).join('');
+    const nd = DIRS[G.handNo % 4];
+    openVeil(`<div class="panel" role="dialog" aria-label="Scores">
+      <div><h2>Welcome back</h2><div class="sub">Round ${G.handNo} done. Next round: ${nd === 'hold' ? 'no passing' : 'pass ' + nd}.</div></div>
+      <table class="tbl"><thead><tr><th>Player</th><th>Total</th></tr></thead><tbody>${rows}</tbody></table>
+      <div class="btns"><button class="cta" id="b-next">Deal next round</button></div>
+    </div>`);
+    $('b-next').onclick = () => { closeVeil(); newHand(); };
+  }
+  return true;
+}
+const setupOrResume = () => { if (!resumeGame()) showSetup(); };
+
 function startGame() {
   G = { totals: [0, 0, 0, 0], handNo: 0, names: pickCast() };
   // the table the girls play at: each one plays by her own stats card (girls.js); a girl without a card plays her seat's level
@@ -923,7 +981,7 @@ function startGame() {
 
 function newHand() {
   for (const k in saidThisHand) delete saidThisHand[k];
-  heartRun = null;
+  heartRun = null; if (G) G.qsSaid = false;
   Object.assign(G, {
     hands: dealHands(), dir: G.handNo % 4, known: [[], [], [], []], received: new Set(),
     st: null, table: [], sel: null, busy: false, wonBy: null,
@@ -935,6 +993,7 @@ function newHand() {
   G.phase = 'pass';
   G.passSel = new Set();
   render();
+  saveGame();
 }
 
 function confirmPass() {
@@ -955,6 +1014,7 @@ const LOOK_MS = 5000; // after a pass, a moment to see the cards you got before 
 function beginPlay() {
   G.st = newHandState(G.hands);
   G.phase = 'play';
+  saveGame();
   if (!G.received.size) return step(0);
   G.busy = true; G.looking = true;
   render();
@@ -977,6 +1037,7 @@ function step(extra) {
   const st = G.st;
   if (st.trickNo === 13) return endHand();
   render();
+  saveGame();
   if (st.turn !== 0) {
     const lv = G.T.levels[st.turn];
     setTimeout(() => {
@@ -1004,12 +1065,13 @@ function playCard(p, c) {
   render();
   // Kennedy, Nov 6: the quote comes first, then the sad trombone. When the queen is certainly being dumped
   // (thrown off-suit, or the trick just ended with someone else winning it) the dumper speaks the moment it lands.
-  let qsGiveSaid = false;
+  // remembered on G: the queen often lands mid-trick and the trick ends on a later card's turn
+  // (a local flag here was lost by then, so the dump quote and the trombone played twice — fixed Nov 6)
   if (c === QS) {
     extra = 900;
     const led = (res ? res.trick : st.trick)[0];
     const dumped = res ? res.w !== p : (led && led.p !== p && suit(led.c) !== suit(QS));
-    if (dumped) { qsGiveSaid = true; say(p, 'qsGive', qsWah); }
+    if (dumped) { G.qsSaid = true; say(p, 'qsGive', qsWah); }
   }
   if (brokeNow) {
     const el = $('trick').querySelector(`.card[data-c="${c}"]`);
@@ -1030,8 +1092,9 @@ function playCard(p, c) {
     if (qsP) {
       heartRun = null;                                // the queen used up this trick's hearts
       // whoever dumped the queen speaks first, then whoever got stuck with her
-      if (qsP.p !== res.w && !qsGiveSaid) say(qsP.p, 'qsGive', qsWah);
-      say(res.w, 'qsGet', qsGiveSaid || qsP.p !== res.w ? null : qsWah);
+      const said = G.qsSaid; G.qsSaid = false;
+      if (qsP.p !== res.w && !said) say(qsP.p, 'qsGive', qsWah);
+      say(res.w, 'qsGet', said || qsP.p !== res.w ? null : qsWah);
     } else {
       // Kennedy, Nov 5: quotes for every heart taken were too busy; only a trick with all four hearts gets one.
       // Nov 6: or two tricks in a row won by the same girl with 2–3 hearts each (4+ over the pair). It can fire
@@ -1090,6 +1153,7 @@ function finishHand(raw, moon, choice) {
   G.handNo++;
   const over = Math.max(...G.totals) >= S.target;
   G.phase = over ? 'over' : 'between';
+  saveGame();
   const rh = recHand();
   if (rh) {
     Object.assign(rh, { raw: raw.slice(), moon, choice: moon >= 0 ? choice : null, fin: fin.slice(), totals: G.totals.slice() });
@@ -1312,11 +1376,11 @@ const acctEmail = u => { u = String(u || '').trim().toLowerCase(); return !u || 
 const acctName = u => (u && u.user_metadata && u.user_metadata.username) || ((u && u.email) || '').replace(/@.*$/, '');
 let ME = null;
 async function bootGate() {
-  if (!GATED) return showSetup();
+  if (!GATED) return setupOrResume();
   try { const { data: { session } } = await sb.auth.getSession(); ME = session ? session.user : null; } catch (e) { ME = null; }
   if (!ME) return showSignIn();
   if (ME.user_metadata && ME.user_metadata.must_change) return showNewPassword();
-  showSetup();
+  setupOrResume();
 }
 function showSignIn(note) {
   openVeil(`<form class="panel" id="signin" aria-label="Sign in">
@@ -1363,14 +1427,14 @@ function showMenu() {
     <h2>Menu</h2>
     <div class="field"><span class="lab">Table layout</span>${segHTML('mlayout', LAYOUTS, S.layout)}</div>
     <div class="field"><span class="lab">Sound effects</span>${segHTML('msound', [['on', 'On'], ['off', 'Off']], S.sound ? 'on' : 'off')}</div>
-    <div class="foot">New game ends this one and clears the scores.</div>
-    <div class="btns"><button class="ghost" id="b-new">New game</button><button class="cta" id="b-keep">Back to game</button></div>
+    <div class="foot">Your game saves as you play: refresh or close the page and you’ll come right back to it. Exit game ends it and clears the scores.</div>
+    <div class="btns"><button class="ghost" id="b-new">Exit game</button><button class="cta" id="b-keep">Back to game</button></div>
     ${ME ? `<div class="foot">Signed in as ${esc(acctName(ME))} · <button class="linkish" id="b-out" type="button">Sign out</button></div>` : ''}
   </div>`);
   $('veil').querySelectorAll('input[name="mlayout"]').forEach(r => r.onchange = () => { S.layout = r.value; applyLayout(); saveSettings(); render(); });
   $('veil').querySelectorAll('input[name="msound"]').forEach(r => r.onchange = () => { S.sound = r.value === 'on'; if (S.sound) SFX.unlock(); saveSettings(); renderRail(); });
   $('b-keep').onclick = closeVeil;
-  $('b-new').onclick = () => { G = null; showSetup(); };
+  $('b-new').onclick = () => { clearSave(); G = null; showSetup(); };
   if ($('b-out')) $('b-out').onclick = async () => { try { await sb.auth.signOut(); } catch (e) {} ME = null; G = null; showSignIn(); };
 }
 

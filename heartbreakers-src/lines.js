@@ -74,7 +74,7 @@ const LINES = {
     taunt: ['Too easy, sweetie.', 'Bye.'],
     moon: ["And you're jealous. And you're jealous. And you're jealous."],
     moonVictim: ['Are you serious right now?', 'That is so rude.'],
-    win: ["These girls are the biggest vagina holes I have ever met in my life","Oh baby! I love you!"]
+    win: ["These girls are the biggest vagina holes I’ve ever met in my life","Oh baby! I love you!"]
   },
   'Victor Twins': {
     qsGive: ["I'm just gonna put a lil trash in your bedroom","Guess we can add to the decoration in this room?","You can go sleep in the pool, where your weave is at the bottom"],

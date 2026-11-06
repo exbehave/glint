@@ -685,6 +685,8 @@ const lastLine = {}, bubbles = {};
 const lastByMoment = {};
 // Lines a girl has already said this hand (Kennedy, Nov 5: nobody repeats a line in the same hand). Cleared by newHand.
 const saidThisHand = {};
+// the last trick's winner and its hearts, for the back-to-back hearts quote
+let heartRun = null;
 // Taking hearts (Kennedy, Nov 6): only a trick with all four hearts gets a quote, and her small-hit and big-hit
 // lines are one combined pool for it (a Q♠ in the same trick still wins: the queen quotes play instead).
 // When every line she could use has been said this hand, she stays quiet.
@@ -921,6 +923,7 @@ function startGame() {
 
 function newHand() {
   for (const k in saidThisHand) delete saidThisHand[k];
+  heartRun = null;
   Object.assign(G, {
     hands: dealHands(), dir: G.handNo % 4, known: [[], [], [], []], received: new Set(),
     st: null, table: [], sel: null, busy: false, wonBy: null,
@@ -1022,14 +1025,19 @@ function playCard(p, c) {
   const qsP = res.trick.find(x => x.c === QS);
   setTimeout(() => {
     // the Q♠ in the trick trumps the hearts-taken reactions
+    const h = res.trick.filter(x => suit(x.c) === 3).length;
+    const prev = heartRun; heartRun = { p: res.w, h };
     if (qsP) {
+      heartRun = null;                                // the queen used up this trick's hearts
       // whoever dumped the queen speaks first, then whoever got stuck with her
       if (qsP.p !== res.w && !qsGiveSaid) say(qsP.p, 'qsGive', qsWah);
       say(res.w, 'qsGet', qsGiveSaid || qsP.p !== res.w ? null : qsWah);
     } else {
-      // Kennedy, Nov 5: quotes for every heart taken were too busy; only a trick with all four hearts gets one
-      const h = res.trick.filter(x => suit(x.c) === 3).length;
-      if (h === 4) say(res.w, 'hearts');
+      // Kennedy, Nov 5: quotes for every heart taken were too busy; only a trick with all four hearts gets one.
+      // Nov 6: or two tricks in a row won by the same girl with 2–3 hearts each (4+ over the pair). It can fire
+      // again later; each pair counts once, so a third heavy trick in a row starts a new pair.
+      const pair = prev && prev.p === res.w && prev.h >= 2 && h >= 2;
+      if (h === 4 || pair) { say(res.w, 'hearts'); heartRun = null; }
     }
   }, 420 + extra);
   setTimeout(() => {

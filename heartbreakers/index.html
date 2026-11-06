@@ -1651,11 +1651,35 @@ function cardHTML(c, cls = '', attrs = '') {
 }
 
 // ---------- game flow ----------
+// ---------- game recorder (Kennedy, Nov 6): every game is saved for replay, move ratings and Natalie's notes ----------
+// One row per game in hb_games (signed-in players only; each player reads their own, the admin reads all).
+// data = { v, started, names, me, handle, target, deck, hands: [{ deal, dir, passes, plays: [[seat, card, ms]], raw, moon, choice, fin, totals }], totals, finished, winners }
+const REC_V = 1;
+function recStart() {
+  const id = (crypto.randomUUID && crypto.randomUUID()) || String(Date.now()) + Math.random().toString(16).slice(2);
+  G.rec = { id, v: REC_V, started: new Date().toISOString(), names: G.names.slice(), me: S.me, handle: S.handle || '', target: S.target, deck: S.deck, hands: [] };
+}
+const recHand = () => (G && G.rec && G.rec.hands[G.rec.hands.length - 1]) || null;
+let recSaving = Promise.resolve();
+function recSave() {
+  if (!sb || !G || !G.rec) return;
+  const row = { id: G.rec.id, finished: !!G.rec.finished, updated_at: new Date().toISOString(), data: JSON.parse(JSON.stringify(G.rec)) };
+  recSaving = recSaving.then(async () => {
+    try {
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) return;
+      let { error } = await sb.from('hb_games').upsert(row);
+      if (error) { await sb.auth.refreshSession().catch(() => {}); ({ error } = await sb.from('hb_games').upsert(row)); }
+    } catch (e) {}
+  });
+}
+
 function startGame() {
   G = { totals: [0, 0, 0, 0], handNo: 0, names: pickCast() };
   // the table the girls play at: each one plays by her own stats card (girls.js); a girl without a card plays her seat's level
   G.T = { cards: G.names.map((n, p) => (p && GIRLS[n]) || null), levels: G.names.map((n, p) => (p ? (GIRLS[n] ? GIRLS[n].level : S.levels[p]) : 'hard')),
     humans: [0], totals: G.totals, target: S.target, mem: newTableMem() };
+  recStart();
   closeVeil();
   newHand();
 }
@@ -1667,6 +1691,7 @@ function newHand() {
     st: null, table: [], sel: null, busy: false, wonBy: null,
     shown: [0, 0, 0, 0], drawnPts: [0, 0, 0, 0], popBroken: false
   });
+  if (G.rec) G.rec.hands.push({ deal: G.hands.map(h => h.slice()), dir: G.dir, passes: null, plays: [], t0: Date.now() });
   $('trick').innerHTML = '';
   if (G.dir === 3) return beginPlay();
   G.phase = 'pass';
@@ -1679,6 +1704,7 @@ function confirmPass() {
   const off = [1, 3, 2][G.dir];
   Object.assign(G.T, { hands: G.hands, dir: G.dir, known: G.known });
   const passes = [0, 1, 2, 3].map(p => p === 0 ? [...G.passSel] : girlPass(G.T, p, G.hands[p]));
+  if (recHand()) recHand().passes = passes.map(x => x.slice());
   passes.forEach((ps, p) => ps.forEach(c => G.hands[p].splice(G.hands[p].indexOf(c), 1)));
   passes.forEach((ps, p) => {
     const q = (p + off) % 4;
@@ -1729,6 +1755,7 @@ function playCard(p, c) {
   const wasBroken = st.broken;
   if (st.trickNo === 0 && !st.trick.length) G.received.clear(); // first card of the round: passed cards settle back down
   G.table.push({ p, c });
+  const rh = recHand(); if (rh) rh.plays.push([p, c, Date.now() - rh.t0]);
   const res = doPlay(st, p, c);
   if (res) girlsAfterTrick(G.T, res);
   if (p === 0) G.sel = null;
@@ -1809,6 +1836,13 @@ function finishHand(raw, moon, choice) {
   G.handNo++;
   const over = Math.max(...G.totals) >= S.target;
   G.phase = over ? 'over' : 'between';
+  const rh = recHand();
+  if (rh) {
+    Object.assign(rh, { raw: raw.slice(), moon, choice: moon >= 0 ? choice : null, fin: fin.slice(), totals: G.totals.slice() });
+    G.rec.totals = G.totals.slice();
+    if (over) { const lo = Math.min(...G.totals); G.rec.finished = new Date().toISOString(); G.rec.winners = [0, 1, 2, 3].filter(i => G.totals[i] === lo); }
+    recSave();
+  }
   render();
   const low = Math.min(...G.totals);
   const order = [0, 1, 2, 3].sort((a, b) => G.totals[a] - G.totals[b]);

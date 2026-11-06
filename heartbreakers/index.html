@@ -1447,26 +1447,20 @@ const lastLine = {}, bubbles = {};
 const lastByMoment = {};
 // Lines a girl has already said this hand (Kennedy, Nov 5: nobody repeats a line in the same hand). Cleared by newHand.
 const saidThisHand = {};
-// Taking hearts: small hits (1–2 hearts) use her small-hit lines first and borrow a big-hit line about 1 time in 4;
-// big hits (3–4) use big-hit lines first. Either one borrows from the other when its own lines are used up or would repeat.
+// Taking hearts (Kennedy, Nov 6): only a trick with all four hearts gets a quote, and her small-hit and big-hit
+// lines are one combined pool for it (a Q♠ in the same trick still wins: the queen quotes play instead).
 // When every line she could use has been said this hand, she stays quiet.
-const BORROW_BIG = 0.25;
-const HIT_PAIR = { fewHearts: 'hearts', hearts: 'fewHearts' };
+const POOLED = { hearts: ['hearts', 'fewHearts'] };
 function lineFor(p, ev) {
   const nm = voiceOf(p);
-  const pool = e => { const own = LINES[nm] && LINES[nm][e]; return own || GENERIC_LINES[e] || []; };
+  const pool1 = e => { const own = LINES[nm] && LINES[nm][e]; return own || GENERIC_LINES[e] || []; };
+  const pool = e => [...new Set((POOLED[e] || [e]).flatMap(pool1))];
   const set = pool(ev);
   if (!set.length) return null; // the admin cleared this moment: she stays quiet
   const used = saidThisHand[nm] || (saidThisHand[nm] = new Set());
   const unsaid = list => list.filter(l => !used.has(l));
   const fresh = list => unsaid(list).filter(l => l !== lastByMoment[nm + '|' + ev] && l !== lastLine[nm]);
   let opts = fresh(set);
-  const other = HIT_PAIR[ev];
-  if (other) {
-    const borrow = fresh(pool(other));
-    if (borrow.length && (!opts.length || (ev === 'fewHearts' && Math.random() < BORROW_BIG))) opts = borrow;
-    if (!opts.length) opts = unsaid(set).concat(unsaid(pool(other)));
-  }
   if (!opts.length) opts = unsaid(set);
   if (!opts.length) return null; // she's used every line she has for this: quiet rather than repeat
   const l = opts[Math.floor(Math.random() * opts.length)];

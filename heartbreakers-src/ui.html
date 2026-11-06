@@ -802,21 +802,24 @@ if (sb) {
 // Reactions wait their turn: each starts at least SPEAK_GAP ms after the one before, in the order they were triggered.
 const SPEAK_GAP = 1300;
 let speakFree = 0;
-function say(p, ev) {
-  if (!G || !G.names || (p === 0 && !S.me)) return;
+// `then` (optional) runs once she's done: right after her clip ends, a beat after a bubble-only line, or at once if she stays quiet.
+function say(p, ev, then) {
+  if (!G || !G.names || (p === 0 && !S.me)) { if (then) then(); return; }
   const now = performance.now(), at = Math.max(now, speakFree);
   speakFree = at + SPEAK_GAP;
   const game = G;
-  setTimeout(() => { if (G === game) sayNow(p, ev); }, at - now);
+  setTimeout(() => { if (G === game) sayNow(p, ev, then); }, at - now);
 }
-function sayNow(p, ev) {
+function sayNow(p, ev, then) {
   if (!G || !G.names) return;
   // a real clip is still playing: wait for it to finish so nobody talks over her
   const wait = voiceEnd - performance.now();
-  if (wait > 0) { const game = G; speakFree = Math.max(speakFree, voiceEnd + 150 + SPEAK_GAP); setTimeout(() => { if (G === game) sayNow(p, ev); }, wait + 150); return; }
+  if (wait > 0) { const game = G; speakFree = Math.max(speakFree, voiceEnd + 150 + SPEAK_GAP); setTimeout(() => { if (G === game) sayNow(p, ev, then); }, wait + 150); return; }
   const nm = voiceOf(p), text = lineFor(p, ev);
-  if (!text) return;
-  if (playClip(nm, ev, text)) speakFree = Math.max(speakFree, voiceEnd + 150);
+  if (!text) { if (then) then(); return; }
+  const clip = playClip(nm, ev, text);
+  if (clip) speakFree = Math.max(speakFree, voiceEnd + 150);
+  if (then) { const game = G; setTimeout(() => { if (G === game) then(); }, clip ? Math.max(0, voiceEnd - performance.now()) + 120 : 450); }
   const plate = p === 0 ? $('mechip') : $('plate' + p);
   if (!plate) return;
   if (bubbles[p]) bubbles[p].remove();
@@ -996,7 +999,15 @@ function playCard(p, c) {
   let extra = 0;
   if (res) { G.busy = true; G.wonBy = res.w; }
   render();
-  if (c === QS) { SFX.wah(); extra = 900; }
+  // Kennedy, Nov 6: the quote comes first, then the sad trombone. When the queen is certainly being dumped
+  // (thrown off-suit, or the trick just ended with someone else winning it) the dumper speaks the moment it lands.
+  let qsGiveSaid = false;
+  if (c === QS) {
+    extra = 900;
+    const led = (res ? res.trick : st.trick)[0];
+    const dumped = res ? res.w !== p : (led && led.p !== p && suit(led.c) !== suit(QS));
+    if (dumped) { qsGiveSaid = true; say(p, 'qsGive', qsWah); }
+  }
   if (brokeNow) {
     const el = $('trick').querySelector(`.card[data-c="${c}"]`);
     if (el) setTimeout(() => glassBreak(center(el)), 160);
@@ -1013,8 +1024,8 @@ function playCard(p, c) {
     // the Q♠ in the trick trumps the hearts-taken reactions
     if (qsP) {
       // whoever dumped the queen speaks first, then whoever got stuck with her
-      if (qsP.p !== res.w) say(qsP.p, 'qsGive');
-      say(res.w, 'qsGet');
+      if (qsP.p !== res.w && !qsGiveSaid) say(qsP.p, 'qsGive', qsWah);
+      say(res.w, 'qsGet', qsGiveSaid || qsP.p !== res.w ? null : qsWah);
     } else {
       // Kennedy, Nov 5: quotes for every heart taken were too busy; only a trick with all four hearts gets one
       const h = res.trick.filter(x => suit(x.c) === 3).length;
@@ -1029,6 +1040,9 @@ function playCard(p, c) {
     });
   }, 900 + extra);
 }
+
+// the sad trombone after a queen quote; the next quote waits for it to finish
+function qsWah() { SFX.wah(); voiceEnd = Math.max(voiceEnd, performance.now() + 1900); }
 
 // Shooting the moon: the shooter picks "everyone else +26" or "me −26" (her total can go below 0).
 function moonOptions(p) {

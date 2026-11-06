@@ -1832,16 +1832,10 @@ function playCard(p, c) {
   let extra = 0;
   if (res) { G.busy = true; G.wonBy = res.w; }
   render();
-  // Kennedy, Nov 6: the quote comes first, then the sad trombone. When the queen is certainly being dumped
-  // (thrown off-suit, or the trick just ended with someone else winning it) the dumper speaks the moment it lands.
-  // remembered on G: the queen often lands mid-trick and the trick ends on a later card's turn
-  // (a local flag here was lost by then, so the dump quote and the trombone played twice — fixed Nov 6)
-  if (c === QS) {
-    extra = 900;
-    const led = (res ? res.trick : st.trick)[0];
-    const dumped = res ? res.w !== p : (led && led.p !== p && suit(led.c) !== suit(QS));
-    if (dumped) { G.qsSaid = true; say(p, 'qsGive', qsWah); }
-  }
+  // Kennedy, Nov 6 (final order): whoever plays the queen says her "plays the queen" line (moment qsGive) the
+  // moment it lands, whatever happens next, then the sad trombone; when the trick ends, whoever took it says her
+  // "stuck with the queen" line (qsGet). The same girl can say both.
+  if (c === QS) { extra = 900; say(p, 'qsGive', qsWah); }
   if (brokeNow) {
     const el = $('trick').querySelector(`.card[data-c="${c}"]`);
     if (el) setTimeout(() => glassBreak(center(el)), 160);
@@ -1860,10 +1854,7 @@ function playCard(p, c) {
     const prev = heartRun; heartRun = { p: res.w, h };
     if (qsP) {
       heartRun = null;                                // the queen used up this trick's hearts
-      // whoever dumped the queen speaks first, then whoever got stuck with her
-      const said = G.qsSaid; G.qsSaid = false;
-      if (qsP.p !== res.w && !said) say(qsP.p, 'qsGive', qsWah);
-      say(res.w, 'qsGet', said || qsP.p !== res.w ? null : qsWah);
+      say(res.w, 'qsGet');                           // her line for playing it already went out when it landed
     } else {
       // Kennedy, Nov 5: quotes for every heart taken were too busy; only a trick with all four hearts gets one.
       // Nov 6: or two tricks in a row won by the same girl with 2–3 hearts each (4+ over the pair). It can fire

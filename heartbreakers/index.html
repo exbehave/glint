@@ -311,7 +311,10 @@ button:focus-visible, .card:focus-visible, label:focus-within { outline: 2px sol
 .tbl th:first-child, .tbl td:first-child { text-align: left; }
 .tbl td { padding: 9px 4px; text-align: right; border-bottom: 1px solid color-mix(in srgb, var(--line) 50%, transparent); font-size: 15px; }
 .tbl td.big { font-weight: 800; font-size: 20px; }
-.tbl tr.lead td:first-child { color: var(--red); font-weight: 700; }
+/* your own row, wherever you place (Kennedy, Nov 6: highlighting the leader at the top was confusing) */
+.tbl tr.me td { background: color-mix(in srgb, var(--red) 14%, transparent); }
+.tbl tr.me td:first-child { color: var(--red); font-weight: 700; border-radius: 8px 0 0 8px; padding-left: 8px; }
+.tbl tr.me td:last-child { border-radius: 0 8px 8px 0; padding-right: 8px; }
 .moon { font-family: var(--display); font-size: 20px; color: var(--violet); }
 .moonopt { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 100%; }
 .moonopt small { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px 10px; font-size: 12px; font-weight: 500; opacity: .85; }
@@ -1725,7 +1728,7 @@ function resumeGame() {
   else {                                             // between rounds: the scores, then deal on
     render();
     const low = Math.min(...G.totals);
-    const rows = [0, 1, 2, 3].sort((a, b) => G.totals[a] - G.totals[b]).map(i => `<tr class="${G.totals[i] === low ? 'lead' : ''}"><td>${nameOf(i)}</td><td class="big">${G.totals[i]}</td></tr>`).join('');
+    const rows = [0, 1, 2, 3].sort((a, b) => G.totals[a] - G.totals[b]).map(i => `<tr class="${i === 0 ? 'me' : ''}"><td>${nameOf(i)}</td><td class="big">${G.totals[i]}</td></tr>`).join('');
     const nd = DIRS[G.handNo % 4];
     openVeil(`<div class="panel" role="dialog" aria-label="Scores">
       <div><h2>Welcome back</h2><div class="sub">Round ${G.handNo} done. Next round: ${nd === 'hold' ? 'no passing' : 'pass ' + nd}.</div></div>
@@ -1924,7 +1927,7 @@ function finishHand(raw, moon, choice) {
   render();
   const low = Math.min(...G.totals);
   const order = [0, 1, 2, 3].sort((a, b) => G.totals[a] - G.totals[b]);
-  const rows = order.map(i => `<tr class="${G.totals[i] === low ? 'lead' : ''}"><td>${nameOf(i)}</td><td>${fin[i] < 0 ? '−' + -fin[i] : '+' + fin[i]}</td><td class="big">${G.totals[i]}</td></tr>`).join('');
+  const rows = order.map(i => `<tr class="${i === 0 ? 'me' : ''}"><td>${nameOf(i)}</td><td>${fin[i] < 0 ? '−' + -fin[i] : '+' + fin[i]}</td><td class="big">${G.totals[i]}</td></tr>`).join('');
   const winners = order.filter(i => G.totals[i] === low).map(i => nameOf(i));
   let head;
   if (over) head = winners.length === 1 ? (winners[0] === 'You' ? 'You win.' : `${winners[0]} ${vb(winners[0], 'wins', 'win')}.`) : `${winners.join(' & ')} tie.`;

@@ -33,7 +33,7 @@ shutil.copy(os.path.join(D, 'web', 'admin.html'), os.path.join(OUT, 'admin.html'
 # images for the admin page
 for f in ['logo.webp', 'bg-port.webp']:
     shutil.copy(os.path.join(D, 'brand', f), os.path.join(OUT, 'img', f))
-for n in ['natalie', 'judi', 'victor-twins', 'amy']:
+for n in ['natalie', 'judi', 'victor-twins', 'amy', 'dalila']:
     Image.open(os.path.join(D, 'sprites', n + '-bust.png')).save(os.path.join(OUT, 'img', n + '.webp'), quality=88, method=6)
 
 # home-screen icons: the horned heart glowing on deep plum

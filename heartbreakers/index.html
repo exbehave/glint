@@ -1095,6 +1095,8 @@ function pickPsychic(T, p, st) {
     const winsNow = c === QS && st.trick.length && suit(st.trick[0].c) === 2 && !st.trick.some(x => suit(x.c) === 2 && rank(x.c) > 12);
     return { x: c, own: own / R + (winsNow && L.some(x => suit(x) === 2 && x !== QS) ? 1.5 : 0), hum: hu / R };
   });
+  // Game review (Kennedy, Nov 7): keep every option she weighed — card, her expected points, the humans' expected points.
+  if (T.why) T.why[p] = { psychic: 1, rate: rateFor(T, p), runs: R, opts: scores.map(o => [o.x, +o.own.toFixed(2), +o.hum.toFixed(2)]) };
   return chooseByGoal(T, p, scores);
 }
 // Passing: she sees every hand, so she tries a handful of passes and plays each one out (with everyone else's pass predicted
@@ -1887,8 +1889,8 @@ function cardHTML(c, cls = '', attrs = '') {
 // ---------- game flow ----------
 // ---------- game recorder (Kennedy, Nov 6): every game is saved for replay, move ratings and Natalie's notes ----------
 // One row per game in hb_games (signed-in players only; each player reads their own, the admin reads all).
-// data = { v, started, names, me, handle, target, deck, hands: [{ deal, dir, passes, plays: [[seat, card, ms]], raw, moon, choice, fin, totals }], totals, finished, winners }
-const REC_V = 1;
+// data = { v, started, names, me, handle, target, deck, hands: [{ deal, dir, passes, plays: [[seat, card, ms, why?]] (why: Natalie {psychic, rate, runs, opts: [[card, her pts, humans pts]]}, others {habit} or {level}), raw, moon, choice, fin, totals }], totals, finished, winners }
+const REC_V = 2; // v2 (Nov 7): plays carry a 4th item, why the computer chose it; saved after every trick
 function recStart() {
   const id = (crypto.randomUUID && crypto.randomUUID()) || String(Date.now()) + Math.random().toString(16).slice(2);
   G.rec = { id, v: REC_V, started: new Date().toISOString(), names: G.names.slice(), me: S.me, handle: S.handle || '', target: S.target, deck: S.deck, hands: [] };
@@ -1975,6 +1977,7 @@ function startGame() {
   G.T = { cards: G.names.map((n, p) => (p && GIRLS[n]) || null), levels: G.names.map((n, p) => (p ? (GIRLS[n] ? GIRLS[n].level : S.levels[p]) : 'hard')),
     humans: [0], totals: G.totals, target: S.target, mem: newTableMem() };
   recStart();
+  recSave();
   closeVeil();
   newHand();
 }
@@ -2002,7 +2005,7 @@ function confirmPass() {
   const off = [1, 3, 2][G.dir];
   Object.assign(G.T, { hands: G.hands, dir: G.dir, known: G.known });
   const passes = [0, 1, 2, 3].map(p => p === 0 ? [...G.passSel] : girlPass(G.T, p, G.hands[p]));
-  if (recHand()) recHand().passes = passes.map(x => x.slice());
+  if (recHand()) { recHand().passes = passes.map(x => x.slice()); recSave(); }
   SFX.play('whoosh');
   passes.forEach((ps, p) => ps.forEach(c => G.hands[p].splice(G.hands[p].indexOf(c), 1)));
   passes.forEach((ps, p) => {
@@ -2046,7 +2049,10 @@ function step(extra) {
       if (!G || G.phase !== 'play') return;
       const p = G.st.turn;
       G.T.known = G.known;
-      playCard(p, girlPick(G.T, p, G.st));
+      G.T.why = {}; G.T.last = {};
+      const pick = girlPick(G.T, p, G.st);
+      G.lastWhy = G.T.why[p] || (G.T.last[p] != null ? { habit: G.T.last[p] } : { level: G.T.levels[p] });
+      playCard(p, pick);
     }, (lv === 'genius' ? 520 : 640) + (extra || 0));
   }
 }
@@ -2065,9 +2071,10 @@ function playCard(p, c) {
   const led = !st.trick.length;
   if (st.trickNo === 0 && !st.trick.length) G.received.clear(); // first card of the round: passed cards settle back down
   G.table.push({ p, c });
-  const rh = recHand(); if (rh) rh.plays.push([p, c, Date.now() - rh.t0]);
+  const rh = recHand(); if (rh) rh.plays.push(p && G.lastWhy ? [p, c, Date.now() - rh.t0, G.lastWhy] : [p, c, Date.now() - rh.t0]);
+  G.lastWhy = null;
   const res = doPlay(st, p, c);
-  if (res) girlsAfterTrick(G.T, res);
+  if (res) { girlsAfterTrick(G.T, res); recSave(); }
   if (p === 0) G.sel = null;
   const brokeNow = !wasBroken && st.broken;
   if (brokeNow) G.popBroken = true;

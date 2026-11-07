@@ -240,6 +240,8 @@ function pickPsychic(T, p, st) {
     const winsNow = c === QS && st.trick.length && suit(st.trick[0].c) === 2 && !st.trick.some(x => suit(x.c) === 2 && rank(x.c) > 12);
     return { x: c, own: own / R + (winsNow && L.some(x => suit(x) === 2 && x !== QS) ? 1.5 : 0), hum: hu / R };
   });
+  // Game review (Kennedy, Nov 7): keep every option she weighed — card, her expected points, the humans' expected points.
+  if (T.why) T.why[p] = { psychic: 1, rate: rateFor(T, p), runs: R, opts: scores.map(o => [o.x, +o.own.toFixed(2), +o.hum.toFixed(2)]) };
   return chooseByGoal(T, p, scores);
 }
 // Passing: she sees every hand, so she tries a handful of passes and plays each one out (with everyone else's pass predicted

@@ -839,22 +839,24 @@ if (sb) {
 const SPEAK_GAP = 1300;
 let speakFree = 0;
 // `then` (optional) runs once she's done: right after her clip ends, a beat after a bubble-only line, or at once if she stays quiet.
-function say(p, ev, then) {
-  if (!G || !G.names || (p === 0 && !S.me)) { if (then) then(); return; }
+// `start` (optional) runs the moment she starts talking (or at once if she stays quiet).
+function say(p, ev, then, start) {
+  if (!G || !G.names || (p === 0 && !S.me)) { if (start) start(); if (then) then(); return; }
   const now = performance.now(), at = Math.max(now, speakFree);
   speakFree = at + SPEAK_GAP;
   const game = G;
-  setTimeout(() => { if (G === game) sayNow(p, ev, then); }, at - now);
+  setTimeout(() => { if (G === game) sayNow(p, ev, then, start); }, at - now);
 }
-function sayNow(p, ev, then) {
+function sayNow(p, ev, then, start) {
   if (!G || !G.names) return;
   // a real clip is still playing: wait for it to finish so nobody talks over her
   const wait = voiceEnd - performance.now();
-  if (wait > 0) { const game = G; speakFree = Math.max(speakFree, voiceEnd + 150 + SPEAK_GAP); setTimeout(() => { if (G === game) sayNow(p, ev, then); }, wait + 150); return; }
+  if (wait > 0) { const game = G; speakFree = Math.max(speakFree, voiceEnd + 150 + SPEAK_GAP); setTimeout(() => { if (G === game) sayNow(p, ev, then, start); }, wait + 150); return; }
   const nm = voiceOf(p), text = lineFor(p, ev);
-  if (!text) { if (then) then(); return; }
+  if (!text) { if (start) start(); if (then) then(); return; }
   const game = G, done = then ? () => { if (G === game) then(); } : null;
   const clip = playClip(nm, ev, text, done);
+  if (start) start();
   if (clip) speakFree = Math.max(speakFree, voiceEnd + 150);
   else if (done) setTimeout(done, 450);
   const plate = p === 0 ? $('mechip') : $('plate' + p);
@@ -1104,7 +1106,8 @@ function playCard(p, c) {
   // Kennedy, Nov 6 (final order): whoever plays the queen says her "plays the queen" line (moment qsGive) the
   // moment it lands, whatever happens next, then the sad trombone; when the trick ends, whoever took it says her
   // "stuck with the queen" line (qsGet). The same girl can say both.
-  if (c === QS) { extra = 900; say(p, 'qsGive', qsWah); }
+  // Kennedy, Nov 7: the trombone plays at the same moment as her queen line, not after it, so the game moves on sooner.
+  if (c === QS) { extra = 900; say(p, 'qsGive', null, qsWah); }
   if (brokeNow) {
     const el = $('trick').querySelector(`.card[data-c="${c}"]`);
     if (el) setTimeout(() => glassBreak(center(el)), 160);

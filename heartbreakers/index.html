@@ -177,6 +177,7 @@ button:focus-visible, .card:focus-visible, label:focus-within { outline: 2px sol
 .pw .ini { font-family: var(--display); font-size: 30px; color: var(--mute); }
 .pinfo { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; }
 .pinfo .nm { font-size: 13.5px; font-weight: 700; line-height: 1.15; text-wrap: balance; }
+.pinfo .ph { font-family: var(--caps); font-weight: 700; font-size: 9px; letter-spacing: .1em; text-transform: uppercase; color: var(--red); line-height: 1.2; }
 .pinfo .pts { font-size: 11px; color: var(--mute); white-space: nowrap; }
 .pinfo .rp { font-size: 19px; margin-right: 3px; vertical-align: -1px; }
 #plate2.seat { flex-direction: row; align-items: center; gap: 12px; padding: 6px 16px 6px 6px; }
@@ -1328,6 +1329,7 @@ const SFX = {
   },
   ctx: null,
   unlock() {
+    audioSessionMode();
     if (!S.sound) return;
     try {
       if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -1397,6 +1399,12 @@ const SFX = {
     }
   }
 };
+// Kennedy, Nov 7: the game's Sound toggle decides, not the phone's silent switch. Safari treats web audio as
+// "ambient" (muted by the silent switch) unless the page says it's playback. Sound off → back to the default.
+// Side effect (iPhone): playback can pause music from another app while the game's sound is on.
+function audioSessionMode() {
+  try { if ('audioSession' in navigator) navigator.audioSession.type = S.sound ? 'playback' : 'auto'; } catch (e) {}
+}
 document.addEventListener('pointerdown', () => SFX.unlock(), true);
 // coming back to the game (after switching apps) wakes the audio engine straight away
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') SFX.unlock(); });
@@ -1639,8 +1647,9 @@ function speechEnd(buf) {
 const TAIL_GUESS = 0.9;                                // when the clip couldn't be decoded here
 // Plays her clip for this line if she has one; returns true when a clip exists (so the caller can wait for it).
 // onSpoken runs the moment her last word ends (the tail keeps ringing).
-function playClip(nm, ev, text, onSpoken) {
-  if (!S.sound) return false;
+// onStart (optional) runs the moment the clip starts (at once when there's no clip): a sound effect that goes with the line
+function playClip(nm, ev, text, onSpoken, onStart) {
+  if (!S.sound) { if (onStart) onStart(); return false; }
   // no clips loaded yet (e.g. every load failed): try again quietly, at most every 30 s
   if (!bitesLoaded() && !bitesLoading && Date.now() - bitesLastTry > 30000) loadBites();
   const list = text && BITES[nm] && BITES[nm][normLine(text)];
@@ -1655,6 +1664,7 @@ function playClip(nm, ev, text, onSpoken) {
     const est = b.sp != null ? b.sp : Math.max(0.3, (b.buf ? b.buf.duration : (b.dur || 2)) - TAIL_GUESS);
     voiceEnd = start + est * 1000;
     const go = () => {
+      if (onStart) onStart();
       if (!S.sound) { if (onSpoken) onSpoken(); return; }
       playBuf(b, why).then(d => {
         soundLog(why);
@@ -1668,6 +1678,7 @@ function playClip(nm, ev, text, onSpoken) {
   }
   const old = CLIPS[nm] && CLIPS[nm][ev];
   if (old && old.length) { try { new Audio(old[Math.floor(Math.random() * old.length)]).play().catch(() => {}); } catch (e) {} }
+  if (onStart) onStart();
   return false;
 }
 if (sb) {
@@ -1686,6 +1697,8 @@ function say(p, ev, then, start) {
   const game = G;
   setTimeout(() => { if (G === game) sayNow(p, ev, then, start); }, at - now);
 }
+// jumps the queue of reactions waiting their turn (still never talks over a clip that's playing)
+function sayFirst(p, ev, then, start) { speakFree = performance.now(); say(p, ev, then, start); }
 function sayNow(p, ev, then, start) {
   if (!G || !G.names) return;
   // a real clip is still playing: wait for it to finish so nobody talks over her
@@ -1742,11 +1755,11 @@ function portraitHTML(nm, flip) {
   const ph = AVATARS[nm];
   return `<div class="pw${flip ? ' flip' : ''}" aria-hidden="true">${ph ? `<img src="${ph}" alt="">` : `<span class="ini">${esc(initials(nm))}</span>`}</div>`;
 }
-function quoteHTML(p, ev) {
+function quoteHTML(p, ev, start) {
   const nm = voiceOf(p);
   const text = lineFor(p, ev);
-  if (!text) return '';
-  playClip(nm, ev, text);
+  if (!text) { if (start) start(); return ''; }
+  playClip(nm, ev, text, null, start);
   return `<div class="quote">${portraitHTML(nm)}<div><div class="who">${esc(nm)}</div><div class="q">“${esc(text)}”</div></div></div>`;
 }
 
@@ -1954,12 +1967,16 @@ function playCard(p, c) {
   if (brokeNow) {
     const el = $('trick').querySelector(`.card[data-c="${c}"]`);
     if (el) setTimeout(() => glassBreak(center(el)), 160);
-    setTimeout(() => SFX.glass(), 150);
+    // Kennedy, Nov 7: the shatter and her line play together, not one after the other
     // she speaks the moment she breaks them (Kennedy, Nov 5), before the next card — unless the Q♠ is already
     // on the table in this trick, which trumps it. If the queen lands later in the trick, both get said.
     const qsOnTable = (res ? res.trick : st.trick).some(x => x.c === QS && x.c !== c);
-    if (!qsOnTable) { setTimeout(() => say(p, 'breaks'), 380); extra = Math.max(extra, 1400); }
-    else extra = Math.max(extra, 700);
+    if (!qsOnTable) {
+      // if another clip is still talking, the shatter keeps time with the card and her line follows
+      setTimeout(() => { if (voiceEnd > performance.now()) { SFX.glass(); sayFirst(p, 'breaks'); } else sayFirst(p, 'breaks', null, () => SFX.glass()); }, 150);
+      extra = Math.max(extra, 1400);
+    }
+    else { setTimeout(() => SFX.glass(), 150); extra = Math.max(extra, 700); }
   }
   if (!res) return step(extra);
   const qsP = res.trick.find(x => x.c === QS);
@@ -2049,16 +2066,14 @@ function finishHand(raw, moon, choice) {
   else head = `Round ${G.handNo} done`;
   const nd = DIRS[G.handNo % 4];
   let react = '';
-  // sounds first (Kennedy's picks, Nov 7): a moon gets the voice "ahh" or the kids' "woah"; winning the game gets
-  // applause, the fanfare or the ta-da (one at random). The lines start once the sound's first hit has landed.
-  let sfxAt = 0;
-  const sfxLater = (names, ms) => { setTimeout(() => SFX.play(names), ms); sfxAt = ms; };
-  if (moon >= 0) sfxLater(['choir-ahh', 'kids-woah'], 0);
-  if (over && winners.length) sfxLater(['applause', 'fanfare', 'ta-da'], moon >= 0 ? 1300 : 0);
-  if (moon >= 0 || over) voiceEnd = Math.max(voiceEnd, performance.now() + sfxAt + 1000);
-  // end of the round: the moon line first, then the winner's line if the game is over (both play)
+  // sounds (Kennedy's picks, Nov 7): a moon gets the voice "ahh" or the kids' "woah"; winning the game gets
+  // applause, the fanfare or the ta-da (one at random). Kennedy, Nov 7: each sound plays together with its line,
+  // not before it. The moon line and its sound go first; the win sound starts with the win line (after the moon line).
+  if (moon >= 0) SFX.play(['choir-ahh', 'kids-woah']);
   if (moon >= 0) react += quoteHTML(moon, 'moon');
-  if (over && winners.length === 1) react += quoteHTML(G.names.indexOf(winners[0]), 'win');
+  const winSfx = () => SFX.play(['applause', 'fanfare', 'ta-da']);
+  if (over && winners.length === 1) react += quoteHTML(G.names.indexOf(winners[0]), 'win', winSfx);
+  else if (over && winners.length) { if (moon >= 0) setTimeout(winSfx, Math.max(0, voiceEnd - performance.now())); else winSfx(); }
   const how = choice === 'down' ? (moon === 0 ? 'You take 26 off your score.' : (isPlural(nameOf(moon)) ? 'They take 26 off their score.' : 'She takes 26 off her score.')) : 'Everyone else takes 26.';
   const moonLine = moon >= 0 ? `<div class="moon">${moon === 0 ? 'You shot the moon.' : `${nameOf(moon)} shot the moon.`} ${how}</div>` : '';
   openVeil(`<div class="panel" role="dialog" aria-label="Scores">
@@ -2088,7 +2103,7 @@ function renderRail() {
     + [0, 1, 2, 3].map(i => `<div class="score${i === 0 ? ' me' : ''}"><div class="who">${esc(i === 0 && S.handle ? S.handle : nameOf(i))}</div><div class="tot">${G.totals[i]}</div></div>`).join('') + `</div>`
     + `<button class="icon-btn${S.sound ? '' : ' off'}" id="b-sound" aria-label="${S.sound ? 'Turn sound effects off' : 'Turn sound effects on'}" aria-pressed="${S.sound}">${S.sound ? ICON_ON : ICON_OFF}</button>`
     + `<button class="icon-btn" id="b-menu" aria-label="Game menu">${ICON_MENU}</button>`;
-  $('b-sound').onclick = () => { S.sound = !S.sound; saveSettings(); if (S.sound) SFX.unlock(); renderRail(); };
+  $('b-sound').onclick = () => { S.sound = !S.sound; saveSettings(); audioSessionMode(); if (S.sound) SFX.unlock(); renderRail(); };
   $('b-menu').onclick = showMenu;
 }
 
@@ -2103,7 +2118,7 @@ function renderPlates() {
     const nm = nameOf(p);
     if (p) {
       el.classList.add('seat');
-      el.innerHTML = `${portraitHTML(nm, seatFlip(nm, el))}<div class="pinfo"><span class="nm">${esc(nm)}</span><span class="rule"></span><span class="pts"><b class="rp${v ? ' has' : ''}${bump ? ' bump' : ''}">${v}</b>this round</span></div>`;
+      el.innerHTML = `${portraitHTML(nm, seatFlip(nm, el))}<div class="pinfo"><span class="nm">${esc(nm)}</span><span class="ph">CPU</span><span class="rule"></span><span class="pts"><b class="rp${v ? ' has' : ''}${bump ? ' bump' : ''}">${v}</b>this round</span></div>`;
       continue;
     }
     el.innerHTML = `<div class="whoc"><span class="nm">${esc(nm)}</span></div>
@@ -2317,7 +2332,7 @@ function showMenu() {
     ${ME ? `<div class="foot">Signed in as ${esc(acctName(ME))} · <button class="linkish" id="b-out" type="button">Sign out</button></div>` : ''}
   </div>`);
   $('veil').querySelectorAll('input[name="mlayout"]').forEach(r => r.onchange = () => { S.layout = r.value; applyLayout(); saveSettings(); render(); });
-  $('veil').querySelectorAll('input[name="msound"]').forEach(r => r.onchange = () => { S.sound = r.value === 'on'; if (S.sound) SFX.unlock(); saveSettings(); renderRail(); });
+  $('veil').querySelectorAll('input[name="msound"]').forEach(r => r.onchange = () => { S.sound = r.value === 'on'; audioSessionMode(); if (S.sound) SFX.unlock(); saveSettings(); renderRail(); });
   $('b-keep').onclick = closeVeil;
   $('b-new').onclick = () => { clearSave(); G = null; showSetup(); };
   if ($('b-out')) $('b-out').onclick = async () => { try { await sb.auth.signOut(); } catch (e) {} ME = null; G = null; showSignIn(); };

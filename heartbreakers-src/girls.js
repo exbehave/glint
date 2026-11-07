@@ -4,6 +4,10 @@
 // Girls without a card yet play their table level, as before.
 const GIRLS = {
   'Natalie': { level: 'genius', judgment: 1, goal: 'ruin-you', rate: 3, psychic: 'all', intuit: true, dials: {} },
+  // Dalila (S12, Genius just below Natalie): "you first, then me" — the cards that hurt the human most, and only among
+  // those does she protect herself. For now she uses Natalie's look-ahead, which sees every hand (BAD_GIRLS.md plans
+  // the humans' hands only).
+  'Dalila': { level: 'genius', judgment: 1, goal: 'you-first', psychic: 'all', dials: {} },
   'Judi': { level: 'hard', judgment: 0.7, signature: 'keepQueen', dials: { breakEarly: 0.05, ducking: 0.7, keepQueen: 0.6, covers: 0.7, memory: 0.7 } },
   'Victor Twins': { level: 'medium', judgment: 0.4, signature: 'grudge', dials: { grudge: 0.8, leader: 0.4, hotPotato: 0.4 } },
   'Amy': { level: 'easy', judgment: 0.1, signature: 'hotPotato', dials: { hotPotato: 0.85, spadePanic: 0.7, breakEarly: 0.6, hothead: 0.7 } }
@@ -197,6 +201,11 @@ function chooseByGoal(T, p, scores) { // scores: [{x, own, hum}] averaged
   if ((T.cards[p] || {}).goal === 'ruin-you') {
     const k = rateFor(T, p);
     return scores.slice().sort((a, b) => (b.hum - k * b.own) - (a.hum - k * a.own) || a.own - b.own)[0].x;
+  }
+  if ((T.cards[p] || {}).goal === 'you-first') {
+    const most = Math.max(...scores.map(o => o.hum));
+    const top = scores.filter(o => o.hum >= most - 0.5);
+    return top.sort((a, b) => a.own - b.own || b.hum - a.hum)[0].x;
   }
   const best = Math.min(...scores.map(o => o.own));
   const near = scores.filter(o => o.own <= best + 0.5);

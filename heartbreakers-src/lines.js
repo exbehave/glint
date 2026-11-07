@@ -119,9 +119,9 @@ const LINES = {
   },
   'Natalie': {
     qsGive: ["Lookin like a Crenshaw weave, bitch","Who's the hoe now?","(Maniacal laughter)"],
-    qsGet: ["Are you kidding me!?","You're rude, you're disrespectful, and you are going to stop"],
-    breaks: ["I run LA!","How do you feel about it?"],
-    fewHearts: ["That's really annoying"],
+    qsGet: ["You're trying to be Natalie and you'll never be!"],
+    breaks: ["I run LA!","How do you feel about that?"],
+    fewHearts: ["That's really annoying","Are you kidding me!?"],
     hearts: ["Gun's blazing!","What about your daughter? You never called her back!"],
     taunt: ['Know your place.', 'Who runs this? Exactly.'],
     moon: ["Are you kidding me!? I run LA!"],

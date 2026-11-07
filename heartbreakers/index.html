@@ -42,6 +42,9 @@
   color-scheme: dark;
 }
 html, body { height: 100%; }
+/* Nov 7 (Dylan's iPad): fill the real screen, and paint the backdrop on the page itself so no plain band shows */
+@supports (height: 100dvh) { html, body { height: 100dvh; } }
+html { background: #0c0610; }
 body {
   background: radial-gradient(120% 80% at 50% 42%, var(--felt-hi) 0%, var(--felt) 48%, var(--ink) 100%);
   background-color: var(--ink);
@@ -58,7 +61,7 @@ body {
   grid-template-rows: auto 1fr auto auto;
   padding-left: max(16px, env(safe-area-inset-left, 0px));
   padding-right: max(16px, env(safe-area-inset-right, 0px));
-  padding-block: 10px 12px;
+  padding-block: max(10px, env(safe-area-inset-top, 0px)) max(12px, env(safe-area-inset-bottom, 0px));
   max-width: 760px; margin: 0 auto; box-sizing: border-box;
 }
 button { font: inherit; color: inherit; }
@@ -335,6 +338,16 @@ button:focus-visible, .card:focus-visible, label:focus-within { outline: 2px sol
   .trick { max-width: 320px; max-height: 340px; }
   .table { grid-template-columns: 104px minmax(0, 1fr) 104px; }
   .av { width: 76px; height: 76px; }
+}
+@media (min-width: 700px) and (min-height: 960px) and (orientation: portrait) {
+  .app { max-width: 900px; padding-block: max(18px, env(safe-area-inset-top, 0px)) max(22px, env(safe-area-inset-bottom, 0px)); }
+  .hand, .app[data-layout="tworow"] .hand { --cw: 104px; --ch: 150px; }
+  .card { width: 106px; height: 152px; }
+  .card .ix b { font-size: 32px; } .card .ix i { font-size: 20px; } .card .big { font-size: 50px; }
+  .trick { max-width: 420px; max-height: 440px; min-height: 320px; }
+  .slot .card { width: 92px; height: 132px; }
+  .table { grid-template-columns: 150px minmax(0, 1fr) 150px; }
+  .brand img { height: 48px; }
 }
 @media (max-height: 680px) {
   .trick { min-height: 196px; }
@@ -834,6 +847,10 @@ function dealHands() {
 // Girls without a card yet play their table level, as before.
 const GIRLS = {
   'Natalie': { level: 'genius', judgment: 1, goal: 'ruin-you', rate: 3, psychic: 'all', intuit: true, dials: {} },
+  // Dalila (S12, Genius just below Natalie): "you first, then me" — the cards that hurt the human most, and only among
+  // those does she protect herself. For now she uses Natalie's look-ahead, which sees every hand (BAD_GIRLS.md plans
+  // the humans' hands only).
+  'Dalila': { level: 'genius', judgment: 1, goal: 'you-first', psychic: 'all', dials: {} },
   'Judi': { level: 'hard', judgment: 0.7, signature: 'keepQueen', dials: { breakEarly: 0.05, ducking: 0.7, keepQueen: 0.6, covers: 0.7, memory: 0.7 } },
   'Victor Twins': { level: 'medium', judgment: 0.4, signature: 'grudge', dials: { grudge: 0.8, leader: 0.4, hotPotato: 0.4 } },
   'Amy': { level: 'easy', judgment: 0.1, signature: 'hotPotato', dials: { hotPotato: 0.85, spadePanic: 0.7, breakEarly: 0.6, hothead: 0.7 } }
@@ -1028,6 +1045,11 @@ function chooseByGoal(T, p, scores) { // scores: [{x, own, hum}] averaged
     const k = rateFor(T, p);
     return scores.slice().sort((a, b) => (b.hum - k * b.own) - (a.hum - k * a.own) || a.own - b.own)[0].x;
   }
+  if ((T.cards[p] || {}).goal === 'you-first') {
+    const most = Math.max(...scores.map(o => o.hum));
+    const top = scores.filter(o => o.hum >= most - 0.5);
+    return top.sort((a, b) => a.own - b.own || b.hum - a.hum)[0].x;
+  }
   const best = Math.min(...scores.map(o => o.own));
   const near = scores.filter(o => o.own <= best + 0.5);
   near.sort((a, b) => b.hum - a.hum || a.own - b.own);
@@ -1211,9 +1233,9 @@ const LINES = {
   },
   'Natalie': {
     qsGive: ["Lookin like a Crenshaw weave, bitch","Who's the hoe now?","(Maniacal laughter)"],
-    qsGet: ["Are you kidding me!?","You're rude, you're disrespectful, and you are going to stop"],
-    breaks: ["I run LA!","How do you feel about it?"],
-    fewHearts: ["That's really annoying"],
+    qsGet: ["You're trying to be Natalie and you'll never be!"],
+    breaks: ["I run LA!","How do you feel about that?"],
+    fewHearts: ["That's really annoying","Are you kidding me!?"],
     hearts: ["Gun's blazing!","What about your daughter? You never called her back!"],
     taunt: ['Know your place.', 'Who runs this? Exactly.'],
     moon: ["Are you kidding me!? I run LA!"],

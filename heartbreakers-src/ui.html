@@ -26,6 +26,9 @@
   color-scheme: dark;
 }
 html, body { height: 100%; }
+/* Nov 7 (Dylan's iPad): fill the real screen, and paint the backdrop on the page itself so no plain band shows */
+@supports (height: 100dvh) { html, body { height: 100dvh; } }
+html { background: #0c0610; }
 body {
   background: radial-gradient(120% 80% at 50% 42%, var(--felt-hi) 0%, var(--felt) 48%, var(--ink) 100%);
   background-color: var(--ink);
@@ -42,7 +45,7 @@ body {
   grid-template-rows: auto 1fr auto auto;
   padding-left: max(16px, env(safe-area-inset-left, 0px));
   padding-right: max(16px, env(safe-area-inset-right, 0px));
-  padding-block: 10px 12px;
+  padding-block: max(10px, env(safe-area-inset-top, 0px)) max(12px, env(safe-area-inset-bottom, 0px));
   max-width: 760px; margin: 0 auto; box-sizing: border-box;
 }
 button { font: inherit; color: inherit; }
@@ -319,6 +322,16 @@ button:focus-visible, .card:focus-visible, label:focus-within { outline: 2px sol
   .trick { max-width: 320px; max-height: 340px; }
   .table { grid-template-columns: 104px minmax(0, 1fr) 104px; }
   .av { width: 76px; height: 76px; }
+}
+@media (min-width: 700px) and (min-height: 960px) and (orientation: portrait) {
+  .app { max-width: 900px; padding-block: max(18px, env(safe-area-inset-top, 0px)) max(22px, env(safe-area-inset-bottom, 0px)); }
+  .hand, .app[data-layout="tworow"] .hand { --cw: 104px; --ch: 150px; }
+  .card { width: 106px; height: 152px; }
+  .card .ix b { font-size: 32px; } .card .ix i { font-size: 20px; } .card .big { font-size: 50px; }
+  .trick { max-width: 420px; max-height: 440px; min-height: 320px; }
+  .slot .card { width: 92px; height: 132px; }
+  .table { grid-template-columns: 150px minmax(0, 1fr) 150px; }
+  .brand img { height: 48px; }
 }
 @media (max-height: 680px) {
   .trick { min-height: 196px; }

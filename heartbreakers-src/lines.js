@@ -119,12 +119,12 @@ const LINES = {
   },
   'Dalila': {
     qsGive: ["Black don't crack over here","I like the lesbians…","I can be rude right back"],
-    qsGet: ["Are you that mad that you're ugly and white trash?","Look at you getting all ratchet","You don't have to turn ghetto"],
-    breaks: ["Have you guys been getting ratchet?","Why do you talk like that?","Are you gonna be nice and show me around?"],
-    fewHearts: ["Omg skinny bitches","I just got here, honey"],
-    hearts: ["Don't get crazy!","This is how you welcome your new roommate?"],
-    moon: ["I came to give you guys advice about your problems and stuff…","Oh my god, you guys are like weird"],
-    win: ["I'm sorry that all you guys are ugly","Once I get a few drinks in me, I swear I think I'm Beyoncé"]
+    qsGet: ["Okay, look at you getting all ratchet","All of a sudden, somebody comes in and you turn ghetto"],
+    breaks: ["Have you guys been getting ratchet?","Be nice and show me around"],
+    fewHearts: ["I just got here, honey"],
+    hearts: ["This is how you welcome your new roommate?"],
+    moon: ["I came to give you guys advice about like your problems and stuff…","Oh my god, you guys are like weird"],
+    win: ["I'm sorry that all you guys are ugly","Once I start getting a few drinks in me, I swear I feel like I'm Beyoncé"]
   },
   'Natalie': {
     qsGive: ["Lookin like a Crenshaw weave, bitch","Who's the hoe now?","(Maniacal laughter)"],

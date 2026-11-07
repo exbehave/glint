@@ -44,6 +44,8 @@
 html, body { height: 100%; }
 /* Nov 7 (Dylan's iPad): fill the real screen, and paint the backdrop on the page itself so no plain band shows */
 @supports (height: 100dvh) { html, body { height: 100dvh; } }
+/* the visible height measured in script wins (iPhone foldable home-screen app reported a height taller than the screen) */
+html.fitted, html.fitted body { height: var(--app-h); }
 html { background: #0c0610; }
 body {
   background: radial-gradient(120% 80% at 50% 42%, var(--felt-hi) 0%, var(--felt) 48%, var(--ink) 100%);
@@ -349,7 +351,7 @@ button:focus-visible, .card:focus-visible, label:focus-within { outline: 2px sol
   .table { grid-template-columns: 104px minmax(0, 1fr) 104px; }
   .av { width: 76px; height: 76px; }
 }
-@media (min-width: 700px) and (min-height: 960px) and (orientation: portrait) {
+@media (min-width: 600px) and (min-height: 850px) and (orientation: portrait) {
   .app { max-width: 900px; padding-block: max(18px, env(safe-area-inset-top, 0px)) max(22px, env(safe-area-inset-bottom, 0px)); }
   .hand, .app[data-layout="tworow"] .hand { --cw: 104px; --ch: 150px; }
   .card { width: 106px; height: 152px; }
@@ -1442,6 +1444,15 @@ const SFX = {
 // Kennedy, Nov 7: the game's Sound toggle decides, not the phone's silent switch. Safari treats web audio as
 // "ambient" (muted by the silent switch) unless the page says it's playback. Sound off → back to the default.
 // Side effect (iPhone): playback can pause music from another app while the game's sound is on.
+// Size the page to what's actually visible (Nov 7: on Dylan's foldable iPhone neither 100% nor 100dvh matched the screen)
+function fitHeight() {
+  const h = Math.round((window.visualViewport && visualViewport.height) || window.innerHeight);
+  if (h > 200) { document.documentElement.style.setProperty('--app-h', h + 'px'); document.documentElement.classList.add('fitted'); }
+}
+fitHeight();
+window.addEventListener('resize', fitHeight);
+window.addEventListener('orientationchange', () => setTimeout(fitHeight, 300));
+if (window.visualViewport) visualViewport.addEventListener('resize', fitHeight);
 function audioSessionMode() {
   try { if ('audioSession' in navigator) navigator.audioSession.type = S.sound ? 'playback' : 'auto'; } catch (e) {}
 }

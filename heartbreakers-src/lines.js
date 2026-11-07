@@ -120,7 +120,7 @@ const LINES = {
   'Dalila': {
     qsGive: ["Black don't crack over here","I like the lesbians…","I can be rude right back"],
     qsGet: ["Okay, look at you getting all ratchet","All of a sudden, somebody comes in and you turn ghetto"],
-    breaks: ["Have you guys been getting ratchet?","Be nice and show me around"],
+    breaks: ["Have you guys been getting ratchet?","Be nice and show me around?"],
     fewHearts: ["I just got here, honey"],
     hearts: ["This is how you welcome your new roommate?"],
     moon: ["I came to give you guys advice about like your problems and stuff…","Oh my god, you guys are like weird"],

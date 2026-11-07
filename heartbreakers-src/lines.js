@@ -56,7 +56,7 @@ const LINES = {
   },
   'Judi': {
     qsGive: ["Are you hungry?","I served you breakfast in bed!","That's your bad"],
-    qsGet: ["I will sacrifice my body—and my blood—to get her outta this house","You can sleep in glass","Trouble for being real?"],
+    qsGet: ["I will sacrifice my body and my blood to get her outta this house","You can sleep in glass","Trouble for being real?"],
     breaks: ["I have a question","Who's hungry?","Some drama is about to happen!"],
     fewHearts: ["Maybe so…","I feel like some cereal tonight"],
     hearts: ["Who drew on my picture!?","At the end of the day, Judi has feelings too"],

@@ -534,17 +534,46 @@ const esc = s => String(s).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;'
 const sortHand = h => h.slice().sort((a, b) => (suit(a) - suit(b)) || (rank(a) - rank(b)));
 const center = el => { const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; };
 
-// ---------- sound (synthesized, no files) ----------
+// ---------- sound ----------
+// Recorded effects (CC0, leveled to one loudness; build.py inlines sfx/*.m4a here). Kennedy's picks, Nov 7, 2026.
+const SFX_SRC = /*SFX*/{};
+const SFX_GAIN = 0.8; // the files sit ~2 dB above the -16 LUFS voice clips; this brings them level
 const SFX = {
+  bufs: {},
+  // decode every effect once sound is unlocked, so the first one plays on time
+  preload() {
+    const c = this.ready(); if (!c) return;
+    for (const k in SFX_SRC) {
+      if (this.bufs[k]) continue;
+      this.bufs[k] = 'loading';
+      // decoded straight from the inlined base64 (no fetch: a page's content rules can block fetching data: links)
+      let ab;
+      try { const bin = atob(SFX_SRC[k].split(',')[1]); ab = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) ab[i] = bin.charCodeAt(i); }
+      catch (e) { delete this.bufs[k]; continue; }
+      c.decodeAudioData(ab.buffer).then(buf => { this.bufs[k] = buf; }).catch(() => { delete this.bufs[k]; });
+    }
+  },
+  // plays one effect (or a random one of a list); returns its length in seconds, 0 if it couldn't play
+  play(name) {
+    const c = this.ready(); if (!c) return 0;
+    if (Array.isArray(name)) name = name[Math.floor(Math.random() * name.length)];
+    const b = this.bufs[name];
+    if (!b || b === 'loading') { this.preload(); return 0; }
+    const src = c.createBufferSource(), g = c.createGain();
+    g.gain.value = SFX_GAIN; src.buffer = b; src.connect(g); g.connect(c.destination); src.start();
+    return b.duration;
+  },
   ctx: null,
   unlock() {
     if (!S.sound) return;
     try {
       if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-      if (this.ctx.state === 'suspended') this.ctx.resume();
+      if (this.ctx.state === 'suspended') this.ctx.resume().then(() => this.preload()).catch(() => {});
+      else this.preload();
     } catch (e) {}
   },
   ready() { return S.sound && this.ctx && this.ctx.state === 'running' ? this.ctx : null; },
+  // Set aside Nov 7, 2026 (Kennedy is trying the gong/timpani for the Q♠; may bring this back). Not called now.
   wah() { // sad trombone
     const c = this.ready(); if (!c) return;
     const out = c.createGain(); out.gain.value = 0.2; out.connect(c.destination);
@@ -1028,6 +1057,7 @@ function newHand() {
     shown: [0, 0, 0, 0], drawnPts: [0, 0, 0, 0], popBroken: false
   });
   if (G.rec) G.rec.hands.push({ deal: G.hands.map(h => h.slice()), dir: G.dir, passes: null, plays: [], t0: Date.now() });
+  SFX.play('shuffle');
   $('trick').innerHTML = '';
   if (G.dir === 3) return beginPlay();
   G.phase = 'pass';
@@ -1042,6 +1072,7 @@ function confirmPass() {
   Object.assign(G.T, { hands: G.hands, dir: G.dir, known: G.known });
   const passes = [0, 1, 2, 3].map(p => p === 0 ? [...G.passSel] : girlPass(G.T, p, G.hands[p]));
   if (recHand()) recHand().passes = passes.map(x => x.slice());
+  SFX.play('whoosh');
   passes.forEach((ps, p) => ps.forEach(c => G.hands[p].splice(G.hands[p].indexOf(c), 1)));
   passes.forEach((ps, p) => {
     const q = (p + off) % 4;
@@ -1092,6 +1123,7 @@ function step(extra) {
 function playCard(p, c) {
   const st = G.st;
   const wasBroken = st.broken;
+  const led = !st.trick.length;
   if (st.trickNo === 0 && !st.trick.length) G.received.clear(); // first card of the round: passed cards settle back down
   G.table.push({ p, c });
   const rh = recHand(); if (rh) rh.plays.push([p, c, Date.now() - rh.t0]);
@@ -1107,7 +1139,8 @@ function playCard(p, c) {
   // moment it lands, whatever happens next, then the sad trombone; when the trick ends, whoever took it says her
   // "stuck with the queen" line (qsGet). The same girl can say both.
   // Kennedy, Nov 7: the trombone plays at the same moment as her queen line, not after it, so the game moves on sooner.
-  if (c === QS) { extra = 900; say(p, 'qsGive', null, qsWah); }
+  // Kennedy, Nov 7 (trying it out): the gong when the queen is led, the timpani bend when she's played onto a trick.
+  if (c === QS) { extra = 900; say(p, 'qsGive', null, led ? qsGong : qsTimpani); }
   if (brokeNow) {
     const el = $('trick').querySelector(`.card[data-c="${c}"]`);
     if (el) setTimeout(() => glassBreak(center(el)), 160);
@@ -1144,7 +1177,10 @@ function playCard(p, c) {
   }, 900 + extra);
 }
 
-// the sad trombone after a queen quote; the next quote waits for it to finish
+// the queen's sound plays with her queen line; the next quote waits until its hit has landed (the ring carries under it)
+function qsGong() { if (SFX.play('gong')) voiceEnd = Math.max(voiceEnd, performance.now() + 1500); }
+function qsTimpani() { if (SFX.play('timpani')) voiceEnd = Math.max(voiceEnd, performance.now() + 1200); }
+// set aside Nov 7, 2026 with SFX.wah (not called)
 function qsWah() { SFX.wah(); voiceEnd = Math.max(voiceEnd, performance.now() + 1900); }
 
 // Shooting the moon: the shooter picks "everyone else +26" or "me −26" (her total can go below 0).
@@ -1203,6 +1239,13 @@ function finishHand(raw, moon, choice) {
   else head = `Round ${G.handNo} done`;
   const nd = DIRS[G.handNo % 4];
   let react = '';
+  // sounds first (Kennedy's picks, Nov 7): a moon gets the voice "ahh" or the kids' "woah"; winning the game gets
+  // applause, the fanfare or the ta-da (one at random). The lines start once the sound's first hit has landed.
+  let sfxAt = 0;
+  const sfxLater = (names, ms) => { setTimeout(() => SFX.play(names), ms); sfxAt = ms; };
+  if (moon >= 0) sfxLater(['choir-ahh', 'kids-woah'], 0);
+  if (over && winners.length) sfxLater(['applause', 'fanfare', 'ta-da'], moon >= 0 ? 1300 : 0);
+  if (moon >= 0 || over) voiceEnd = Math.max(voiceEnd, performance.now() + sfxAt + 1000);
   // end of the round: the moon line first, then the winner's line if the game is over (both play)
   if (moon >= 0) react += quoteHTML(moon, 'moon');
   if (over && winners.length === 1) react += quoteHTML(G.names.indexOf(winners[0]), 'win');

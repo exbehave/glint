@@ -823,6 +823,29 @@ const POOLED = { hearts: ['hearts', 'fewHearts'] };
 const ONLY_AFTER = {
   'Amy': { "i'll show you something funny": 'you think this is so funny?' },
 };
+// ---------- quote pairing helpers ----------
+let lastQuote = null;            // { line (normalized), nm, at } — the last quote said, for the next one to answer
+const PAIR_WINDOW = 25000;       // a quote older than this (ms) has nothing to answer
+let PAIR_MAP = null;
+function pairScore(a, b) {       // a: normalized line said first; b: candidate reply
+  if (!PAIR_MAP) {
+    PAIR_MAP = {};
+    const add = (x, y, sc) => { const m = PAIR_MAP[normLine(x)] || (PAIR_MAP[normLine(x)] = {}); m[normLine(y)] = Math.max(m[normLine(y)] || 0, sc); };
+    (typeof PAIRS !== 'undefined' ? PAIRS : []).forEach(([x, y, sc]) => add(x, y, sc));
+    (typeof KENNEDY_PAIRS !== 'undefined' ? KENNEDY_PAIRS : []).forEach(([x, y]) => add(x, y, 5));
+  }
+  return (PAIR_MAP[a] || {})[normLine(b)] || 0;
+}
+function tableLines(p) {         // every line the other speakers at the table could say (with a clip, once clips have loaded)
+  const out = [];
+  for (let q = 0; q < 4; q++) {
+    if (q === p || (q === 0 && !S.me)) continue;
+    const nm = voiceOf(q);
+    if (S.sound && bitesLoaded()) out.push(...Object.keys(BITES[nm] || {}).filter(k => (BITES[nm][k] || []).length));
+    else Object.values(LINES[nm] || {}).forEach(list => list.forEach(x => out.push(normLine(x))));
+  }
+  return out;
+}
 function lineFor(p, ev) {
   const nm = voiceOf(p);
   const pool1 = e => { const own = LINES[nm] && LINES[nm][e]; return own || GENERIC_LINES[e] || []; };
@@ -844,8 +867,22 @@ function lineFor(p, ev) {
   let opts = fresh(set);
   if (!opts.length) opts = unsaid(set);
   if (!opts.length) return null; // she's used every line she has for this: quiet rather than repeat
-  const l = opts[Math.floor(Math.random() * opts.length)];
-  const rh = recHand(); if (rh) (rh.says || (rh.says = [])).push([p, ev, l, Date.now() - rh.t0]);
+  // Quote pairing (Dylan's idea, Nov 7): among the lines the rules allow, answer the quote said just before
+  // (pairs.js; Kennedy's own links first). When nothing answers it, lean toward lines someone else at the table
+  // has a comeback for, so the next quote has something to answer.
+  let pick = opts, pairSc = 0;
+  const recent = lastQuote && performance.now() - lastQuote.at < PAIR_WINDOW ? lastQuote : null;
+  if (recent) {
+    const sc = opts.map(l => pairScore(recent.line, l)), best = Math.max(...sc);
+    if (best >= 2) { pick = opts.filter((l, i) => sc[i] === best); pairSc = best; }
+  }
+  if (pick === opts && opts.length > 1 && Math.random() < 0.7) {
+    const others = tableLines(p), cs = opts.map(l => Math.max(0, ...others.map(x => pairScore(normLine(l), x))));
+    if (Math.max(...cs) >= 2) pick = opts.filter((l, i) => cs[i] >= 2);
+  }
+  const l = pick[Math.floor(Math.random() * pick.length)];
+  lastQuote = { line: normLine(l), nm, at: performance.now() };
+  const rh = recHand(); if (rh) (rh.says || (rh.says = [])).push(pairSc ? [p, ev, l, Date.now() - rh.t0, pairSc] : [p, ev, l, Date.now() - rh.t0]);
   lastLine[nm] = l; lastByMoment[nm + '|' + ev] = l; used.add(l);
   if (G) (G.saidGame || (G.saidGame = new Set())).add(nm + '|' + normLine(l));
   return l;

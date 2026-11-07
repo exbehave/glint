@@ -1611,6 +1611,13 @@ function lineFor(p, ev) {
   const saidG = (G && G.saidGame) || new Set();
   const set = pool(ev).filter(l => { const first = (ONLY_AFTER[nm] || {})[normLine(l)]; return !first || saidG.has(nm + '|' + first); });
   if (!set.length) return null; // the admin cleared this moment: she stays quiet
+  // Kennedy, Nov 7: no speech bubbles without sound. Once the clips have loaded (signed in, sound on), she only says
+  // lines that have a clip; a moment with none stays quiet.
+  if (S.sound && bitesLoaded()) {
+    const mine = BITES[nm] || {};
+    for (let i = set.length - 1; i >= 0; i--) if (!(mine[normLine(set[i])] || []).length) set.splice(i, 1);
+    if (!set.length) return null;
+  }
   const used = saidThisHand[nm] || (saidThisHand[nm] = new Set());
   const unsaid = list => list.filter(l => !used.has(l));
   const fresh = list => unsaid(list).filter(l => l !== lastByMoment[nm + '|' + ev] && l !== lastLine[nm]);

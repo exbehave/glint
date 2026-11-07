@@ -18,6 +18,8 @@ for ws in wb.worksheets:
         if r[0] == 'Moment': cur = M.get(r[1]); got.setdefault(cur, [])
         elif cur and str(r[0] or '').startswith('Quote') and r[1] is not None and str(r[1]).strip():
             q = ' '.join(str(r[1]).split())
+            # column C is the Status dropdown (Nov 7, 2026): an Unusable quote never reaches the game
+            if len(r) > 2 and str(r[2] or '').strip().lower() == 'unusable': odd.append((girl, cur, q + ' [unusable]')); continue
             if len(q) < 4 and not q.endswith(('!', '?', '.')): odd.append((girl, cur, q)); continue
             got[cur].append(q)
     if any(got.values()): out[girl] = got

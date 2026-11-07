@@ -555,7 +555,8 @@ const SFX = {
   },
   // plays one effect (or a random one of a list); returns its length in seconds, 0 if it couldn't play
   play(name) {
-    const c = this.ready(); if (!c) return 0;
+    const c = this.ready();
+    if (!c) { if (S.sound && this.ctx) this.ctx.resume().then(() => { if (this.ctx.state === 'running') this.play(name); }).catch(() => {}); return 0; }
     if (Array.isArray(name)) name = name[Math.floor(Math.random() * name.length)];
     const b = this.bufs[name];
     if (!b || b === 'loading') { this.preload(); return 0; }
@@ -568,11 +569,17 @@ const SFX = {
     if (!S.sound) return;
     try {
       if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-      if (this.ctx.state === 'suspended') this.ctx.resume().then(() => this.preload()).catch(() => {});
+      // iPhone parks the engine as "interrupted" (not just "suspended") after switching apps or a notification;
+      // resume from any state that isn't running (Nov 7, 2026: the old check only woke "suspended").
+      if (this.ctx.state !== 'running') this.ctx.resume().then(() => this.preload()).catch(() => {});
       else this.preload();
     } catch (e) {}
   },
-  ready() { return S.sound && this.ctx && this.ctx.state === 'running' ? this.ctx : null; },
+  ready() {
+    if (!S.sound || !this.ctx) return null;
+    if (this.ctx.state !== 'running') { try { this.ctx.resume().catch(() => {}); } catch (e) {} return null; }
+    return this.ctx;
+  },
   // Set aside Nov 7, 2026 (Kennedy is trying the gong/timpani for the Q♠; may bring this back). Not called now.
   wah() { // sad trombone
     const c = this.ready(); if (!c) return;
@@ -605,7 +612,8 @@ const SFX = {
     });
   },
   glass() { // shatter
-    const c = this.ready(); if (!c) return;
+    const c = this.ready();
+    if (!c) { if (S.sound && this.ctx) this.ctx.resume().then(() => { if (this.ctx.state === 'running') this.glass(); }).catch(() => {}); return; }
     const t = c.currentTime + 0.02;
     const out = c.createGain(); out.gain.value = 0.32; out.connect(c.destination);
     const len = Math.floor(c.sampleRate * 0.6), buf = c.createBuffer(1, len, c.sampleRate), d = buf.getChannelData(0);
@@ -628,6 +636,10 @@ const SFX = {
   }
 };
 document.addEventListener('pointerdown', () => SFX.unlock(), true);
+// coming back to the game (after switching apps) wakes the audio engine straight away
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') SFX.unlock(); });
+window.addEventListener('pageshow', () => SFX.unlock());
+document.addEventListener('touchend', () => SFX.unlock(), true);
 document.addEventListener('keydown', () => SFX.unlock(), true);
 
 // ---------- effects ----------
@@ -756,6 +768,22 @@ function lineFor(p, ev) {
 const BITES = {};          // girl -> normalized line -> [{ path, url, ab, buf }]
 const normLine = s => String(s).toLowerCase().replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/\s+/g, ' ').trim();
 let voiceEnd = 0;          // when the clip that's playing now finishes (performance.now() ms)
+// Sound log (Nov 7, 2026): what happened to each quote's clip, sent to hb_sound_log when signed in, so Claude can
+// see why a clip stayed silent on Kennedy's phone. Batched; never blocks the game.
+const SOUND_LOG = [];
+let soundLogTimer = 0;
+function soundLog(why) {
+  try {
+    why.t = new Date().toISOString(); why.vis = document.visibilityState; why.ua = navigator.userAgent.slice(0, 120);
+    SOUND_LOG.push(why);
+    clearTimeout(soundLogTimer);
+    soundLogTimer = setTimeout(async () => {
+      const batch = SOUND_LOG.splice(0);
+      if (!sb || !batch.length) return;
+      try { await sb.from('hb_sound_log').insert(batch.map(d => ({ data: d }))); } catch (e) {}
+    }, 4000);
+  } catch (e) {}
+}
 let bitesLoading = null, bitesAgain = false, bitesTry = 0, bitesTimer = 0, bitesLastTry = 0;
 const bitesLoaded = () => Object.keys(BITES).length > 0;
 // Nov 5: on a phone that had been idle, the clip list was asked for with an expired sign-in a moment before
@@ -805,18 +833,35 @@ async function loadBites() {
   else if (bitesTry < 4) { bitesTry++; bitesTimer = setTimeout(loadBites, [2000, 5000, 15000, 45000][bitesTry - 1]); }
   if (bitesAgain) { bitesAgain = false; setTimeout(loadBites, 0); }
 }
-async function playBuf(b) {
-  const c = SFX.ready(); if (!c) return 0;
+// Nov 7, 2026 (Kennedy: some clips show the bubble but stay silent): the phone's audio engine can be paused
+// ("suspended"/"interrupted") between taps; wake it before giving up. Every outcome goes to the sound log.
+async function wakeAudio() {
+  const c = SFX.ctx;
+  if (!S.sound || !c) return null;
+  if (c.state !== 'running') { try { await Promise.race([c.resume(), new Promise(r => setTimeout(r, 400))]); } catch (e) {} }
+  return c.state === 'running' ? c : null;
+}
+async function playBuf(b, why) {
+  why = why || {};
+  const c0 = SFX.ctx; why.ctx = c0 ? c0.state : 'none';
+  const c = await wakeAudio();
+  if (!c) { why.result = 'audio engine not running (' + (SFX.ctx ? SFX.ctx.state : 'none') + ')'; return 0; }
+  if (why.ctx !== 'running') why.woke = true;
+  why.had = b.buf ? 'decoded' : b.ab ? 'downloaded' : 'nothing yet';
   // the download may not have finished yet (or was dropped): fetch it now
-  if (!b.buf && !b.ab && b.url) { try { const res = await fetch(b.url); if (res.ok) b.ab = await res.arrayBuffer(); } catch (e) {} }
-  if (!b.buf && b.ab) { try { b.buf = await c.decodeAudioData(b.ab.slice(0)); } catch (e) { b.ab = null; } }
+  if (!b.buf && !b.ab && b.url) {
+    try { const res = await fetch(b.url); if (res.ok) b.ab = await res.arrayBuffer(); else why.fetch = 'HTTP ' + res.status; }
+    catch (e) { why.fetch = String(e && e.message || e).slice(0, 80); }
+  }
+  if (!b.buf && b.ab) { try { b.buf = await c.decodeAudioData(b.ab.slice(0)); } catch (e) { why.decode = String(e && e.message || e).slice(0, 80); b.ab = null; } }
   if (b.buf && b.sp == null) b.sp = speechEnd(b.buf);
   if (!b.buf) {                                      // couldn't decode it here: let the browser's own player try
-    if (b.url) { try { const a = new Audio(b.url); a.volume = 0.9; await a.play(); return b.dur || 2; } catch (e) {} }
-    return 0;
+    if (b.url) { try { const a = new Audio(b.url); a.volume = 0.9; await a.play(); why.result = 'played (fallback player)'; return b.dur || 2; } catch (e) { why.fallback = String(e && e.message || e).slice(0, 80); } }
+    why.result = 'no audio'; return 0;
   }
   const src = c.createBufferSource(), g = c.createGain();
   g.gain.value = 0.9; src.buffer = b.buf; src.connect(g); g.connect(c.destination); src.start();
+  why.result = 'played'; why.state = c.state;
   return b.buf.duration;
 }
 // Where her last word ends inside a clip, in seconds: every clip has ~0.9–1.1 s of reverb tail after it
@@ -837,6 +882,8 @@ function playClip(nm, ev, text, onSpoken) {
   // no clips loaded yet (e.g. every load failed): try again quietly, at most every 30 s
   if (!bitesLoaded() && !bitesLoading && Date.now() - bitesLastTry > 30000) loadBites();
   const list = text && BITES[nm] && BITES[nm][normLine(text)];
+  const why = { girl: nm, line: text, ev };
+  if (!list || !list.length) { why.result = bitesLoaded() ? 'no clip for this line' : 'clips not loaded'; soundLog(why); }
   if (list && list.length) {
     const b = list[Math.floor(Math.random() * list.length)];
     // Never talk over a clip that's still playing (e.g. the moon line then the win line on the score screen):
@@ -847,7 +894,8 @@ function playClip(nm, ev, text, onSpoken) {
     voiceEnd = start + est * 1000;
     const go = () => {
       if (!S.sound) { if (onSpoken) onSpoken(); return; }
-      playBuf(b).then(d => {
+      playBuf(b, why).then(d => {
+        soundLog(why);
         const sp = d ? (b.sp != null ? b.sp : Math.max(0.3, d - TAIL_GUESS)) : 0;
         if (d) voiceEnd = Math.max(voiceEnd, performance.now() + sp * 1000 - 40);
         if (onSpoken) setTimeout(onSpoken, Math.max(0, sp * 1000 - 40));

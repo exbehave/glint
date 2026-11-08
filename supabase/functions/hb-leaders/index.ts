@@ -107,7 +107,10 @@ Deno.serve(async (req: Request) => {
   const nemesisOf = (key: string) => {
     const m = beatBy.get(key);
     if (!m || !m.size) return null;
-    const [k, n] = [...m].sort((a, b) => b[1] - a[1] || label(a[0]).localeCompare(label(b[0])))[0];
+    // Kennedy, Nov 8: a nemesis has to have beaten you at least twice, and more often than anyone else (no tie-breaks).
+    const top = [...m].sort((a, b) => b[1] - a[1]);
+    const [k, n] = top[0];
+    if (n < 2 || (top[1] && top[1][1] === n)) return null;
     return { name: label(k), girl: k.startsWith("g:"), n };
   };
   const players = [...byUser].map(([id, gs]) => {

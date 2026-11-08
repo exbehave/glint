@@ -539,6 +539,7 @@ body { background: var(--ink) url("data:image/webp;base64,UklGRpJ4AABXRUJQVlA4II
 .lbme { display: flex; align-items: center; gap: 12px; }
 .lbme .lbav, .lbme .lbav .pw { width: 52px; }
 .lbdiv { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--mute); padding: 10px 8px 2px; border-top: 1px solid var(--line); margin-top: 4px; }
+.lbpics { display: flex; gap: 4px; flex-shrink: 0; }
 .lbnem { padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,.05); }
 .lbnem .lab { display: block; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--mute); }
 </style>
@@ -2816,7 +2817,34 @@ function canTram() {
   if (!G || G.phase !== 'play' || G.busy || G.looking || G.tramming || !G.st) return false;
   const st = G.st;
   if (st.turn !== 0 || st.trickNo >= 13) return false;
-  return st.pts[0] >= 1 && [1, 2, 3].some(q => st.pts[q] >= 1);
+  // Kennedy, Nov 8: only when the rest really are yours: whatever anyone plays, you take every trick still out.
+  const key = st.trickNo + ':' + st.trick.map(x => x.c).join(',') + ':' + st.hands.map(h => h.join('.')).join('/');
+  if (G.tramKey !== key) { G.tramKey = key; G.tramOk = restAreMine(st); }
+  return G.tramOk;
+}
+// Hearts has no trumps, so a trick goes to the highest card of the suit led. Search every legal play: you pick
+// your cards, the others play anything legal; true only if you can make sure you win every remaining trick.
+// Gives up (no button) if the search gets too big, which only happens when you're far from a sure thing.
+function restAreMine(st0) {
+  let budget = 60000;
+  const memo = new Map();
+  const win = st => {
+    if (st.trickNo >= 13) return true;
+    if (--budget < 0) throw 0;
+    const k = st.turn + '|' + st.trick.map(x => x.c).join(',') + '|' + st.hands.map(h => h.slice().sort((a, b) => a - b).join('.')).join('/');
+    if (memo.has(k)) return memo.get(k);
+    const p = st.turn, moves = legalFor(st, p);
+    let opts = moves;
+    if (p !== 0) {               // the others: of cards next to each other in the same suit, one stands for all
+      const live = c => !st.played[c];
+      opts = moves.filter(c => { const n = c + 1; return !(c % 13 !== 12 && moves.includes(n) && live(n)); });
+    }
+    const go = c => { const t = cloneSt(st); const r = doPlay(t, p, c); return r && r.w !== 0 ? false : win(t); };
+    const res = p === 0 ? opts.some(go) : opts.every(go);
+    memo.set(k, res);
+    return res;
+  };
+  try { return win(cloneSt(st0)); } catch (e) { return false; }
 }
 function tram() {
   if (!canTram()) return;
@@ -3198,6 +3226,16 @@ async function loadLeaders(force) {
 }
 function lbAvatar(row) { return `<span class="lbav">${portraitHTML(row.sum.fav || row.name || '')}</span>`; }
 const ordinal = n => n + (n % 10 === 1 && n % 100 !== 11 ? 'st' : n % 10 === 2 && n % 100 !== 12 ? 'nd' : n % 10 === 3 && n % 100 !== 13 ? 'rd' : 'th');
+// Nemesis card (Kennedy, Nov 8): whoever beat you most; two tied → both; three or more tied → too close to call.
+function nemesisHTML(nm) {
+  const pic = w => lbAvatar({ name: w.name, sum: { fav: w.girl ? w.name : null } });
+  const times = (n, each) => `beat you ${n} time${n === 1 ? '' : 's'}${each ? ' each' : ''}`;
+  let pics, name, sub;
+  if (!nm) { pics = ''; name = 'None yet'; sub = 'Nobody has beaten you'; }
+  else if (!nm.who || !nm.who.length) { pics = ''; name = 'Too close to call'; sub = `${nm.tied}-way tie: each beat you ${nm.n} time${nm.n === 1 ? '' : 's'}`; }
+  else { pics = nm.who.map(pic).join(''); name = nm.who.map(w => esc(w.name)).join(' &amp; '); sub = times(nm.n, nm.who.length > 1); }
+  return `<div class="lbme lbnem">${pics ? `<div class="lbpics">${pics}</div>` : ''}<div><span class="lab">Nemesis</span><div><b>${name}</b></div><div class="sub">${sub}</div></div></div>`;
+}
 function showLeaders(back) {
   const close = () => (back ? back() : closeVeil());
   const shell = body => {
@@ -3252,7 +3290,7 @@ function showLeaders(back) {
     if (!mine || !mine.games) return ($('lb-body').innerHTML = `<div class="sub">You haven’t finished a game yet. Finish one and your stats show up here.</div>`);
     $('lb-body').innerHTML = `
       <div class="lbme">${lbAvatar(mine)}<div><b>${esc(mine.name)}</b><div class="sub">${mine.games} game${mine.games === 1 ? '' : 's'}${mine.sum.fav ? ` · mostly plays as ${esc(mine.sum.fav)}` : ''}${mine.sum.provisional ? `<br>Provisional: your rating shows after ${HB_MIN_GAMES} rated games (${Math.min(mine.sum.rated || 0, HB_MIN_GAMES)} so far)` : ''}</div></div></div>
-      ${mine.sum.nemesis ? `<div class="lbme lbnem">${lbAvatar({ name: mine.sum.nemesis.name, sum: { fav: mine.sum.nemesis.girl ? mine.sum.nemesis.name : null } })}<div><span class="lab">Nemesis</span><div><b>${esc(mine.sum.nemesis.name)}</b></div><div class="sub">beat you ${mine.sum.nemesis.n} time${mine.sum.nemesis.n === 1 ? '' : 's'}</div></div></div>` : ''}
+      ${nemesisHTML(mine.sum.nemesis)}
       <table class="tbl lbt"><thead><tr><th>Stat</th><th>You</th><th>Rank</th></tr></thead><tbody>
       ${HB_MINE.map(k => HB_BOARDS.find(b => b.key === k)).filter(Boolean).map(b => { const r = hbRank(rows, b).find(x => x.row.id === d.me); const n = hbRank(rows, b).length;
         return `<tr><td>${esc(b.label)}</td><td class="big">${hbFmt(b, b.v(mine.sum))}</td><td class="rk">${r ? `${ordinal(r.rank)} of ${n}` : '–'}</td></tr>`; }).join('')}

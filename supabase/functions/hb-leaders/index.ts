@@ -107,11 +107,11 @@ Deno.serve(async (req: Request) => {
   const nemesisOf = (key: string) => {
     const m = beatBy.get(key);
     if (!m || !m.size) return null;
-    // Kennedy, Nov 8: a nemesis has to have beaten you at least twice, and more often than anyone else (no tie-breaks).
+    // Kennedy, Nov 8: whoever beat you most. Two tied → both; three or more tied → too close to call (who: []).
     const top = [...m].sort((a, b) => b[1] - a[1]);
-    const [k, n] = top[0];
-    if (n < 2 || (top[1] && top[1][1] === n)) return null;
-    return { name: label(k), girl: k.startsWith("g:"), n };
+    const n = top[0][1], tied = top.filter((x) => x[1] === n);
+    const who = tied.length > 2 ? [] : tied.map(([k]) => ({ name: label(k), girl: k.startsWith("g:") }));
+    return { who, n, tied: tied.length };
   };
   const players = [...byUser].map(([id, gs]) => {
     // deno-lint-ignore no-explicit-any

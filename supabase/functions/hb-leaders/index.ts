@@ -5,7 +5,10 @@
 //   → { me, players: [{ id, name, games, sum }], girls: [{ name, games, sum }] }
 //   sum = hbAddUp(...) (counts, picks, fav, best, worst) + unfinished + nemesis {name, girl, n} + rating, peak, last (hbRate over every finished game, oldest first)
 // Practice games (data.practice) are skipped entirely.
-// Unfinished = exited (data.quit, set by Exit game) or left behind when the player started a newer game: counted as a game played and a loss (Kennedy, Nov 8).
+// Unfinished = exited with Exit game (data.quit): counted as a game played and a loss (Kennedy, Nov 8). A game you leave open is
+// just paused (it resumes on any device), so it never counts.
+// Fresh start (Kennedy, Nov 8, 00:59): only games started on or after SINCE count; older records are kept but ignored.
+const SINCE = "2026-11-08T07:00:00Z";
 // stats.js here is GENERATED from heartbreakers-src/stats.js by heartbreakers-src/make_leaders.py.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -35,32 +38,21 @@ Deno.serve(async (req: Request) => {
   // every finished game, a page at a time
   const games: { user_id: string; started_at: string; data: Record<string, any> }[] = [];
   for (let from = 0; ; from += 500) {
-    const { data, error } = await admin.from("hb_games").select("user_id, started_at, data").eq("finished", true).range(from, from + 499);
+    const { data, error } = await admin.from("hb_games").select("user_id, started_at, data").eq("finished", true).gte("started_at", SINCE).range(from, from + 499);
     if (error) return json({ error: error.message }, 500);
     games.push(...(data || []).filter((g) => !g.data?.practice));   // practice games don't count
     if (!data || data.length < 500) break;
   }
   const when = (g: { started_at: string; data: Record<string, any> }) => Date.parse(g.data?.started || g.started_at) || 0;
   games.sort((a, b) => when(a) - when(b));
-  // Quits (Kennedy, Nov 8): an unfinished rated game counts as a game played and a loss once it's over for good:
-  // the player tapped Exit game (data.quit), or started a newer game (rated or practice) without finishing it.
-  // Their newest game, if unfinished, is the one in progress and doesn't count yet. Quits feed the rating in order.
-  const newest = new Map<string, number>();
-  for (let from = 0; ; from += 1000) {
-    const { data, error } = await admin.from("hb_games").select("user_id, started_at").range(from, from + 999);
-    if (error) return json({ error: error.message }, 500);
-    for (const r of data || []) newest.set(r.user_id, Math.max(newest.get(r.user_id) || 0, Date.parse(r.started_at) || 0));
-    if (!data || data.length < 1000) break;
-  }
   const quit = new Map<string, number>();
   const quits: { user_id: string; started_at: string; data: Record<string, any> }[] = [];
   for (let from = 0; ; from += 500) {
-    const { data, error } = await admin.from("hb_games").select("user_id, started_at, data").eq("finished", false).range(from, from + 499);
+    const { data, error } = await admin.from("hb_games").select("user_id, started_at, data").eq("finished", false).gte("started_at", SINCE).range(from, from + 499);
     if (error) return json({ error: error.message }, 500);
     for (const r of data || []) {
       if (r.data?.practice) continue;
-      const over = r.data?.quit || (Date.parse(r.started_at) || 0) < (newest.get(r.user_id) || 0);
-      if (!over) continue;
+      if (!r.data?.quit) continue;
       quit.set(r.user_id, (quit.get(r.user_id) || 0) + 1); quits.push(r);
     }
     if (!data || data.length < 500) break;

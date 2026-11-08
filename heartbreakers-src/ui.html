@@ -1260,19 +1260,33 @@ const whoAmI = () => (ME && ME.id) || '';
 function saveGame() {
   if (!G || !G.T || !G.names) return;
   try {
-    if (G.phase === 'over') { localStorage.removeItem(SAVE_KEY); return; }
+    if (G.phase === 'over') { localStorage.removeItem(SAVE_KEY); cloudSave(null); return; }
     const said = {};
     for (const k in saidThisHand) said[k] = [...saidThisHand[k]];
-    localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 1, who: whoAmI(), at: Date.now(), target: S.target, heartRun, said, g: {
+    const blob = JSON.stringify({ v: 1, who: whoAmI(), at: Date.now(), target: S.target, heartRun, said, g: {
       totals: G.totals, handNo: G.handNo, names: G.names, hands: G.hands, dir: G.dir, known: G.known, phase: G.phase,
       st: G.st ? Object.assign({}, G.st, { played: Array.from(G.st.played) }) : null,
-      table: G.table, shown: G.shown, drawnPts: G.drawnPts, rec: G.rec || null, mem: G.T.mem, qsSaid: !!G.qsSaid, saidGame: [...(G.saidGame || [])] } }));
+      table: G.table, shown: G.shown, drawnPts: G.drawnPts, rec: G.rec || null, mem: G.T.mem, qsSaid: !!G.qsSaid, saidGame: [...(G.saidGame || [])] } });
+    localStorage.setItem(SAVE_KEY, blob);
+    cloudSave(blob);
   } catch (e) {}
 }
-function clearSave() { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} }
-function resumeGame() {
-  let d = null;
-  try { d = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); } catch (e) {}
+// Kennedy, Nov 8: the saved game also lives in the database (hb_games.save), so whichever device you open the game on,
+// it brings you back to where you left off. Only Exit game ends a game early. Pushed at most every 1.5 s.
+let cloudTimer = 0, cloudBlob;
+function cloudSave(blob) {
+  if (!sb || !ME || !G || !G.rec) return;
+  const id = G.rec.id;
+  cloudBlob = blob;
+  clearTimeout(cloudTimer);
+  const push = () => { const b = cloudBlob; recSaving = recSaving.then(async () => {
+    try { await sb.from('hb_games').update({ save: b ? JSON.parse(b) : null }).eq('id', id); } catch (e) {}
+  }); };
+  if (blob === null) push(); else cloudTimer = setTimeout(push, 1500);
+}
+function clearSave() { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} cloudSave(null); }
+function resumeGame(d) {
+  if (d === undefined) try { d = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); } catch (e) {}
   if (!d || d.v !== 1 || !d.g || d.who !== whoAmI() || Date.now() - d.at > 30 * 864e5) return false;
   const g = d.g;
   if (!['pass', 'play', 'between'].includes(g.phase)) return false;
@@ -1290,7 +1304,7 @@ function resumeGame() {
     for (const k in saidThisHand) delete saidThisHand[k];
     for (const k in d.said || {}) saidThisHand[k] = new Set(d.said[k]);
     heartRun = d.heartRun || null;
-  } catch (e) { clearSave(); G = null; return false; }
+  } catch (e) { try { localStorage.removeItem(SAVE_KEY); } catch (e2) {} G = null; return false; }
   closeVeil();
   $('trick').innerHTML = '';
   if (G.phase === 'play') { render(); step(0); }
@@ -1312,22 +1326,26 @@ function resumeGame() {
 // 1st, 2nd, 3rd, 4th by total (lowest is 1st); a tie shares the place (Kennedy, Nov 6)
 const ORD = ['1st', '2nd', '3rd', '4th'];
 const placeHTML = i => `<span class="pl">${ORD[G.totals.filter(t => t < G.totals[i]).length]}</span>`;
-const setupOrResume = () => { if (!resumeGame()) return showSetup(); endIfStale(); };
-// Kennedy, Nov 8: once you start a newer game (say on another device), the old unfinished one is over for good and
-// counts as a loss, so a saved copy of it can't be picked back up and finished.
-async function endIfStale() {
-  if (!sb || !G || !G.rec || !G.rec.started) return;
-  const game = G;
-  try {
-    const { data } = await sb.from('hb_games').select('id').gt('started_at', game.rec.started).neq('id', game.rec.id).limit(1);
-    if (!data || !data.length || G !== game) return;
-    clearSave(); G = null;
-    openVeil(`<div class="panel" role="dialog" aria-label="Game ended">
-      <div><h2>That game’s over</h2><div class="sub">You started a newer game since, so this one ended unfinished${game.rec.practice ? '' : ' and counts as a loss'}.</div></div>
-      <div class="btns"><button class="cta" id="b-stale" type="button">OK</button></div>
-    </div>`);
-    $('b-stale').onclick = showSetup;
-  } catch (e) {}
+// Resume the game in progress: this device's save or the database's, whichever is newer (Kennedy, Nov 8).
+// A local save whose game was finished or exited on another device is dropped.
+async function setupOrResume() {
+  let local = null;
+  try { local = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); } catch (e) {}
+  if (sb && ME) {
+    try {
+      const ask = Promise.all([
+        sb.from('hb_games').select('id, save').eq('user_id', ME.id).eq('finished', false).is('data->quit', null)
+          .not('save', 'is', null).order('updated_at', { ascending: false }).limit(1),
+        local && local.g && local.g.rec ? sb.from('hb_games').select('id, finished, data->quit').eq('id', local.g.rec.id).limit(1) : null,
+      ]);
+      const [cloud, mine] = await Promise.race([ask, new Promise((_, no) => setTimeout(() => no(new Error('slow')), 4000))]);
+      const row = mine && mine.data && mine.data[0];
+      if (row && (row.finished || row.quit)) { local = null; try { localStorage.removeItem(SAVE_KEY); } catch (e) {} }
+      const c = cloud && cloud.data && cloud.data[0] && cloud.data[0].save;
+      if (c && (!local || (c.at || 0) > (local.at || 0))) local = c;
+    } catch (e) {}
+  }
+  if (!resumeGame(local)) showSetup();
 }
 
 function startGame() {
@@ -1900,7 +1918,7 @@ function showLeaders(back) {
       <h2>Leaderboard</h2>
       ${segHTML('lbtab', [['players', 'Players'], ['girls', 'Girls'], ['mine', 'My stats']], LB.tab)}
       <div id="lb-body">${body}</div>
-      <div class="foot">Ranked by rating: everyone starts at 1000, only the winner gains, and losing to someone rated lower costs more. Your rating shows after 5 rated games; until then you’re provisional. Exiting a rated game, or starting a new one without finishing it, counts as a loss.</div>
+      <div class="foot">Ranked by rating: everyone starts at 1000, only the winner gains, and losing to someone rated lower costs more. Your rating shows after 5 rated games; until then you’re provisional. Exiting a rated game counts as a loss.</div>
       <div class="btns"><button class="cta" id="lb-back" type="button">Back</button></div>
     </div>`);
     $('lb-back').onclick = close;

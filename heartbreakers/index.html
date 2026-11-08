@@ -1259,6 +1259,8 @@ const HB_BOARDS = [
   { key: 'winRate', group: 'Results', label: 'Win rate', dir: 'high', fmt: 'pct', v: a => hbPct(a.wins, a.games) },
   { key: 'wins', group: 'Results', label: 'Wins', dir: 'high', fmt: 'n', v: a => a.wins },
   { key: 'games', group: 'Results', label: 'Games played', dir: 'high', fmt: 'n', v: a => a.games },
+  { key: 'unfinished', group: 'Results', label: 'Games left unfinished', dir: 'high', fmt: 'n', v: a => a.unfinished || 0 },
+  { key: 'quitRate', group: 'Results', label: 'Quit rate (games left unfinished)', dir: 'high', fmt: 'pct', v: a => hbPct(a.unfinished || 0, (a.games || 0) + (a.unfinished || 0)) },
   { key: 'p2', group: 'Results', label: 'Came in 2nd', dir: 'high', fmt: 'pct', v: a => hbPct(a.p2, a.games) },
   { key: 'p3', group: 'Results', label: 'Came in 3rd', dir: 'high', fmt: 'pct', v: a => hbPct(a.p3, a.games) },
   { key: 'p4', group: 'Results', label: 'Came in last', dir: 'high', fmt: 'pct', v: a => hbPct(a.p4, a.games) },
@@ -3117,7 +3119,7 @@ function showLeaders(back) {
       <h2>Leaderboard</h2>
       ${segHTML('lbtab', [['boards', 'Boards'], ['mine', 'My stats']], LB.tab)}
       <div id="lb-body">${body}</div>
-      <div class="foot">Every finished game counts. Games you exit early don’t.</div>
+      <div class="foot">Every finished game counts. A game left unfinished for 3 hours counts only on the unfinished boards.</div>
       <div class="btns"><button class="cta" id="lb-back" type="button">Back</button></div>
     </div>`);
     $('lb-back').onclick = close;
@@ -3126,7 +3128,7 @@ function showLeaders(back) {
   const draw = () => {
     const d = LB.data;
     if (!d) return;
-    const rows = d.players.filter(p => p.games > 0);
+    const rows = d.players.filter(p => p.games > 0 || p.sum.unfinished > 0);
     if (!rows.length) return ($('lb-body').innerHTML = `<div class="sub">No finished games yet. Finish one and you’re on the board.</div>`);
     if (LB.tab === 'boards') {
       const b = HB_BOARDS.find(x => x.key === LB.key) || HB_BOARDS[0];
@@ -3151,7 +3153,7 @@ function showLeaders(back) {
       return;
     }
     const mine = rows.find(p => p.id === d.me);
-    if (!mine) return ($('lb-body').innerHTML = `<div class="sub">You haven’t finished a game yet. Finish one and your stats show up here.</div>`);
+    if (!mine || !mine.games) return ($('lb-body').innerHTML = `<div class="sub">You haven’t finished a game yet. Finish one and your stats show up here.</div>`);
     const picks = Object.entries(mine.sum.picks || {}).sort((a, b) => b[1] - a[1]);
     $('lb-body').innerHTML = `
       <div class="lbme">${lbAvatar(mine)}<div><b>${esc(mine.name)}</b><div class="sub">${mine.games} game${mine.games === 1 ? '' : 's'} · plays as ${esc(mine.sum.fav || '—')} most</div></div></div>

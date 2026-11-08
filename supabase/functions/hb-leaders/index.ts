@@ -2,7 +2,8 @@
 // Any signed-in player may call it. It reads every FINISHED game in hb_games (with the service role, since each
 // player can only read their own rows), works out each player's numbers with stats.js (the same code the game uses),
 // and returns only the added-up numbers per player, never anyone's cards.
-//   → { me, players: [{ id, name, games, sum }] }   sum = hbAddUp(...) (counts, picks, fav, best, worst)
+//   → { me, players: [{ id, name, games, sum }] }   sum = hbAddUp(...) (counts, picks, fav, best, worst) + unfinished
+// Unfinished = started, never finished, untouched for 3 hours.
 // stats.js here is GENERATED from heartbreakers-src/stats.js by heartbreakers-src/make_leaders.py.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -36,12 +37,27 @@ Deno.serve(async (req: Request) => {
     games.push(...(data || []));
     if (!data || data.length < 500) break;
   }
+  // games left unfinished: started but not finished, and untouched for 3 hours (so a game in progress doesn't count)
+  const quit = new Map<string, number>();
+  const cutoff = new Date(Date.now() - 3 * 3600 * 1000).toISOString();
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await admin.from("hb_games").select("user_id").eq("finished", false).lt("updated_at", cutoff).range(from, from + 999);
+    if (error) return json({ error: error.message }, 500);
+    for (const r of data || []) quit.set(r.user_id, (quit.get(r.user_id) || 0) + 1);
+    if (!data || data.length < 1000) break;
+  }
   const byUser = new Map<string, unknown[]>();
   for (const g of games) {
     try { (byUser.get(g.user_id) || byUser.set(g.user_id, []).get(g.user_id)!).push(hbGameStats(g.data)); } catch { /* skip a broken record */ }
   }
   const { data: list } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
   const nameOf = new Map((list?.users || []).map((u) => [u.id, usernameOf(u)]));
-  const players = [...byUser].map(([id, gs]) => ({ id, name: nameOf.get(id) || "player", games: gs.length, sum: hbAddUp(gs) }));
+  for (const id of quit.keys()) if (!byUser.has(id)) byUser.set(id, []);
+  const players = [...byUser].map(([id, gs]) => {
+    // deno-lint-ignore no-explicit-any
+    const sum: any = gs.length ? hbAddUp(gs) : { picks: {}, fav: null, games: 0 };
+    sum.unfinished = quit.get(id) || 0;
+    return { id, name: nameOf.get(id) || "player", games: gs.length, sum };
+  });
   return json({ me: me.user.id, players });
 });

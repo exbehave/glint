@@ -1530,6 +1530,9 @@ function canTram() {
   if (!G || G.phase !== 'play' || G.busy || G.looking || G.tramming || !G.st) return false;
   const st = G.st;
   if (st.turn !== 0 || st.trickNo >= 13) return false;
+  // No moon possible: you have at least one point this round and so does someone else (Kennedy, Nov 7). Restored Nov 8
+  // after the sure-win check below replaced it by mistake and let a TRAM claim a moon.
+  if (!(st.pts[0] >= 1 && [1, 2, 3].some(q => st.pts[q] >= 1))) return false;
   // Kennedy, Nov 8: only when the rest really are yours: whatever anyone plays, you take every trick still out.
   const key = st.trickNo + ':' + st.trick.map(x => x.c).join(',') + ':' + st.hands.map(h => h.join('.')).join('/');
   if (G.tramKey !== key) { G.tramKey = key; G.tramOk = restAreMine(st); }
@@ -1954,7 +1957,7 @@ function showLeaders(back) {
   const shell = body => {
     openVeil(`<div class="panel lb" role="dialog" aria-label="Leaderboard">
       <h2>Leaderboard</h2>
-      ${segHTML('lbtab', [['players', 'Players'], ['girls', 'Girls'], ['mine', 'My stats']], LB.tab)}
+      ${segHTML('lbtab', [['players', 'Players'], ['girls', 'CPUs'], ['mine', 'My stats']], LB.tab)}
       <div id="lb-body">${body}</div>
       <div class="foot">Ranked by rating: everyone starts at 1000, only the winner gains, and losing to someone rated lower costs more. Your rating shows after 5 rated games; until then you’re provisional. Exiting a rated game counts as a loss.</div>
       <div class="btns"><button class="cta" id="lb-back" type="button">Back</button></div>

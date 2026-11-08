@@ -6,7 +6,7 @@ src = json.load(open(sys.argv[1]))
 open('sheet_now.xlsx', 'wb').write(base64.b64decode(src['content']))
 wb = openpyxl.load_workbook('sheet_now.xlsx')
 M = {'Plays the Queen of Spades': 'qsGive', 'Dumps the Queen of Spades': 'qsGive', 'Gets stuck with the Queen of Spades': 'qsGet', 'Breaks hearts': 'breaks', 'Takes a small hit': 'fewHearts',
-     'Takes a big hit': 'hearts', 'Shoots the moon': 'moon', 'Wins the game': 'win'}
+     'Takes a big hit': 'hearts', 'Shoots the moon': 'moon', 'Wins the game': 'win', 'TRAM': 'tram', 'TRAM (The rest are mine)': 'tram'}
 NAME = {'Victors': 'Victor Twins', 'Victor Twins': 'Victor Twins'}
 out, odd = {}, []
 for ws in wb.worksheets:

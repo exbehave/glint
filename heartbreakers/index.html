@@ -1136,7 +1136,7 @@ function passPsychic(T, p, hand) {
 // ===== Cast reactions =====
 // Events: qsGive (she dumps the Q♠ on someone), qsGet (she gets stuck with it), breaks (she breaks hearts),
 // fewHearts (she takes a trick with 1–2 hearts), hearts (she takes a trick with 3+ hearts), taunt (sometimes, after a clean trick), moon (she shoots the moon),
-// moonVictim (someone else shot it), win (she wins the game).
+// moonVictim (someone else shot it), win (she wins the game), tram (you claim the rest with TRAM: her most pathetic line, with the sad trombone).
 // Placeholder lines written in each woman’s spirit; swap in her real lines any time.
 const LINES = {
   'Ripsi': {
@@ -1190,6 +1190,7 @@ const LINES = {
     win: ['Confidence wins. Ask anybody.']
   },
   'Judi': {
+    tram: ["Maybe so…"],
     qsGive: ["Are you hungry?","I served you breakfast in bed!","That's your bad"],
     qsGet: ["I will sacrifice my body and my blood to get her outta this house","She can sleep in glass","Trouble for being real?"],
     breaks: ["I have a question","Who's hungry?","Some drama is about to happen!"],
@@ -1201,6 +1202,7 @@ const LINES = {
     win: ["I will shave your face off and wear it for Mardi Gras 2012","That's Judi!","I am Jesus"]
   },
   'Amy': {
+    tram: ["Thrash me if you want"],
     qsGive: ["Nobody touches my weave","I may be a schizo but I love you!"],
     qsGet: ["Whoever wants to laugh can get their ass slapped","I feel like I'm about to kill somebody"],
     breaks: ["Honey, I'm not tryna interrupt you","Hey. You."],
@@ -1212,6 +1214,7 @@ const LINES = {
     win: ["These girls are the biggest vagina holes I’ve ever met in my life","Oh baby! I love you!"]
   },
   'Victor Twins': {
+    tram: ["It's unfair. It's four against two."],
     qsGive: ["I'm just gonna put a lil trash in your bedroom","Add to the decorations!","You could go sleep in the pool where your weave is at the bottom"],
     qsGet: ["So scary!","Dani, they took our macaroni and cheese","Granola thrown on the floor! Guess who's not cleaning it?"],
     breaks: ["Reno? The casino?","A little bit of trash for you guys"],
@@ -1253,6 +1256,7 @@ const LINES = {
     win: ['Not runner-up this time.']
   },
   'Dalila': {
+    tram: ["This is how you welcome your new roommate?"],
     qsGive: ["Black don't crack over here","I like the lesbians…","I can be rude right back"],
     qsGet: ["Okay, look at you getting all ratchet","All of a sudden, somebody comes in and you turn ghetto"],
     breaks: ["Have you guys been getting ratchet?","Be nice and show me around?"],
@@ -1262,6 +1266,7 @@ const LINES = {
     win: ["I'm sorry that all you guys are ugly","Once I start getting a few drinks in me, I swear I feel like I'm Beyoncé"]
   },
   'Natalie': {
+    tram: ["That's really annoying"],
     qsGive: ["Lookin like a Crenshaw weave, bitch","Who's the hoe now?","(Maniacal laughter)"],
     qsGet: ["You're trying to be Natalie and you'll never be!"],
     breaks: ["I run LA!","How do you feel about that?","Bitch, yeah, I run LA"],
@@ -2016,7 +2021,8 @@ function lineFor(p, ev) {
     if (!set.length) return null;
   }
   const used = saidThisHand[nm] || (saidThisHand[nm] = new Set());
-  const unsaid = list => list.filter(l => !used.has(l));
+  // TRAM (Nov 7): her one pathetic line plays even if she already said it this hand under another moment
+  const unsaid = list => ev === 'tram' ? list : list.filter(l => !used.has(l));
   const fresh = list => unsaid(list).filter(l => l !== lastByMoment[nm + '|' + ev] && l !== lastLine[nm]);
   let opts = fresh(set);
   if (!opts.length) opts = unsaid(set);
@@ -2550,8 +2556,53 @@ function playCard(p, c) {
 // the queen's sound plays with her queen line; the next quote waits until its hit has landed (the ring carries under it)
 function qsGong() { if (SFX.play('gong')) voiceEnd = Math.max(voiceEnd, performance.now() + 1500); queensGambit(); haptic(40); }
 function qsTimpani() { if (SFX.play('timpani')) voiceEnd = Math.max(voiceEnd, performance.now() + 1200); }
-// set aside Nov 7, 2026 with SFX.wah (not called)
+// the sad trombone: off the Q♠ since Nov 7, 2026; now it plays with TRAM
 function qsWah() { SFX.wah(); voiceEnd = Math.max(voiceEnd, performance.now() + 1900); }
+
+// ---------- TRAM: "The rest are mine" (Kennedy, Nov 7, 2026) ----------
+// A human gives up the rest of the hand: every card still out (the trick on the table and every hand) goes to them,
+// points and all. Only when nobody can shoot the moon any more: you have at least one point and so does someone else.
+// Humans only (the girls never TRAM). Her most pathetic line (moment `tram`) plays together with the sad trombone.
+function canTram() {
+  if (!G || G.phase !== 'play' || G.busy || G.looking || G.tramming || !G.st) return false;
+  const st = G.st;
+  if (st.turn !== 0 || st.trickNo >= 13) return false;
+  return st.pts[0] >= 1 && [1, 2, 3].some(q => st.pts[q] >= 1);
+}
+function tram() {
+  if (!canTram()) return;
+  const st = G.st, rh = recHand();
+  const left = [...st.trick.map(x => x.c), ...st.hands.flat()];
+  const gain = left.reduce((s, c) => s + pts(c), 0);
+  if (rh) rh.tram = { trick: st.trickNo, ms: Date.now() - rh.t0, table: st.trick.map(x => [x.p, x.c]), hands: st.hands.map(h => h.slice()), pts: gain };
+  left.forEach(c => (st.played[c] = 1));
+  st.hands.forEach(h => (h.length = 0));
+  st.pts[0] += gain;
+  st.won[0] += 13 - st.trickNo;
+  if (gain && st.ptTricks) st.ptTricks[0]++;
+  st.trick = [];
+  st.trickNo = 13;
+  G.sel = null; G.busy = true; G.tramming = true; G.wonBy = 0;
+  haptic(30);
+  render();
+  saveGame(); recSave();
+  const game = G;
+  // her line and the trombone start together; the score screen waits until both are done
+  sayFirst(0, 'tram', () => {
+    const wait = () => {
+      if (G !== game) return;
+      const left = voiceEnd - performance.now();
+      if (left > 0) return setTimeout(wait, left + 50);
+      sweepTrick(0, () => {
+        if (G !== game) return;
+        G.table = []; G.busy = false; G.wonBy = null; G.tramming = false;
+        G.shown = G.st.pts.slice();
+        endHand();
+      });
+    };
+    setTimeout(wait, 300);
+  }, qsWah);
+}
 
 // Shooting the moon: the shooter picks "everyone else +26" or "me −26" (her total can go below 0).
 function moonOptions(p) {
@@ -2704,9 +2755,11 @@ function renderStatus() {
     else if (G.sel != null) msg = 'Tap again to play';
     else msg = st.trick.length ? 'Your turn. Follow suit if you can' : 'Your lead';
   } else msg = `${nameOf(st.turn)} ${vb(nameOf(st.turn), 'is', 'are')} thinking…`;
+  if (G.tramming) msg = 'TRAM. The rest are yours';
   const left = 13 - st.trickNo;
   const mine = myChip();
-  el.innerHTML = `<div class="row">${mine}<span class="pill count">${left} trick${left === 1 ? '' : 's'} left</span>${st.broken ? `<span class="pill broken${G.popBroken ? ' pop' : ''}">${suitMark(3)} broken</span>` : ''}</div><div class="msg">${msg}</div>`;
+  el.innerHTML = `<div class="row">${mine}<span class="pill count">${left} trick${left === 1 ? '' : 's'} left</span>${st.broken ? `<span class="pill broken${G.popBroken ? ' pop' : ''}">${suitMark(3)} broken</span>` : ''}</div>${canTram() ? `<div class="row"><span class="msg">${msg}</span><button class="cta tram" id="b-tram" aria-label="TRAM: the rest are mine">TRAM</button></div>` : `<div class="msg">${msg}</div>`}`;
+  if ($('b-tram')) $('b-tram').onclick = tram;
   G.popBroken = false;
 }
 

@@ -1,7 +1,7 @@
 // ===== Cast reactions =====
 // Events: qsGive (she dumps the Q♠ on someone), qsGet (she gets stuck with it), breaks (she breaks hearts),
 // fewHearts (she takes a trick with 1–2 hearts), hearts (she takes a trick with 3+ hearts), taunt (sometimes, after a clean trick), moon (she shoots the moon),
-// moonVictim (someone else shot it), win (she wins the game).
+// moonVictim (someone else shot it), win (she wins the game), tram (you claim the rest with TRAM: her most pathetic line, with the sad trombone).
 // Placeholder lines written in each woman’s spirit; swap in her real lines any time.
 const LINES = {
   'Ripsi': {
@@ -55,6 +55,7 @@ const LINES = {
     win: ['Confidence wins. Ask anybody.']
   },
   'Judi': {
+    tram: ["Maybe so…"],
     qsGive: ["Are you hungry?","I served you breakfast in bed!","That's your bad"],
     qsGet: ["I will sacrifice my body and my blood to get her outta this house","She can sleep in glass","Trouble for being real?"],
     breaks: ["I have a question","Who's hungry?","Some drama is about to happen!"],
@@ -66,6 +67,7 @@ const LINES = {
     win: ["I will shave your face off and wear it for Mardi Gras 2012","That's Judi!","I am Jesus"]
   },
   'Amy': {
+    tram: ["Thrash me if you want"],
     qsGive: ["Nobody touches my weave","I may be a schizo but I love you!"],
     qsGet: ["Whoever wants to laugh can get their ass slapped","I feel like I'm about to kill somebody"],
     breaks: ["Honey, I'm not tryna interrupt you","Hey. You."],
@@ -77,6 +79,7 @@ const LINES = {
     win: ["These girls are the biggest vagina holes I’ve ever met in my life","Oh baby! I love you!"]
   },
   'Victor Twins': {
+    tram: ["It's unfair. It's four against two."],
     qsGive: ["I'm just gonna put a lil trash in your bedroom","Add to the decorations!","You could go sleep in the pool where your weave is at the bottom"],
     qsGet: ["So scary!","Dani, they took our macaroni and cheese","Granola thrown on the floor! Guess who's not cleaning it?"],
     breaks: ["Reno? The casino?","A little bit of trash for you guys"],
@@ -118,6 +121,7 @@ const LINES = {
     win: ['Not runner-up this time.']
   },
   'Dalila': {
+    tram: ["This is how you welcome your new roommate?"],
     qsGive: ["Black don't crack over here","I like the lesbians…","I can be rude right back"],
     qsGet: ["Okay, look at you getting all ratchet","All of a sudden, somebody comes in and you turn ghetto"],
     breaks: ["Have you guys been getting ratchet?","Be nice and show me around?"],
@@ -127,6 +131,7 @@ const LINES = {
     win: ["I'm sorry that all you guys are ugly","Once I start getting a few drinks in me, I swear I feel like I'm Beyoncé"]
   },
   'Natalie': {
+    tram: ["That's really annoying"],
     qsGive: ["Lookin like a Crenshaw weave, bitch","Who's the hoe now?","(Maniacal laughter)"],
     qsGet: ["You're trying to be Natalie and you'll never be!"],
     breaks: ["I run LA!","How do you feel about that?","Bitch, yeah, I run LA"],

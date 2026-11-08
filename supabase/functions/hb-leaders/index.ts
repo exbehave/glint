@@ -3,7 +3,7 @@
 // player can only read their own rows), works out each player's numbers with stats.js (the same code the game uses),
 // and returns only the added-up numbers per player, never anyone's cards.
 //   → { me, players: [{ id, name, games, sum }], girls: [{ name, games, sum }] }
-//   sum = hbAddUp(...) (counts, picks, fav, best, worst) + unfinished + rating, peak, last (hbRate over every finished game, oldest first)
+//   sum = hbAddUp(...) (counts, picks, fav, best, worst) + unfinished + nemesis {name, girl, n} + rating, peak, last (hbRate over every finished game, oldest first)
 // Practice games (data.practice) are skipped entirely.
 // Unfinished = exited (data.quit, set by Exit game) or started, never finished and untouched for 3 hours: counted as a game played and a loss (Kennedy, Nov 8).
 // stats.js here is GENERATED from heartbreakers-src/stats.js by heartbreakers-src/make_leaders.py.
@@ -77,17 +77,38 @@ Deno.serve(async (req: Request) => {
   }
   rated.sort((a, b) => a.at - b.at);
   const R = hbRate(rated);
+  // Nemesis (Kennedy, Nov 8): whoever beat this player the most — the winner(s) of every game they lost, quits included
+  // (a tie for first credits each winner). Works for girls or, later, humans at the same table.
+  const beatBy = new Map<string, Map<string, number>>();
+  for (const g of rated) {
+    const t = g.totals;
+    if (!t || t.length !== 4) continue;
+    let win: number[];
+    if (g.quit) { const lo = Math.min(t[1], t[2], t[3]); win = [1, 2, 3].filter((i) => t[i] === lo); }
+    else { const lo = Math.min(...t); win = [0, 1, 2, 3].filter((i) => t[i] === lo); }
+    if (win.includes(0)) continue;
+    const who = g.keys[0], m = beatBy.get(who) || beatBy.set(who, new Map()).get(who)!;
+    for (const w of win) m.set(g.keys[w], (m.get(g.keys[w]) || 0) + 1);
+  }
   // deno-lint-ignore no-explicit-any
   const withRating = (sum: any, key: string) => { const r = R[key]; if (r) Object.assign(sum, { rating: r.rating, peak: r.peak, last: r.last }); return sum; };
   const { data: list } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
   const nameOf = new Map((list?.users || []).map((u) => [u.id, usernameOf(u)]));
   for (const id of quit.keys()) if (!byUser.has(id)) byUser.set(id, []);
+  const label = (k: string) => k.startsWith("g:") ? k.slice(2) : (nameOf.get(k.slice(2)) || "player");
+  const nemesisOf = (key: string) => {
+    const m = beatBy.get(key);
+    if (!m || !m.size) return null;
+    const [k, n] = [...m].sort((a, b) => b[1] - a[1] || label(a[0]).localeCompare(label(b[0])))[0];
+    return { name: label(k), girl: k.startsWith("g:"), n };
+  };
   const players = [...byUser].map(([id, gs]) => {
     // deno-lint-ignore no-explicit-any
     const sum: any = gs.length ? hbAddUp(gs) : { picks: {}, fav: null, games: 0 };
     sum.unfinished = quit.get(id) || 0;
     sum.finished = gs.length;
     sum.games = gs.length + sum.unfinished;          // a quit counts as a game played (and a loss)
+    sum.nemesis = nemesisOf("u:" + id);
     return { id, name: nameOf.get(id) || "player", games: sum.games, sum: withRating(sum, "u:" + id) };
   });
   const girls = [...byGirl].map(([name, gs]) => ({ name, games: gs.length, sum: withRating(hbAddUp(gs), "g:" + name) }));

@@ -1328,8 +1328,11 @@ function playCard(p, c) {
   G.table.push({ p, c });
   const rh = recHand(); if (rh) rh.plays.push(p && G.lastWhy ? [p, c, Date.now() - rh.t0, G.lastWhy] : [p, c, Date.now() - rh.t0]);
   G.lastWhy = null;
-  // forced queen: spades were led and the Q♠ was her only spade, so she had no choice but to play it
-  const forcedQ = c === QS && !led && suit(st.trick[0].c) === 2 && st.hands[p].every(x => suit(x) !== 2 || x === QS);
+  // Kennedy, Nov 7: she had no choice but to play the queen AND take it — spades were led, the Q♠ was her only
+  // spade, nothing higher is on the table, and nobody still to play this trick holds the K♠ or A♠.
+  const eatsOwnQ = c === QS && !led && suit(st.trick[0].c) === 2 && st.hands[p].every(x => suit(x) !== 2 || x === QS)
+    && !st.trick.some(x => suit(x.c) === 2 && rank(x.c) > rank(QS))
+    && [1, 2, 3].slice(0, 3 - st.trick.length).every(i => !st.hands[(p + i) % 4].some(x => suit(x) === 2 && rank(x) > rank(QS)));
   const res = doPlay(st, p, c);
   if (res) { girlsAfterTrick(G.T, res); recSave(); }
   if (p === 0) G.sel = null;
@@ -1345,10 +1348,9 @@ function playCard(p, c) {
   // Kennedy, Nov 7 (trying it out): the gong when the queen is led, the timpani bend when she's played onto a trick.
   // Kennedy, Nov 7: the gong only when the queen is led AND someone is forced to take it — a player whose only
   // spades are the K♠ and/or A♠ must play one and wins the trick. Any other queen gets the timpani.
-  // Kennedy, Nov 7: when the queen was her last spade (spades led, no choice), her "plays the queen" line waits for
-  // the end of the trick: if she takes it herself she only says her "stuck with the queen" line; if someone covers
-  // it, she says her queen line then. The timpani still plays when the card lands.
-  if (forcedQ) { extra = 900; qsTimpani(); G.qsHeld = p; }
+  // In that one case there's no queen sound and no "plays the queen" line; she only says her "stuck with the queen"
+  // line when the trick ends. Every other queen: sound and line the moment it lands.
+  if (eatsOwnQ) extra = 900;
   else if (c === QS) { extra = 900; sayFirst(p, 'qsGive', null, led && queenForced(st, p) ? qsGong : qsTimpani); }
   if (brokeNow) {
     const el = $('trick').querySelector(`.card[data-c="${c}"]`);
@@ -1372,9 +1374,7 @@ function playCard(p, c) {
     const prev = heartRun; heartRun = { p: res.w, h };
     if (qsP) {
       heartRun = null;                                // the queen used up this trick's hearts
-      const held = G.qsHeld; G.qsHeld = null;         // a forced queen's line waited for the end of the trick
-      if (held != null && held !== res.w) say(held, 'qsGive');
-      say(res.w, 'qsGet');                           // otherwise her line for playing it already went out when it landed
+      say(res.w, 'qsGet');                           // her line for playing it already went out when it landed
     } else {
       // Kennedy, Nov 5: quotes for every heart taken were too busy; only a trick with all four hearts gets one.
       // Nov 6: or two tricks in a row won by the same girl with 2–3 hearts each (4+ over the pair). It can fire

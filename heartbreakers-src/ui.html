@@ -1170,7 +1170,7 @@ function sayNow(p, ev, then, start) {
   if (bubbles[p]) bubbles[p].remove();
   const b = document.createElement('div');
   b.className = 'bubble';
-  b.innerHTML = `<span>${esc(text)}</span>`;
+  b.innerHTML = `<span>${esc(String(text).replace(/\s*\(\d+\)$/, ''))}</span>`;   // "Done! (2)": several takes of the same words; the number tells the clips apart and never shows (Kennedy, Nov 8)
   $('fx').appendChild(b);
   const r = plate.getBoundingClientRect(), bw = b.offsetWidth, bh = b.offsetHeight;
   const cx = r.left + r.width / 2, W = innerWidth, H = innerHeight;

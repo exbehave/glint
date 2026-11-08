@@ -3196,7 +3196,7 @@ function showLeaders(back) {
     if (!mine || !mine.games) return ($('lb-body').innerHTML = `<div class="sub">You haven’t finished a game yet. Finish one and your stats show up here.</div>`);
     const picks = Object.entries(mine.sum.picks || {}).sort((a, b) => b[1] - a[1]);
     $('lb-body').innerHTML = `
-      <div class="lbme">${lbAvatar(mine)}<div><b>${esc(mine.name)}</b><div class="sub">${mine.games} game${mine.games === 1 ? '' : 's'} · plays as ${esc(mine.sum.fav || '—')} most</div></div></div>
+      <div class="lbme">${lbAvatar(mine)}<div><b>${esc(mine.name)}</b><div class="sub">${mine.games} game${mine.games === 1 ? '' : 's'}${mine.sum.fav ? ` · mostly plays as ${esc(mine.sum.fav)}` : ''}</div></div></div>
       <table class="tbl lbt"><thead><tr><th>Stat</th><th>You</th><th>Rank</th></tr></thead><tbody>
       ${HB_BOARDS.map(b => { const r = hbRank(rows, b).find(x => x.row.id === d.me); const n = hbRank(rows, b).length;
         return `<tr><td>${esc(b.label)}</td><td class="big">${hbFmt(b, b.v(mine.sum))}</td><td class="rk">${r ? `${ordinal(r.rank)} of ${n}` : '–'}</td></tr>`; }).join('')}

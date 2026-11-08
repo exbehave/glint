@@ -2923,7 +2923,7 @@ function finishHand(raw, moon, choice) {
     <div><h2>${head}</h2><div class="sub">${over ? `Game to ${S.target}. Lowest score wins.` : `Next round: ${nd === 'hold' ? 'no passing' : 'pass ' + nd}.`}</div></div>
     ${moonLine}${react}
     <table class="tbl"><thead><tr><th>Player</th><th>Round</th><th>Total</th></tr></thead><tbody>${rows}</tbody></table>
-    <div class="btns">${over ? `<button class="ghost" id="b-setup">Change setup</button><button class="cta" id="b-again">Play again</button>` : `<button class="cta" id="b-next">Deal next round</button>`}</div>
+    <div class="btns">${over ? `<button class="ghost" id="b-setup">Main menu</button><button class="cta" id="b-again">Play again</button>` : `<button class="cta" id="b-next">Deal next round</button>`}</div>
   </div>`);
   if (over) { $('b-again').onclick = startGame; $('b-setup').onclick = showSetup; }
   else $('b-next').onclick = () => { closeVeil(); newHand(); };

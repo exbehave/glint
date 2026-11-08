@@ -507,6 +507,23 @@ body { background: var(--ink) url("data:image/webp;base64,UklGRpJ4AABXRUJQVlA4II
   .mechip .rp { font-size: min(2.8vh, 22px); }
 }
 
+
+/* leaderboard (Nov 7, 2026) */
+.lb { max-height: calc(100dvh - 32px); overflow-y: auto; }
+.lb > * { flex-shrink: 0; }
+.lbt td:last-child, .lbt th:last-child { white-space: nowrap; }
+.lbt .rk { font-size: 13px; color: var(--mute); }
+.lbpick { display: flex; flex-direction: column; gap: 10px; }
+.lbpick select { width: 100%; font: inherit; font-size: 16px; color: var(--bone); background: rgba(255,255,255,.06); border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+.lbpick select option, .lbpick select optgroup { color: #111; }
+.lbav { display: inline-block; width: 28px; vertical-align: middle; margin-right: 8px; }
+.lbav .pw { width: 28px; border-radius: 6px; }
+.lbav .pw .ini { font-size: 12px; }
+.lbn { vertical-align: middle; }
+.lbt td { vertical-align: middle; }
+.lbt td.big { font-size: 18px; }
+.lbme { display: flex; align-items: center; gap: 12px; }
+.lbme .lbav, .lbme .lbav .pw { width: 52px; }
 </style>
 
 <div class="app" id="app">
@@ -1132,6 +1149,142 @@ function passPsychic(T, p, hand) {
   return chooseByGoal(T, p, scores);
 }
 // ===== end girls =====
+
+// ===== Player stats + leaderboards (Kennedy, Nov 7, 2026) =====
+// Shared by the game (concatenated by build.py) and the hb-leaders edge function (copied in by make_leaders.py).
+// Every number is worked out from the saved game records (hb_games.data), so nothing extra is stored and old games count.
+// Seat 0 is always the human who played the game. Only finished games count.
+// Cards: 0..51, suit = floor(c / 13) (0 clubs, 1 diamonds, 2 spades, 3 hearts), rank = c % 13 + 2; the Q♠ is 36.
+const HB_QS = 36;
+const hbSuit = c => Math.floor(c / 13);
+function hbWinner(trick) {            // trick: [[seat, card], …] in play order → seat that takes it
+  const led = hbSuit(trick[0][1]);
+  let w = trick[0];
+  for (const x of trick) if (hbSuit(x[1]) === led && x[1] > w[1]) w = x;
+  return w[0];
+}
+const hbPts = c => (hbSuit(c) === 3 ? 1 : c === HB_QS ? 13 : 0);
+
+// One finished game → the human's numbers for it (all counts; rates are worked out when games are added up).
+function hbGameStats(d) {
+  const s = { games: 1, wins: 0, p1: 0, p2: 0, p3: 0, p4: 0, final: 0, best: null, rounds: 0, pts: 0, clean: 0, worst: 0,
+    tricks: 0, hearts: 0, breaks: 0, qsGot: 0, qsGave: 0, qsLed: 0, gambit: 0, qsSelf: 0, qsPassed: 0, qsPassedIn: 0,
+    moons: 0, mooned: 0, trams: 0, playedAs: d.me || null };
+  const tot = d.totals || [];
+  if (tot.length === 4) {
+    s.final = tot[0]; s.best = tot[0];
+    const place = 1 + tot.filter((t, i) => i && t < tot[0]).length;   // ties share the better place
+    s['p' + place] = 1;
+    if (place === 1) s.wins = 1;
+  }
+  for (const h of d.hands || []) {
+    if (!h.fin) continue;                                    // a round that never finished
+    s.rounds++;
+    const raw = h.raw || h.fin;
+    s.pts += raw[0];
+    s.worst = Math.max(s.worst, h.fin[0]);
+    if (h.moon === 0) s.moons++;
+    else if (h.moon > 0) s.mooned++;
+    else if (raw[0] === 0) s.clean++;                        // took no points at all (a moon by someone else doesn't count)
+    if (h.passes && h.passes.length === 4) {
+      if ((h.passes[0] || []).includes(HB_QS)) s.qsPassed++;
+      const from = [3, 1, 2, null][h.dir];                   // who passed to seat 0 (dir 0: seat 3, 1: seat 1, 2: across, 3: no pass)
+      if (from != null && (h.passes[from] || []).includes(HB_QS)) s.qsPassedIn++;
+    }
+    if (h.tram) s.trams++;
+    // replay the tricks
+    const plays = (h.plays || []).map(x => [x[0], x[1]]);
+    const firstHeart = plays.find(x => hbSuit(x[1]) === 3);   // whoever played the round's first heart broke them
+    if (firstHeart && firstHeart[0] === 0) s.breaks++;
+    for (let i = 0; i + 4 <= plays.length; i += 4) {
+      const t = plays.slice(i, i + 4), w = hbWinner(t);
+      for (const [p, c] of t) {
+        if (c === HB_QS) {
+          if (p === 0 && w === 0) s.qsSelf++;
+          if (p === 0 && w !== 0) s.qsGave++;
+          if (p === 0 && t[0][0] === 0) { s.qsLed++; if (w !== 0) s.gambit++; }
+        }
+      }
+      if (w === 0) {
+        s.tricks++;
+        s.hearts += t.filter(x => hbSuit(x[1]) === 3).length;
+        if (t.some(x => x[1] === HB_QS)) s.qsGot++;
+      }
+    }
+    // TRAM: every card still out went to the human
+    if (h.tram) {
+      const left = [...(h.tram.table || []).map(x => x[1]), ...(h.tram.hands || []).flat()];
+      s.hearts += left.filter(c => hbSuit(c) === 3).length;
+      if (left.includes(HB_QS)) s.qsGot++;
+      s.tricks += 13 - (h.tram.trick || 0);
+    }
+  }
+  return s;
+}
+
+// Add up a player's games (and count which girl they played as).
+function hbAddUp(list) {
+  const a = { picks: {} };
+  for (const g of list) {
+    for (const k in g) {
+      if (k === 'playedAs') { if (g[k]) a.picks[g[k]] = (a.picks[g[k]] || 0) + 1; continue; }
+      if (k === 'best') { if (g.best != null) a.best = a.best == null ? g.best : Math.min(a.best, g.best); continue; }
+      if (k === 'worst') { a.worst = Math.max(a.worst || 0, g.worst); continue; }
+      a[k] = (a[k] || 0) + g[k];
+    }
+  }
+  const fav = Object.entries(a.picks).sort((x, y) => y[1] - x[1])[0];
+  a.fav = fav ? fav[0] : null;
+  return a;
+}
+
+// The boards. dir: 'high' = most is first by default, 'low' = least is first. fmt: 'pct' | 'avg' | 'n'.
+const hbPct = (n, d) => (d ? (100 * n) / d : null);
+const hbPer = (n, d) => (d ? n / d : null);
+const HB_BOARDS = [
+  { key: 'winRate', group: 'Results', label: 'Win rate', dir: 'high', fmt: 'pct', v: a => hbPct(a.wins, a.games) },
+  { key: 'wins', group: 'Results', label: 'Wins', dir: 'high', fmt: 'n', v: a => a.wins },
+  { key: 'games', group: 'Results', label: 'Games played', dir: 'high', fmt: 'n', v: a => a.games },
+  { key: 'p2', group: 'Results', label: 'Came in 2nd', dir: 'high', fmt: 'pct', v: a => hbPct(a.p2, a.games) },
+  { key: 'p3', group: 'Results', label: 'Came in 3rd', dir: 'high', fmt: 'pct', v: a => hbPct(a.p3, a.games) },
+  { key: 'p4', group: 'Results', label: 'Came in last', dir: 'high', fmt: 'pct', v: a => hbPct(a.p4, a.games) },
+  { key: 'avgFinal', group: 'Points', label: 'Points per game', dir: 'low', fmt: 'avg', v: a => hbPer(a.final, a.games) },
+  { key: 'avgRound', group: 'Points', label: 'Points per round', dir: 'low', fmt: 'avg', v: a => hbPer(a.pts, a.rounds) },
+  { key: 'best', group: 'Points', label: 'Best game (lowest final score)', dir: 'low', fmt: 'n', v: a => a.best },
+  { key: 'worst', group: 'Points', label: 'Worst round', dir: 'high', fmt: 'n', v: a => a.worst },
+  { key: 'clean', group: 'Points', label: 'Zero-point rounds', dir: 'high', fmt: 'n', v: a => a.clean },
+  { key: 'cleanRate', group: 'Points', label: 'Zero-point rounds (share of rounds)', dir: 'high', fmt: 'pct', v: a => hbPct(a.clean, a.rounds) },
+  { key: 'qsGave', group: 'Queen of Spades', label: 'Gave someone the queen', dir: 'high', fmt: 'n', v: a => a.qsGave },
+  { key: 'qsGot', group: 'Queen of Spades', label: 'Got stuck with the queen', dir: 'high', fmt: 'n', v: a => a.qsGot },
+  { key: 'qsGotRate', group: 'Queen of Spades', label: 'Got stuck with the queen (share of rounds)', dir: 'high', fmt: 'pct', v: a => hbPct(a.qsGot, a.rounds) },
+  { key: 'gambit', group: 'Queen of Spades', label: 'Queen’s Gambits (led her, someone else took her)', dir: 'high', fmt: 'n', v: a => a.gambit },
+  { key: 'qsSelf', group: 'Queen of Spades', label: 'Ate their own queen', dir: 'high', fmt: 'n', v: a => a.qsSelf },
+  { key: 'qsPassed', group: 'Queen of Spades', label: 'Passed the queen away', dir: 'high', fmt: 'n', v: a => a.qsPassed },
+  { key: 'qsPassedIn', group: 'Queen of Spades', label: 'Got passed the queen', dir: 'high', fmt: 'n', v: a => a.qsPassedIn },
+  { key: 'breaks', group: 'Hearts', label: 'Broke hearts', dir: 'high', fmt: 'n', v: a => a.breaks },
+  { key: 'breakRate', group: 'Hearts', label: 'Broke hearts (share of rounds)', dir: 'high', fmt: 'pct', v: a => hbPct(a.breaks, a.rounds) },
+  { key: 'hearts', group: 'Hearts', label: 'Hearts taken per round', dir: 'low', fmt: 'avg', v: a => hbPer(a.hearts, a.rounds) },
+  { key: 'moons', group: 'Big moments', label: 'Shot the moon', dir: 'high', fmt: 'n', v: a => a.moons },
+  { key: 'mooned', group: 'Big moments', label: 'Got mooned', dir: 'high', fmt: 'n', v: a => a.mooned },
+  { key: 'trams', group: 'Big moments', label: 'TRAMs', dir: 'high', fmt: 'n', v: a => a.trams },
+  { key: 'rounds', group: 'Big moments', label: 'Rounds played', dir: 'high', fmt: 'n', v: a => a.rounds },
+];
+function hbFmt(b, v) {
+  if (v == null) return '–';
+  if (b.fmt === 'pct') return Math.round(v) + '%';
+  if (b.fmt === 'avg') return (Math.round(v * 10) / 10).toFixed(1);
+  return String(v);
+}
+// rows: [{ id, name, sum }] → [{ row, v, rank }] sorted; ties share a rank; players with no value go last
+function hbRank(rows, b, dir) {
+  const hi = (dir || b.dir) === 'high';
+  const out = rows.map(r => ({ row: r, v: b.v(r.sum) })).filter(x => x.v != null);
+  out.sort((x, y) => (hi ? y.v - x.v : x.v - y.v));
+  out.forEach((x, i) => { x.rank = i && Math.abs(out[i - 1].v - x.v) < 1e-9 ? out[i - 1].rank : i + 1; });
+  return out;
+}
+if (typeof module !== 'undefined') module.exports = { hbGameStats, hbAddUp, HB_BOARDS, hbRank, hbFmt };
+// ===== end stats =====
 
 // ===== Cast reactions =====
 // Events: qsGive (she dumps the Q♠ on someone), qsGet (she gets stuck with it), breaks (she breaks hearts),
@@ -2855,8 +3008,9 @@ function showSetup() {
     <div class="field"><span class="lab">Table layout</span>${segHTML('layout', LAYOUTS, S.layout)}</div>
     <div class="field"><span class="lab">Sound effects</span>${segHTML('sound', [['on', 'On'], ['off', 'Off']], S.sound ? 'on' : 'off')}</div>
     <div class="foot">Portrait art and online play with friends come next.</div>
-    <div class="btns"><button class="cta" type="submit">Deal</button></div>
+    <div class="btns">${ME ? `<button class="ghost" id="b-lb2" type="button">Leaderboard</button>` : ''}<button class="cta" type="submit">Deal</button></div>
   </form>`);
+  if ($('b-lb2')) $('b-lb2').onclick = () => showLeaders(showSetup);
   $('setup').addEventListener('submit', e => {
     e.preventDefault();
     const f = new FormData(e.target);
@@ -2925,6 +3079,72 @@ function showNewPassword() {
   });
 }
 
+// ---------- Leaderboards + stats (Kennedy, Nov 7, 2026) ----------
+// The numbers come from every finished game in hb_games, added up per player by the hb-leaders edge function
+// (stats.js, shared with the game). Picture = the girl that player picks most (until players get their own avatars).
+// `back` reopens whatever was on screen before (the setup panel, or nothing during a game).
+let LB = { tab: 'boards', key: 'winRate', dir: null, data: null, at: 0 };
+async function loadLeaders(force) {
+  if (!force && LB.data && Date.now() - LB.at < 60000) return LB.data;
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) throw new Error('Sign in to see the leaderboard.');
+  const r = await fetch(SUPA_URL + '/functions/v1/hb-leaders', { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: SUPA_KEY, Authorization: 'Bearer ' + session.access_token }, body: '{}' });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || 'Couldn’t load the leaderboard.');
+  LB.data = j; LB.at = Date.now();
+  return j;
+}
+function lbAvatar(row) { return `<span class="lbav">${portraitHTML(row.sum.fav || '')}</span>`; }
+const ordinal = n => n + (n % 10 === 1 && n % 100 !== 11 ? 'st' : n % 10 === 2 && n % 100 !== 12 ? 'nd' : n % 10 === 3 && n % 100 !== 13 ? 'rd' : 'th');
+function showLeaders(back) {
+  const close = () => (back ? back() : closeVeil());
+  const shell = body => {
+    openVeil(`<div class="panel lb" role="dialog" aria-label="Leaderboard">
+      <h2>Leaderboard</h2>
+      ${segHTML('lbtab', [['boards', 'Boards'], ['mine', 'My stats']], LB.tab)}
+      <div id="lb-body">${body}</div>
+      <div class="foot">Every finished game counts. Games you exit early don’t.</div>
+      <div class="btns"><button class="cta" id="lb-back" type="button">Back</button></div>
+    </div>`);
+    $('lb-back').onclick = close;
+    $('veil').querySelectorAll('input[name="lbtab"]').forEach(r => r.onchange = () => { LB.tab = r.value; draw(); });
+  };
+  const draw = () => {
+    const d = LB.data;
+    if (!d) return;
+    const rows = d.players.filter(p => p.games > 0);
+    if (!rows.length) return ($('lb-body').innerHTML = `<div class="sub">No finished games yet. Finish one and you’re on the board.</div>`);
+    if (LB.tab === 'boards') {
+      const b = HB_BOARDS.find(x => x.key === LB.key) || HB_BOARDS[0];
+      const dir = LB.dir || b.dir;
+      const groups = [...new Set(HB_BOARDS.map(x => x.group))];
+      const ranked = hbRank(rows, b, dir);
+      $('lb-body').innerHTML = `
+        <div class="lbpick"><select id="lb-key" aria-label="Which board">${groups.map(g => `<optgroup label="${esc(g)}">${HB_BOARDS.filter(x => x.group === g).map(x => `<option value="${x.key}" ${x.key === b.key ? 'selected' : ''}>${esc(x.label)}</option>`).join('')}</optgroup>`).join('')}</select>
+        ${segHTML('lbdir', [['high', 'Most'], ['low', 'Least']], dir)}</div>
+        <table class="tbl lbt"><thead><tr><th>Player</th><th>${esc(b.label.replace(/ \(.*\)$/, ''))}</th><th>Games</th></tr></thead><tbody>
+        ${ranked.map(x => `<tr class="${x.row.id === d.me ? 'me' : ''}"><td><span class="pl">${ordinal(x.rank)}</span>${lbAvatar(x.row)}<span class="lbn">${esc(x.row.name)}</span></td><td class="big">${hbFmt(b, x.v)}</td><td>${x.row.games}</td></tr>`).join('')}
+        </tbody></table>`;
+      $('lb-key').onchange = e => { LB.key = e.target.value; LB.dir = null; draw(); };
+      $('veil').querySelectorAll('input[name="lbdir"]').forEach(r => r.onchange = () => { LB.dir = r.value; draw(); });
+      return;
+    }
+    const mine = rows.find(p => p.id === d.me);
+    if (!mine) return ($('lb-body').innerHTML = `<div class="sub">You haven’t finished a game yet. Finish one and your stats show up here.</div>`);
+    const picks = Object.entries(mine.sum.picks || {}).sort((a, b) => b[1] - a[1]);
+    $('lb-body').innerHTML = `
+      <div class="lbme">${lbAvatar(mine)}<div><b>${esc(mine.name)}</b><div class="sub">${mine.games} game${mine.games === 1 ? '' : 's'} · plays as ${esc(mine.sum.fav || '—')} most</div></div></div>
+      <table class="tbl lbt"><thead><tr><th>Stat</th><th>You</th><th>Rank</th></tr></thead><tbody>
+      ${HB_BOARDS.map(b => { const r = hbRank(rows, b).find(x => x.row.id === d.me); const n = hbRank(rows, b).length;
+        return `<tr><td>${esc(b.label)}</td><td class="big">${hbFmt(b, b.v(mine.sum))}</td><td class="rk">${r ? `${ordinal(r.rank)} of ${n}` : '–'}</td></tr>`; }).join('')}
+      </tbody></table>
+      <div class="field"><span class="lab">Who you play as</span>
+      <table class="tbl lbt"><tbody>${picks.map(([g, n]) => `<tr><td>${lbAvatar({ sum: { fav: g } })}<span class="lbn">${esc(g)}</span></td><td>${n} game${n === 1 ? '' : 's'}</td></tr>`).join('')}</tbody></table></div>`;
+  };
+  shell(`<div class="sub">Loading…</div>`);
+  loadLeaders(true).then(() => { if ($('lb-body')) draw(); }).catch(e => { if ($('lb-body')) $('lb-body').innerHTML = `<div class="sub">${esc(e.message)}</div>`; });
+}
+
 function showMenu() {
   openVeil(`<div class="panel" role="dialog" aria-label="Menu">
     <h2>Menu</h2>
@@ -2932,6 +3152,7 @@ function showMenu() {
     <div class="field"><span class="lab">Sound effects</span>${segHTML('msound', [['on', 'On'], ['off', 'Off']], S.sound ? 'on' : 'off')}</div>
     <div class="field"><span class="lab">Haptics</span>${segHTML('mhaptics', [['on', 'On'], ['off', 'Off']], S.haptics ? 'on' : 'off')}</div>
     <div class="foot">Your game saves as you play: refresh or close the page and you’ll come right back to it. Exit game ends it and clears the scores.</div>
+    ${ME ? `<button class="ghost" id="b-lb" type="button">Leaderboard</button>` : ''}
     <div class="btns"><button class="ghost" id="b-new">Exit game</button><button class="cta" id="b-keep">Back to game</button></div>
     ${ME ? `<div class="foot">Signed in as ${esc(acctName(ME))} · <button class="linkish" id="b-out" type="button">Sign out</button></div>` : ''}
   </div>`);
@@ -2939,6 +3160,7 @@ function showMenu() {
   $('veil').querySelectorAll('input[name="msound"]').forEach(r => r.onchange = () => { S.sound = r.value === 'on'; audioSessionMode(); if (S.sound) SFX.unlock(); saveSettings(); renderRail(); });
   $('veil').querySelectorAll('input[name="mhaptics"]').forEach(r => r.onchange = () => { S.haptics = r.value === 'on'; saveSettings(); if (S.haptics) haptic(12); });
   $('b-keep').onclick = closeVeil;
+  if ($('b-lb')) $('b-lb').onclick = () => showLeaders(showMenu);
   $('b-new').onclick = () => { clearSave(); G = null; showSetup(); };
   if ($('b-out')) $('b-out').onclick = async () => { try { await sb.auth.signOut(); } catch (e) {} ME = null; G = null; showSignIn(); };
 }

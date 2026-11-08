@@ -563,8 +563,18 @@ body { background: var(--ink) url("data:image/webp;base64,UklGRpJ4AABXRUJQVlA4II
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
 <script>
-['gesturestart', 'gesturechange'].forEach(t => document.addEventListener(t, e => e.preventDefault(), { passive: false }));
-document.addEventListener('touchmove', e => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+// No zooming in (Kennedy, Nov 8), but always let the page come back to fit: Safari can reopen a page still zoomed in, and
+// blocking every pinch left it stuck too big for the screen. Pinching out is allowed; pinching in is stopped.
+['gesturestart', 'gesturechange'].forEach(t => document.addEventListener(t, e => { if (e.scale > 1) e.preventDefault(); }, { passive: false }));
+// If the page is ever zoomed in anyway (reopened zoomed, rotated), snap it back to fit the screen.
+(() => {
+  const vp = document.querySelector('meta[name=viewport]');
+  const FIT = 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover';
+  const refit = () => { if (!vp || !window.visualViewport || visualViewport.scale <= 1.01) return; vp.setAttribute('content', FIT.replace('initial-scale=1', 'initial-scale=1.0001')); requestAnimationFrame(() => vp.setAttribute('content', FIT)); };
+  ['load', 'pageshow', 'orientationchange', 'resize'].forEach(t => window.addEventListener(t, () => setTimeout(refit, 60)));
+  document.addEventListener('focusout', () => setTimeout(refit, 60));
+  if (window.visualViewport) visualViewport.addEventListener('resize', () => setTimeout(refit, 120));
+})();
 
 // ===== Hearts engine + bots =====
 const QS = 36; // queen of spades (suit 2, rank 12)

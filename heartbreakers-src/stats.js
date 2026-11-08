@@ -82,6 +82,9 @@ function hbGameStats(d, seat) {
 // underdog less; 2nd, 3rd and 4th place don't matter. The winner gains exactly what the losers lose (a tie for
 // first splits it). games: [{ keys: [k0..k3], totals, quit? }] in the order they were played.
 const HB_K = 32, HB_START = 1000;
+// Provisional (Kennedy, Nov 8): fewer than 5 rated games (quits count) = no rating shown yet; they sit at the bottom.
+// Their hidden rating still feeds everyone else's changes.
+const HB_MIN_GAMES = 5;
 function hbRate(games) {
   const R = {};
   const get = k => R[k] || (R[k] = { rating: HB_START, peak: HB_START, last: 0, rated: 0 });
@@ -100,7 +103,7 @@ function hbRate(games) {
       delta[l] -= loss;
       for (const w of win) delta[w] += loss / win.length;
     }
-    g.keys.forEach((k, i) => { const r = get(k); r.rating += delta[i]; r.last = delta[i]; r.rated++; r.peak = Math.max(r.peak, r.rating); });
+    g.keys.forEach((k, i) => { const r = get(k); r.rating += delta[i]; r.last = delta[i]; r.rated++; r.peak = Math.max(r.peak, r.rating); if (g.at) r.lastAt = Math.max(r.lastAt || 0, g.at); });
   }
   for (const k in R) { R[k].rating = Math.round(R[k].rating); R[k].peak = Math.round(R[k].peak); R[k].last = Math.round(R[k].last * 10) / 10; }
   return R;
@@ -173,5 +176,5 @@ function hbRank(rows, b, dir) {
   out.forEach((x, i) => { x.rank = i && Math.abs(out[i - 1].v - x.v) < 1e-9 ? out[i - 1].rank : i + 1; });
   return out;
 }
-if (typeof module !== 'undefined') module.exports = { hbGameStats, hbAddUp, hbRate, HB_BOARDS, hbRank, hbFmt };
+if (typeof module !== 'undefined') module.exports = { hbGameStats, hbAddUp, hbRate, HB_MIN_GAMES, HB_BOARDS, hbRank, hbFmt };
 // ===== end stats =====

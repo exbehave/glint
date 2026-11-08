@@ -538,6 +538,7 @@ body { background: var(--ink) url("data:image/webp;base64,UklGRpJ4AABXRUJQVlA4II
 .lbt td.big { font-size: 18px; }
 .lbme { display: flex; align-items: center; gap: 12px; }
 .lbme .lbav, .lbme .lbav .pw { width: 52px; }
+.lbdiv { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--mute); padding: 10px 8px 2px; border-top: 1px solid var(--line); margin-top: 4px; }
 .lbnem { padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,.05); }
 .lbnem .lab { display: block; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--mute); }
 </style>
@@ -1250,6 +1251,9 @@ function hbGameStats(d, seat) {
 // underdog less; 2nd, 3rd and 4th place don't matter. The winner gains exactly what the losers lose (a tie for
 // first splits it). games: [{ keys: [k0..k3], totals, quit? }] in the order they were played.
 const HB_K = 32, HB_START = 1000;
+// Provisional (Kennedy, Nov 8): fewer than 5 rated games (quits count) = no rating shown yet; they sit at the bottom.
+// Their hidden rating still feeds everyone else's changes.
+const HB_MIN_GAMES = 5;
 function hbRate(games) {
   const R = {};
   const get = k => R[k] || (R[k] = { rating: HB_START, peak: HB_START, last: 0, rated: 0 });
@@ -1268,7 +1272,7 @@ function hbRate(games) {
       delta[l] -= loss;
       for (const w of win) delta[w] += loss / win.length;
     }
-    g.keys.forEach((k, i) => { const r = get(k); r.rating += delta[i]; r.last = delta[i]; r.rated++; r.peak = Math.max(r.peak, r.rating); });
+    g.keys.forEach((k, i) => { const r = get(k); r.rating += delta[i]; r.last = delta[i]; r.rated++; r.peak = Math.max(r.peak, r.rating); if (g.at) r.lastAt = Math.max(r.lastAt || 0, g.at); });
   }
   for (const k in R) { R[k].rating = Math.round(R[k].rating); R[k].peak = Math.round(R[k].peak); R[k].last = Math.round(R[k].last * 10) / 10; }
   return R;
@@ -1341,7 +1345,7 @@ function hbRank(rows, b, dir) {
   out.forEach((x, i) => { x.rank = i && Math.abs(out[i - 1].v - x.v) < 1e-9 ? out[i - 1].rank : i + 1; });
   return out;
 }
-if (typeof module !== 'undefined') module.exports = { hbGameStats, hbAddUp, hbRate, HB_BOARDS, hbRank, hbFmt };
+if (typeof module !== 'undefined') module.exports = { hbGameStats, hbAddUp, hbRate, HB_MIN_GAMES, HB_BOARDS, hbRank, hbFmt };
 // ===== end stats =====
 
 // ===== Cast reactions =====
@@ -2595,7 +2599,23 @@ function resumeGame() {
 // 1st, 2nd, 3rd, 4th by total (lowest is 1st); a tie shares the place (Kennedy, Nov 6)
 const ORD = ['1st', '2nd', '3rd', '4th'];
 const placeHTML = i => `<span class="pl">${ORD[G.totals.filter(t => t < G.totals[i]).length]}</span>`;
-const setupOrResume = () => { if (!resumeGame()) showSetup(); };
+const setupOrResume = () => { if (!resumeGame()) return showSetup(); endIfStale(); };
+// Kennedy, Nov 8: once you start a newer game (say on another device), the old unfinished one is over for good and
+// counts as a loss, so a saved copy of it can't be picked back up and finished.
+async function endIfStale() {
+  if (!sb || !G || !G.rec || !G.rec.started) return;
+  const game = G;
+  try {
+    const { data } = await sb.from('hb_games').select('id').gt('started_at', game.rec.started).neq('id', game.rec.id).limit(1);
+    if (!data || !data.length || G !== game) return;
+    clearSave(); G = null;
+    openVeil(`<div class="panel" role="dialog" aria-label="Game ended">
+      <div><h2>That game’s over</h2><div class="sub">You started a newer game since, so this one ended unfinished${game.rec.practice ? '' : ' and counts as a loss'}.</div></div>
+      <div class="btns"><button class="cta" id="b-stale" type="button">OK</button></div>
+    </div>`);
+    $('b-stale').onclick = showSetup;
+  } catch (e) {}
+}
 
 function startGame() {
   G = { totals: [0, 0, 0, 0], handNo: 0, names: pickCast() };
@@ -3167,7 +3187,7 @@ function showLeaders(back) {
       <h2>Leaderboard</h2>
       ${segHTML('lbtab', [['players', 'Players'], ['girls', 'Girls'], ['mine', 'My stats']], LB.tab)}
       <div id="lb-body">${body}</div>
-      <div class="foot">Ranked by rating: everyone starts at 1000, only the winner gains, and losing to someone rated lower costs more. Every finished game counts; a game left unfinished for 3 hours only counts toward quit rate.</div>
+      <div class="foot">Ranked by rating: everyone starts at 1000, only the winner gains, and losing to someone rated lower costs more. Your rating shows after 5 rated games; until then you’re provisional. Exiting a rated game, or starting a new one without finishing it, counts as a loss.</div>
       <div class="btns"><button class="cta" id="lb-back" type="button">Back</button></div>
     </div>`);
     $('lb-back').onclick = close;
@@ -3185,18 +3205,25 @@ function showLeaders(back) {
       const keys = HB_CHART.filter(k => !(girls && k === 'quitRate'));
       if (!keys.includes(LB.key)) LB.key = 'rating';
       const b = HB_BOARDS.find(x => x.key === LB.key);
-      const order = list.slice().sort((x, y) => (y.sum.rating ?? -1e9) - (x.sum.rating ?? -1e9));
+      // rated players by rating; provisional ones (fewer than 5 games) underneath, most recently played first
+      const order = list.slice().sort((x, y) => {
+        const px = x.sum.rating == null, py = y.sum.rating == null;
+        if (px !== py) return px ? 1 : -1;
+        return px ? (y.sum.lastAt || 0) - (x.sum.lastAt || 0) : y.sum.rating - x.sum.rating;
+      });
       const rk = [];
       order.forEach((x, i) => rk.push(i && order[i - 1].sum.rating === x.sum.rating ? rk[i - 1] : i + 1));
+      const provLine = x => `Provisional · ${Math.min(x.sum.rated || 0, HB_MIN_GAMES)}/${HB_MIN_GAMES} games`;
       const vs = order.map(x => b.v(x.sum)).filter(v => v != null), lo = Math.min(0, ...vs), hi = Math.max(0, ...vs), span = hi - lo || 1;
       $('lb-body').innerHTML = `
         <div class="lbpick"><select id="lb-key" aria-label="What the bars show">${keys.map(k => { const x = HB_BOARDS.find(y => y.key === k); return `<option value="${k}" ${k === b.key ? 'selected' : ''}>${esc(x.label)}</option>`; }).join('')}</select></div>
         <div class="lbchart" role="list">${order.map((x, i) => {
           const v = b.v(x.sum), has = v != null;
+          const div = x.sum.rating == null && (i === 0 || order[i - 1].sum.rating != null) ? `<div class="lbdiv">Provisional · fewer than ${HB_MIN_GAMES} games</div>` : '';
           const a0 = has ? ((Math.min(v, 0) - lo) / span) * 100 : 0, w = has ? (Math.abs(v) / span) * 100 : 0;
-          return `<div class="lbrow${x.id === d.me ? ' me' : ''}" role="listitem">
+          return `${div}<div class="lbrow${x.id === d.me ? ' me' : ''}" role="listitem">
             <span class="pl">${x.sum.rating != null ? ordinal(rk[i]) : '–'}</span>${lbAvatar(x)}
-            <div class="lbmain"><div class="lbtop"><span class="lbn">${esc(x.name)}</span><span class="lbg">${x.sum.rating != null ? x.sum.rating + ' · ' : ''}${x.games} game${x.games === 1 ? '' : 's'}</span><b class="lbv">${hbFmt(b, v)}</b></div>
+            <div class="lbmain"><div class="lbtop"><span class="lbn">${esc(x.name)}</span><span class="lbg">${x.sum.rating != null ? `${x.sum.rating} · ${x.games} game${x.games === 1 ? '' : 's'}` : provLine(x)}</span><b class="lbv">${hbFmt(b, v)}</b></div>
             <div class="lbbar"><i style="left:${a0.toFixed(1)}%;width:${has ? Math.max(w, v ? 1.5 : 0).toFixed(1) : 0}%"></i></div></div></div>`;
         }).join('')}</div>`;
       $('lb-key').onchange = e => { LB.key = e.target.value; draw(); };
@@ -3206,7 +3233,7 @@ function showLeaders(back) {
     const mine = rows.find(p => p.id === d.me);
     if (!mine || !mine.games) return ($('lb-body').innerHTML = `<div class="sub">You haven’t finished a game yet. Finish one and your stats show up here.</div>`);
     $('lb-body').innerHTML = `
-      <div class="lbme">${lbAvatar(mine)}<div><b>${esc(mine.name)}</b><div class="sub">${mine.games} game${mine.games === 1 ? '' : 's'}${mine.sum.fav ? ` · mostly plays as ${esc(mine.sum.fav)}` : ''}</div></div></div>
+      <div class="lbme">${lbAvatar(mine)}<div><b>${esc(mine.name)}</b><div class="sub">${mine.games} game${mine.games === 1 ? '' : 's'}${mine.sum.fav ? ` · mostly plays as ${esc(mine.sum.fav)}` : ''}${mine.sum.provisional ? `<br>Provisional: your rating shows after ${HB_MIN_GAMES} rated games (${Math.min(mine.sum.rated || 0, HB_MIN_GAMES)} so far)` : ''}</div></div></div>
       ${mine.sum.nemesis ? `<div class="lbme lbnem">${lbAvatar({ name: mine.sum.nemesis.name, sum: { fav: mine.sum.nemesis.girl ? mine.sum.nemesis.name : null } })}<div><span class="lab">Nemesis</span><div><b>${esc(mine.sum.nemesis.name)}</b></div><div class="sub">beat you ${mine.sum.nemesis.n} time${mine.sum.nemesis.n === 1 ? '' : 's'}</div></div></div>` : ''}
       <table class="tbl lbt"><thead><tr><th>Stat</th><th>You</th><th>Rank</th></tr></thead><tbody>
       ${HB_MINE.map(k => HB_BOARDS.find(b => b.key === k)).filter(Boolean).map(b => { const r = hbRank(rows, b).find(x => x.row.id === d.me); const n = hbRank(rows, b).length;

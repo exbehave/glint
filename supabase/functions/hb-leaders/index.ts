@@ -5,11 +5,11 @@
 //   → { me, players: [{ id, name, games, sum }], girls: [{ name, games, sum }] }
 //   sum = hbAddUp(...) (counts, picks, fav, best, worst) + unfinished + nemesis {name, girl, n} + rating, peak, last (hbRate over every finished game, oldest first)
 // Practice games (data.practice) are skipped entirely.
-// Unfinished = exited (data.quit, set by Exit game) or started, never finished and untouched for 3 hours: counted as a game played and a loss (Kennedy, Nov 8).
+// Unfinished = exited (data.quit, set by Exit game) or left behind when the player started a newer game: counted as a game played and a loss (Kennedy, Nov 8).
 // stats.js here is GENERATED from heartbreakers-src/stats.js by heartbreakers-src/make_leaders.py.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { hbGameStats, hbAddUp, hbRate } from "./stats.js";
+import { hbGameStats, hbAddUp, hbRate, HB_MIN_GAMES } from "./stats.js";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -42,17 +42,25 @@ Deno.serve(async (req: Request) => {
   }
   const when = (g: { started_at: string; data: Record<string, any> }) => Date.parse(g.data?.started || g.started_at) || 0;
   games.sort((a, b) => when(a) - when(b));
-  // Quits (Kennedy, Nov 8): a game left unfinished and untouched for 3 hours counts as a game played and a loss
-  // (so nobody can dodge a loss by quitting). It feeds the rating like any other game, in the order it was played.
+  // Quits (Kennedy, Nov 8): an unfinished rated game counts as a game played and a loss once it's over for good:
+  // the player tapped Exit game (data.quit), or started a newer game (rated or practice) without finishing it.
+  // Their newest game, if unfinished, is the one in progress and doesn't count yet. Quits feed the rating in order.
+  const newest = new Map<string, number>();
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await admin.from("hb_games").select("user_id, started_at").range(from, from + 999);
+    if (error) return json({ error: error.message }, 500);
+    for (const r of data || []) newest.set(r.user_id, Math.max(newest.get(r.user_id) || 0, Date.parse(r.started_at) || 0));
+    if (!data || data.length < 1000) break;
+  }
   const quit = new Map<string, number>();
   const quits: { user_id: string; started_at: string; data: Record<string, any> }[] = [];
-  const cutoff = new Date(Date.now() - 3 * 3600 * 1000).toISOString();
   for (let from = 0; ; from += 500) {
-    const { data, error } = await admin.from("hb_games").select("user_id, started_at, updated_at, data").eq("finished", false).range(from, from + 499);
+    const { data, error } = await admin.from("hb_games").select("user_id, started_at, data").eq("finished", false).range(from, from + 499);
     if (error) return json({ error: error.message }, 500);
     for (const r of data || []) {
       if (r.data?.practice) continue;
-      if (!r.data?.quit && !(Date.parse(r.updated_at) < Date.parse(cutoff))) continue;   // Exit game marks data.quit (counts at once); otherwise 3 hours untouched
+      const over = r.data?.quit || (Date.parse(r.started_at) || 0) < (newest.get(r.user_id) || 0);
+      if (!over) continue;
       quit.set(r.user_id, (quit.get(r.user_id) || 0) + 1); quits.push(r);
     }
     if (!data || data.length < 500) break;
@@ -91,7 +99,15 @@ Deno.serve(async (req: Request) => {
     for (const w of win) m.set(g.keys[w], (m.get(g.keys[w]) || 0) + 1);
   }
   // deno-lint-ignore no-explicit-any
-  const withRating = (sum: any, key: string) => { const r = R[key]; if (r) Object.assign(sum, { rating: r.rating, peak: r.peak, last: r.last }); return sum; };
+  // Provisional players (fewer than HB_MIN_GAMES rated games) get no rating shown; the board puts them last, newest first.
+  const withRating = (sum: any, key: string) => {
+    const r = R[key];
+    if (!r) return sum;
+    Object.assign(sum, { rated: r.rated, lastAt: r.lastAt || 0 });
+    if (r.rated >= HB_MIN_GAMES) Object.assign(sum, { rating: r.rating, peak: r.peak, last: r.last });
+    else sum.provisional = true;
+    return sum;
+  };
   const { data: list } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
   const nameOf = new Map((list?.users || []).map((u) => [u.id, usernameOf(u)]));
   for (const id of quit.keys()) if (!byUser.has(id)) byUser.set(id, []);

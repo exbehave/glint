@@ -1655,7 +1655,7 @@ const ICON_OFF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" str
 const ICON_MENU = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>';
 
 function renderRail() {
-  $('rail').innerHTML = `<div class="brand"><img src="brand/logo.webp" alt="BGC: Heartbreakers"></div><div class="scores">`
+  $('rail').innerHTML = `<div class="brand"><img src="brand/logo.webp" alt="Heartbreakers"></div><div class="scores">`
     + [0, 1, 2, 3].map(i => `<div class="score${i === 0 ? ' me' : ''}"><div class="who">${esc(i === 0 && S.handle ? S.handle : nameOf(i))}</div><div class="tot">${G.totals[i]}</div></div>`).join('') + `</div>`
     + `<button class="icon-btn${S.sound ? '' : ' off'}" id="b-sound" aria-label="${S.sound ? 'Turn sound effects off' : 'Turn sound effects on'}" aria-pressed="${S.sound}">${S.sound ? ICON_ON : ICON_OFF}</button>`
     + `<button class="icon-btn" id="b-menu" aria-label="Game menu">${ICON_MENU}</button>`;
@@ -1807,7 +1807,7 @@ function segHTML(name, opts, val) {
 function showSetup() {
   const lv = [['easy', 'Easy'], ['medium', 'Medium'], ['hard', 'Hard'], ['genius', 'Genius']];
   openVeil(`<form class="panel" id="setup" aria-label="Game setup">
-    <div><h1><img class="logo" src="brand/logo.webp" alt="BGC: Heartbreakers"></h1><div class="sub">You against three other bad girls. Lowest score wins. Avoid hearts and keep away from the Queen of Spades, unless you take every point and shoot the moon.</div></div>
+    <div><h1><img class="logo" src="brand/logo.webp" alt="Heartbreakers"></h1><div class="sub">You against three other bad girls. Lowest score wins. Avoid hearts and keep away from the Queen of Spades, unless you take every point and shoot the moon.</div></div>
     <div class="field"><label class="lab" for="handle">Your name</label><input class="handle-in" id="handle" name="handle" maxlength="16" autocomplete="nickname" autocapitalize="words" spellcheck="false" placeholder="Name or handle" value="${esc(S.handle)}"></div>
     <div class="field"><span class="lab">Play as</span><div class="girls">${playable().map(n => `<label class="girl"><input type="radio" id="me-${n.replace(/\W/g, '')}" name="me" value="${esc(n)}" ${n === S.me ? 'checked' : ''}>${portraitHTML(n)}<span>${esc(n)}</span>${SEASON[n] ? `<span class="sn">Season ${SEASON[n]}</span>` : ''}</label>`).join('')}</div></div>
     <div class="field"><span class="lab">Computer players</span>
@@ -1852,7 +1852,7 @@ async function bootGate() {
 }
 function showSignIn(note) {
   openVeil(`<form class="panel" id="signin" aria-label="Sign in">
-    <div><h1><img class="logo" src="brand/logo.webp" alt="BGC: Heartbreakers"></h1><div class="sub">Sign in with the username and password you were given.</div></div>
+    <div><h1><img class="logo" src="brand/logo.webp" alt="Heartbreakers"></h1><div class="sub">Sign in with the username and password you were given.</div></div>
     <div class="field"><label class="lab" for="si-u">Username</label><input class="handle-in" id="si-u" autocomplete="username" autocapitalize="none" spellcheck="false" required></div>
     <div class="field"><label class="lab" for="si-p">Password</label><input class="handle-in" id="si-p" type="password" autocomplete="current-password" required></div>
     <div class="foot" id="si-msg" role="status">${esc(note || '')}</div>

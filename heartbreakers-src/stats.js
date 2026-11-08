@@ -13,15 +13,17 @@ function hbWinner(trick) {            // trick: [[seat, card], …] in play orde
 }
 const hbPts = c => (hbSuit(c) === 3 ? 1 : c === HB_QS ? 13 : 0);
 
-// One finished game → the human's numbers for it (all counts; rates are worked out when games are added up).
-function hbGameStats(d) {
+// One finished game → one seat's numbers for it (all counts; rates are worked out when games are added up).
+// Seat 0 is the human; seats 1–3 are the girls (d.names[seat]).
+function hbGameStats(d, seat) {
+  const me = seat || 0;
   const s = { games: 1, wins: 0, p1: 0, p2: 0, p3: 0, p4: 0, final: 0, best: null, rounds: 0, pts: 0, clean: 0, worst: 0,
     tricks: 0, hearts: 0, breaks: 0, qsGot: 0, qsGave: 0, qsLed: 0, gambit: 0, qsSelf: 0, qsPassed: 0, qsPassedIn: 0,
-    moons: 0, mooned: 0, trams: 0, playedAs: d.me || null };
+    moons: 0, mooned: 0, trams: 0, playedAs: me ? ((d.names || [])[me] || null) : (d.me || null) };
   const tot = d.totals || [];
   if (tot.length === 4) {
-    s.final = tot[0]; s.best = tot[0];
-    const place = 1 + tot.filter((t, i) => i && t < tot[0]).length;   // ties share the better place
+    s.final = tot[me]; s.best = tot[me];
+    const place = 1 + tot.filter((t, i) => i !== me && t < tot[me]).length;   // ties share the better place
     s['p' + place] = 1;
     if (place === 1) s.wins = 1;
   }
@@ -29,38 +31,37 @@ function hbGameStats(d) {
     if (!h.fin) continue;                                    // a round that never finished
     s.rounds++;
     const raw = h.raw || h.fin;
-    s.pts += raw[0];
-    s.worst = Math.max(s.worst, h.fin[0]);
-    if (h.moon === 0) s.moons++;
-    else if (h.moon > 0) s.mooned++;
-    else if (raw[0] === 0) s.clean++;                        // took no points at all (a moon by someone else doesn't count)
-    if (h.passes && h.passes.length === 4) {
-      if ((h.passes[0] || []).includes(HB_QS)) s.qsPassed++;
-      const from = [3, 1, 2, null][h.dir];                   // who passed to seat 0 (dir 0: seat 3, 1: seat 1, 2: across, 3: no pass)
-      if (from != null && (h.passes[from] || []).includes(HB_QS)) s.qsPassedIn++;
+    s.pts += raw[me];
+    s.worst = Math.max(s.worst, h.fin[me]);
+    if (h.moon === me) s.moons++;
+    else if (typeof h.moon === 'number' && h.moon >= 0) s.mooned++;
+    else if (raw[me] === 0) s.clean++;                       // took no points at all (a moon by someone else doesn't count)
+    if (h.passes && h.passes.length === 4 && h.dir !== 3) {
+      if ((h.passes[me] || []).includes(HB_QS)) s.qsPassed++;
+      const off = [1, 3, 2][h.dir], from = (me - off + 4) % 4;   // who passed to this seat
+      if ((h.passes[from] || []).includes(HB_QS)) s.qsPassedIn++;
     }
-    if (h.tram) s.trams++;
+    if (h.tram && me === 0) s.trams++;
     // replay the tricks
     const plays = (h.plays || []).map(x => [x[0], x[1]]);
     const firstHeart = plays.find(x => hbSuit(x[1]) === 3);   // whoever played the round's first heart broke them
-    if (firstHeart && firstHeart[0] === 0) s.breaks++;
+    if (firstHeart && firstHeart[0] === me) s.breaks++;
     for (let i = 0; i + 4 <= plays.length; i += 4) {
       const t = plays.slice(i, i + 4), w = hbWinner(t);
       for (const [p, c] of t) {
-        if (c === HB_QS) {
-          if (p === 0 && w === 0) s.qsSelf++;
-          if (p === 0 && w !== 0) s.qsGave++;
-          if (p === 0 && t[0][0] === 0) { s.qsLed++; if (w !== 0) s.gambit++; }
+        if (c === HB_QS && p === me) {
+          if (w === me) s.qsSelf++; else s.qsGave++;
+          if (t[0][0] === me) { s.qsLed++; if (w !== me) s.gambit++; }
         }
       }
-      if (w === 0) {
+      if (w === me) {
         s.tricks++;
         s.hearts += t.filter(x => hbSuit(x[1]) === 3).length;
         if (t.some(x => x[1] === HB_QS)) s.qsGot++;
       }
     }
     // TRAM: every card still out went to the human
-    if (h.tram) {
+    if (h.tram && me === 0) {
       const left = [...(h.tram.table || []).map(x => x[1]), ...(h.tram.hands || []).flat()];
       s.hearts += left.filter(c => hbSuit(c) === 3).length;
       if (left.includes(HB_QS)) s.qsGot++;
@@ -68,6 +69,35 @@ function hbGameStats(d) {
     }
   }
   return s;
+}
+
+// Rating (Kennedy, Nov 8, 2026): Elo-style, only the winner gains. Everyone starts at 1000.
+// Each loser loses K × (her expected score against the winner), so a favorite who loses gives up more and an
+// underdog less; 2nd, 3rd and 4th place don't matter. The winner gains exactly what the losers lose (a tie for
+// first splits it). games: [{ keys: [k0..k3], totals, quit? }] in the order they were played.
+const HB_K = 32, HB_START = 1000;
+function hbRate(games) {
+  const R = {};
+  const get = k => R[k] || (R[k] = { rating: HB_START, peak: HB_START, last: 0, rated: 0 });
+  for (const g of games) {
+    const tot = g.totals || [];
+    if (tot.length !== 4 || !g.keys) continue;
+    let lo = Math.min(...tot), win = [0, 1, 2, 3].filter(i => tot[i] === lo), lose = [0, 1, 2, 3].filter(i => tot[i] !== lo);
+    // Kennedy, Nov 8: quitting is a loss. Only the human (seat 0) loses; the girl(s) lowest at the moment of quitting
+    // win (all three share it if no round had finished). The other girls are unchanged.
+    if (g.quit) { lo = Math.min(tot[1], tot[2], tot[3]); win = [1, 2, 3].filter(i => tot[i] === lo); lose = [0]; }
+    if (!lose.length) continue;
+    const before = g.keys.map(k => get(k).rating), delta = [0, 0, 0, 0];
+    for (const l of lose) {
+      let loss = 0;
+      for (const w of win) loss += HB_K * (1 / (1 + Math.pow(10, (before[w] - before[l]) / 400))) / win.length;
+      delta[l] -= loss;
+      for (const w of win) delta[w] += loss / win.length;
+    }
+    g.keys.forEach((k, i) => { const r = get(k); r.rating += delta[i]; r.last = delta[i]; r.rated++; r.peak = Math.max(r.peak, r.rating); });
+  }
+  for (const k in R) { R[k].rating = Math.round(R[k].rating); R[k].peak = Math.round(R[k].peak); R[k].last = Math.round(R[k].last * 10) / 10; }
+  return R;
 }
 
 // Add up a player's games (and count which girl they played as).
@@ -90,15 +120,18 @@ function hbAddUp(list) {
 const hbPct = (n, d) => (d ? (100 * n) / d : null);
 const hbPer = (n, d) => (d ? n / d : null);
 const HB_BOARDS = [
+  { key: 'rating', group: 'Rating', label: 'Rating', dir: 'high', fmt: 'n', v: a => a.rating },
+  { key: 'peak', group: 'Rating', label: 'Peak rating', dir: 'high', fmt: 'n', v: a => a.peak },
+  { key: 'last', group: 'Rating', label: 'Rating change, last game', dir: 'high', fmt: 'n', v: a => a.last },
   { key: 'winRate', group: 'Results', label: 'Win rate', dir: 'high', fmt: 'pct', v: a => hbPct(a.wins, a.games) },
   { key: 'wins', group: 'Results', label: 'Wins', dir: 'high', fmt: 'n', v: a => a.wins },
   { key: 'games', group: 'Results', label: 'Games played', dir: 'high', fmt: 'n', v: a => a.games },
   { key: 'unfinished', group: 'Results', label: 'Games left unfinished', dir: 'high', fmt: 'n', v: a => a.unfinished || 0 },
-  { key: 'quitRate', group: 'Results', label: 'Quit rate (games left unfinished)', dir: 'high', fmt: 'pct', v: a => hbPct(a.unfinished || 0, (a.games || 0) + (a.unfinished || 0)) },
-  { key: 'p2', group: 'Results', label: 'Came in 2nd', dir: 'high', fmt: 'pct', v: a => hbPct(a.p2, a.games) },
-  { key: 'p3', group: 'Results', label: 'Came in 3rd', dir: 'high', fmt: 'pct', v: a => hbPct(a.p3, a.games) },
-  { key: 'p4', group: 'Results', label: 'Came in last', dir: 'high', fmt: 'pct', v: a => hbPct(a.p4, a.games) },
-  { key: 'avgFinal', group: 'Points', label: 'Points per game', dir: 'low', fmt: 'avg', v: a => hbPer(a.final, a.games) },
+  { key: 'quitRate', group: 'Results', label: 'Quit rate (games left unfinished)', dir: 'high', fmt: 'pct', v: a => hbPct(a.unfinished || 0, a.games || 0) },
+  { key: 'p2', group: 'Results', label: 'Came in 2nd', dir: 'high', fmt: 'pct', v: a => hbPct(a.p2, a.finished ?? a.games) },
+  { key: 'p3', group: 'Results', label: 'Came in 3rd', dir: 'high', fmt: 'pct', v: a => hbPct(a.p3, a.finished ?? a.games) },
+  { key: 'p4', group: 'Results', label: 'Came in last', dir: 'high', fmt: 'pct', v: a => hbPct(a.p4, a.finished ?? a.games) },
+  { key: 'avgFinal', group: 'Points', label: 'Points per game', dir: 'low', fmt: 'avg', v: a => hbPer(a.final, a.finished ?? a.games) },
   { key: 'avgRound', group: 'Points', label: 'Points per round', dir: 'low', fmt: 'avg', v: a => hbPer(a.pts, a.rounds) },
   { key: 'best', group: 'Points', label: 'Best game (lowest final score)', dir: 'low', fmt: 'n', v: a => a.best },
   { key: 'worst', group: 'Points', label: 'Worst round', dir: 'high', fmt: 'n', v: a => a.worst },
@@ -133,5 +166,5 @@ function hbRank(rows, b, dir) {
   out.forEach((x, i) => { x.rank = i && Math.abs(out[i - 1].v - x.v) < 1e-9 ? out[i - 1].rank : i + 1; });
   return out;
 }
-if (typeof module !== 'undefined') module.exports = { hbGameStats, hbAddUp, HB_BOARDS, hbRank, hbFmt };
+if (typeof module !== 'undefined') module.exports = { hbGameStats, hbAddUp, hbRate, HB_BOARDS, hbRank, hbFmt };
 // ===== end stats =====

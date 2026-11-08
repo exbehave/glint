@@ -583,7 +583,7 @@ const initials = n => n.split(/\s+/).map(w => w[0]).join('').slice(0, 2);
 const PORTRAITS = { bgc: {} };
 
 const LAYOUTS = [['classic', 'Classic'], ['stage', 'Stage'], ['tworow', 'Big hand'], ['fan', 'Fan']];
-const S = { deck: 'bgc', levels: [null, 'medium', 'hard', 'medium'], target: 100, sound: true, haptics: true, layout: 'classic', me: 'Natalie', handle: '' };
+const S = { deck: 'bgc', levels: [null, 'medium', 'hard', 'medium'], target: 100, sound: true, haptics: true, layout: 'classic', me: 'Natalie', handle: '', practice: false };
 try { const saved = JSON.parse(localStorage.getItem('hearts-settings') || 'null'); if (saved) Object.assign(S, saved); } catch (e) {}
 S.deck = 'bgc';
 if (!playable().includes(S.me)) S.me = playable()[0];
@@ -1233,7 +1233,7 @@ function cardHTML(c, cls = '', attrs = '') {
 const REC_V = 2; // v2 (Nov 7): plays carry a 4th item, why the computer chose it; saved after every trick
 function recStart() {
   const id = (crypto.randomUUID && crypto.randomUUID()) || String(Date.now()) + Math.random().toString(16).slice(2);
-  G.rec = { id, v: REC_V, started: new Date().toISOString(), names: G.names.slice(), me: S.me, handle: S.handle || '', target: S.target, deck: S.deck, hands: [] };
+  G.rec = { id, v: REC_V, started: new Date().toISOString(), names: G.names.slice(), me: S.me, handle: S.handle || '', target: S.target, deck: S.deck, practice: !!S.practice, hands: [] };
 }
 const recHand = () => (G && G.rec && G.rec.hands[G.rec.hands.length - 1]) || null;
 let recSaving = Promise.resolve();
@@ -1776,6 +1776,7 @@ function showSetup() {
     <div class="field"><span class="lab">Computer players</span>
       <div class="sub">Every girl plays her own way: Amy is Easy, the Victor Twins are Medium, Judi is Hard, and Natalie and Dalila are Genius.</div>
     </div>
+    ${ME ? `<div class="field"><span class="lab">Game</span>${segHTML('mode', [['rated', 'Rated'], ['practice', 'Practice']], S.practice ? 'practice' : 'rated')}<div class="sub">Practice games don’t count toward your rating or stats.</div></div>` : ''}
     <div class="field"><span class="lab">Play to</span>${segHTML('target', [[50, '50 points'], [100, '100 points']], S.target)}</div>
     <div class="field"><span class="lab">Table layout</span>${segHTML('layout', LAYOUTS, S.layout)}</div>
     <div class="field"><span class="lab">Sound effects</span>${segHTML('sound', [['on', 'On'], ['off', 'Off']], S.sound ? 'on' : 'off')}</div>
@@ -1787,6 +1788,7 @@ function showSetup() {
     e.preventDefault();
     const f = new FormData(e.target);
     S.target = +f.get('target');
+    if (f.get('mode')) S.practice = f.get('mode') === 'practice';
     S.me = f.get('me') || S.me;
     S.handle = String(f.get('handle') || '').trim().slice(0, 16);
     S.sound = f.get('sound') === 'on';
@@ -1855,7 +1857,9 @@ function showNewPassword() {
 // The numbers come from every finished game in hb_games, added up per player by the hb-leaders edge function
 // (stats.js, shared with the game). Picture = the girl that player picks most (until players get their own avatars).
 // `back` reopens whatever was on screen before (the setup panel, or nothing during a game).
-let LB = { tab: 'boards', key: 'winRate', dir: null, data: null, at: 0 };
+let LB = { tab: 'players', key: 'rating', data: null, at: 0 };
+// the stats Kennedy picked for the chart (Nov 8, 2026)
+const HB_CHART = ['rating', 'peak', 'winRate', 'quitRate', 'clean', 'gambit', 'moons'];
 async function loadLeaders(force) {
   if (!force && LB.data && Date.now() - LB.at < 60000) return LB.data;
   const { data: { session } } = await sb.auth.getSession();
@@ -1873,9 +1877,9 @@ function showLeaders(back) {
   const shell = body => {
     openVeil(`<div class="panel lb" role="dialog" aria-label="Leaderboard">
       <h2>Leaderboard</h2>
-      ${segHTML('lbtab', [['boards', 'Boards'], ['mine', 'My stats']], LB.tab)}
+      ${segHTML('lbtab', [['players', 'Players'], ['girls', 'Girls'], ['mine', 'My stats']], LB.tab)}
       <div id="lb-body">${body}</div>
-      <div class="foot">Every finished game counts. A game left unfinished for 3 hours counts only on the unfinished boards.</div>
+      <div class="foot">Ranked by rating: everyone starts at 1000, only the winner gains, and losing to someone rated lower costs more. Every finished game counts; a game left unfinished for 3 hours only counts toward quit rate.</div>
       <div class="btns"><button class="cta" id="lb-back" type="button">Back</button></div>
     </div>`);
     $('lb-back').onclick = close;
@@ -1885,29 +1889,32 @@ function showLeaders(back) {
     const d = LB.data;
     if (!d) return;
     const rows = d.players.filter(p => p.games > 0 || p.sum.unfinished > 0);
-    if (!rows.length) return ($('lb-body').innerHTML = `<div class="sub">No finished games yet. Finish one and you’re on the board.</div>`);
-    if (LB.tab === 'boards') {
-      const b = HB_BOARDS.find(x => x.key === LB.key) || HB_BOARDS[0];
-      const dir = LB.dir || b.dir;
-      const groups = [...new Set(HB_BOARDS.map(x => x.group))];
-      const ranked = hbRank(rows, b, dir);
+    if (LB.tab === 'players' || LB.tab === 'girls') {
+      // Kennedy, Nov 8: one chart per tab, rows always in rating order (highest first); pick which stat the bars show.
+      const girls = LB.tab === 'girls';
+      const list = (girls ? (d.girls || []).map(g => ({ ...g, id: 'g:' + g.name, sum: { ...g.sum, fav: g.name } })) : rows);
+      if (!list.length) return ($('lb-body').innerHTML = `<div class="sub">No finished games yet. Finish one and you’re on the board.</div>`);
+      const keys = HB_CHART.filter(k => !(girls && k === 'quitRate'));
+      if (!keys.includes(LB.key)) LB.key = 'rating';
+      const b = HB_BOARDS.find(x => x.key === LB.key);
+      const order = list.slice().sort((x, y) => (y.sum.rating ?? -1e9) - (x.sum.rating ?? -1e9));
+      const rk = [];
+      order.forEach((x, i) => rk.push(i && order[i - 1].sum.rating === x.sum.rating ? rk[i - 1] : i + 1));
+      const vs = order.map(x => b.v(x.sum)).filter(v => v != null), lo = Math.min(0, ...vs), hi = Math.max(0, ...vs), span = hi - lo || 1;
       $('lb-body').innerHTML = `
-        <div class="lbpick"><select id="lb-key" aria-label="Which board">${groups.map(g => `<optgroup label="${esc(g)}">${HB_BOARDS.filter(x => x.group === g).map(x => `<option value="${x.key}" ${x.key === b.key ? 'selected' : ''}>${esc(x.label)}</option>`).join('')}</optgroup>`).join('')}</select>
-        ${segHTML('lbdir', [['high', 'Most'], ['low', 'Least']], dir)}</div>
-        <div class="lbchart" role="list">${(() => {
-          const vs = ranked.map(x => x.v), lo = Math.min(0, ...vs), hi = Math.max(0, ...vs), span = hi - lo || 1;
-          return ranked.map(x => {
-            const a = ((Math.min(x.v, 0) - lo) / span) * 100, w = (Math.abs(x.v) / span) * 100;
-            return `<div class="lbrow${x.row.id === d.me ? ' me' : ''}" role="listitem">
-              <span class="pl">${ordinal(x.rank)}</span>${lbAvatar(x.row)}
-              <div class="lbmain"><div class="lbtop"><span class="lbn">${esc(x.row.name)}</span><span class="lbg">${x.row.games} game${x.row.games === 1 ? '' : 's'}</span><b class="lbv">${hbFmt(b, x.v)}</b></div>
-              <div class="lbbar"><i style="left:${a.toFixed(1)}%;width:${Math.max(w, x.v ? 1.5 : 0).toFixed(1)}%"></i></div></div></div>`;
-          }).join('');
-        })()}</div>`;
-      $('lb-key').onchange = e => { LB.key = e.target.value; LB.dir = null; draw(); };
-      $('veil').querySelectorAll('input[name="lbdir"]').forEach(r => r.onchange = () => { LB.dir = r.value; draw(); });
+        <div class="lbpick"><select id="lb-key" aria-label="What the bars show">${keys.map(k => { const x = HB_BOARDS.find(y => y.key === k); return `<option value="${k}" ${k === b.key ? 'selected' : ''}>${esc(x.label)}</option>`; }).join('')}</select></div>
+        <div class="lbchart" role="list">${order.map((x, i) => {
+          const v = b.v(x.sum), has = v != null;
+          const a0 = has ? ((Math.min(v, 0) - lo) / span) * 100 : 0, w = has ? (Math.abs(v) / span) * 100 : 0;
+          return `<div class="lbrow${x.id === d.me ? ' me' : ''}" role="listitem">
+            <span class="pl">${x.sum.rating != null ? ordinal(rk[i]) : '–'}</span>${lbAvatar(x)}
+            <div class="lbmain"><div class="lbtop"><span class="lbn">${esc(x.name)}</span><span class="lbg">${x.sum.rating != null ? x.sum.rating + ' · ' : ''}${x.games} game${x.games === 1 ? '' : 's'}</span><b class="lbv">${hbFmt(b, v)}</b></div>
+            <div class="lbbar"><i style="left:${a0.toFixed(1)}%;width:${has ? Math.max(w, v ? 1.5 : 0).toFixed(1) : 0}%"></i></div></div></div>`;
+        }).join('')}</div>`;
+      $('lb-key').onchange = e => { LB.key = e.target.value; draw(); };
       return;
     }
+    if (!rows.length) return ($('lb-body').innerHTML = `<div class="sub">No finished games yet. Finish one and you’re on the board.</div>`);
     const mine = rows.find(p => p.id === d.me);
     if (!mine || !mine.games) return ($('lb-body').innerHTML = `<div class="sub">You haven’t finished a game yet. Finish one and your stats show up here.</div>`);
     const picks = Object.entries(mine.sum.picks || {}).sort((a, b) => b[1] - a[1]);
@@ -1930,7 +1937,7 @@ function showMenu() {
     <div class="field"><span class="lab">Table layout</span>${segHTML('mlayout', LAYOUTS, S.layout)}</div>
     <div class="field"><span class="lab">Sound effects</span>${segHTML('msound', [['on', 'On'], ['off', 'Off']], S.sound ? 'on' : 'off')}</div>
     <div class="field"><span class="lab">Haptics</span>${segHTML('mhaptics', [['on', 'On'], ['off', 'Off']], S.haptics ? 'on' : 'off')}</div>
-    <div class="foot">Your game saves as you play: refresh or close the page and you’ll come right back to it. Exit game ends it and clears the scores.</div>
+    <div class="foot">Your game saves as you play: refresh or close the page and you’ll come right back to it. Exit game ends it${G && G.rec && G.rec.practice ? '' : '. Leaving a rated game counts as a loss'}.</div>
     ${ME ? `<button class="ghost" id="b-lb" type="button">Leaderboard</button>` : ''}
     <div class="btns"><button class="ghost" id="b-new">Exit game</button><button class="cta" id="b-keep">Back to game</button></div>
     ${ME ? `<div class="foot">Signed in as ${esc(acctName(ME))} · <button class="linkish" id="b-out" type="button">Sign out</button></div>` : ''}
@@ -1940,7 +1947,17 @@ function showMenu() {
   $('veil').querySelectorAll('input[name="mhaptics"]').forEach(r => r.onchange = () => { S.haptics = r.value === 'on'; saveSettings(); if (S.haptics) haptic(12); });
   $('b-keep').onclick = closeVeil;
   if ($('b-lb')) $('b-lb').onclick = () => showLeaders(showMenu);
-  $('b-new').onclick = () => { clearSave(); G = null; showSetup(); };
+  // Kennedy, Nov 8: leaving a rated game counts as a loss, so warn first (practice games just end)
+  $('b-new').onclick = () => {
+    const rated = ME && G && G.rec && !G.rec.practice && G.phase !== 'over';
+    if (!rated) { clearSave(); G = null; showSetup(); return; }
+    openVeil(`<div class="panel" role="dialog" aria-label="Exit game">
+      <div><h2>Exit this game?</h2><div class="sub">A rated game you leave counts as a loss: it lowers your rating and your win rate, and raises your quit rate.</div></div>
+      <div class="btns"><button class="ghost" id="b-exit-yes" type="button">Exit and take the loss</button><button class="cta" id="b-exit-no" type="button">Keep playing</button></div>
+    </div>`);
+    $('b-exit-no').onclick = closeVeil;
+    $('b-exit-yes').onclick = () => { if (G && G.rec) { G.rec.quit = new Date().toISOString(); recSave(); } clearSave(); G = null; showSetup(); };   // counts as a loss right away
+  };
   if ($('b-out')) $('b-out').onclick = async () => { try { await sb.auth.signOut(); } catch (e) {} ME = null; G = null; showSignIn(); };
 }
 

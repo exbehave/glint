@@ -2,18 +2,21 @@
 // Any signed-in player may call it. It reads every FINISHED game in hb_games (with the service role, since each
 // player can only read their own rows), works out each player's numbers with stats.js (the same code the game uses),
 // and returns only the added-up numbers per player, never anyone's cards.
-//   → { me, players: [{ id, name, games, sum }] }   sum = hbAddUp(...) (counts, picks, fav, best, worst) + unfinished
-// Unfinished = started, never finished, untouched for 3 hours.
+//   → { me, players: [{ id, name, games, sum }], girls: [{ name, games, sum }] }
+//   sum = hbAddUp(...) (counts, picks, fav, best, worst) + unfinished + rating, peak, last (hbRate over every finished game, oldest first)
+// Practice games (data.practice) are skipped entirely.
+// Unfinished = exited (data.quit, set by Exit game) or started, never finished and untouched for 3 hours: counted as a game played and a loss (Kennedy, Nov 8).
 // stats.js here is GENERATED from heartbreakers-src/stats.js by heartbreakers-src/make_leaders.py.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { hbGameStats, hbAddUp } from "./stats.js";
+import { hbGameStats, hbAddUp, hbRate } from "./stats.js";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, content-type, apikey, x-client-info",
   "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
 };
+// deno-lint-ignore-file no-explicit-any
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json" } });
 const usernameOf = (user: { email?: string; user_metadata?: Record<string, unknown> }) =>
@@ -30,26 +33,52 @@ Deno.serve(async (req: Request) => {
   if (meErr || !me?.user) return json({ error: "Sign in first." }, 401);
 
   // every finished game, a page at a time
-  const games: { user_id: string; data: Record<string, unknown> }[] = [];
+  const games: { user_id: string; started_at: string; data: Record<string, any> }[] = [];
   for (let from = 0; ; from += 500) {
-    const { data, error } = await admin.from("hb_games").select("user_id, data").eq("finished", true).range(from, from + 499);
+    const { data, error } = await admin.from("hb_games").select("user_id, started_at, data").eq("finished", true).range(from, from + 499);
     if (error) return json({ error: error.message }, 500);
-    games.push(...(data || []));
+    games.push(...(data || []).filter((g) => !g.data?.practice));   // practice games don't count
     if (!data || data.length < 500) break;
   }
-  // games left unfinished: started but not finished, and untouched for 3 hours (so a game in progress doesn't count)
+  const when = (g: { started_at: string; data: Record<string, any> }) => Date.parse(g.data?.started || g.started_at) || 0;
+  games.sort((a, b) => when(a) - when(b));
+  // Quits (Kennedy, Nov 8): a game left unfinished and untouched for 3 hours counts as a game played and a loss
+  // (so nobody can dodge a loss by quitting). It feeds the rating like any other game, in the order it was played.
   const quit = new Map<string, number>();
+  const quits: { user_id: string; started_at: string; data: Record<string, any> }[] = [];
   const cutoff = new Date(Date.now() - 3 * 3600 * 1000).toISOString();
-  for (let from = 0; ; from += 1000) {
-    const { data, error } = await admin.from("hb_games").select("user_id").eq("finished", false).lt("updated_at", cutoff).range(from, from + 999);
+  for (let from = 0; ; from += 500) {
+    const { data, error } = await admin.from("hb_games").select("user_id, started_at, updated_at, data").eq("finished", false).range(from, from + 499);
     if (error) return json({ error: error.message }, 500);
-    for (const r of data || []) quit.set(r.user_id, (quit.get(r.user_id) || 0) + 1);
-    if (!data || data.length < 1000) break;
+    for (const r of data || []) {
+      if (r.data?.practice) continue;
+      if (!r.data?.quit && !(Date.parse(r.updated_at) < Date.parse(cutoff))) continue;   // Exit game marks data.quit (counts at once); otherwise 3 hours untouched
+      quit.set(r.user_id, (quit.get(r.user_id) || 0) + 1); quits.push(r);
+    }
+    if (!data || data.length < 500) break;
   }
-  const byUser = new Map<string, unknown[]>();
+  const byUser = new Map<string, unknown[]>(), byGirl = new Map<string, unknown[]>();
+  const add = (m: Map<string, unknown[]>, k: string, v: unknown) => (m.get(k) || m.set(k, []).get(k)!).push(v);
+  const rated: { at: number; keys: string[]; totals: number[]; quit?: boolean }[] = [];
   for (const g of games) {
-    try { (byUser.get(g.user_id) || byUser.set(g.user_id, []).get(g.user_id)!).push(hbGameStats(g.data)); } catch { /* skip a broken record */ }
+    try {
+      const names = (g.data?.names || []) as string[];
+      add(byUser, g.user_id, hbGameStats(g.data, 0));
+      for (let s = 1; s < 4; s++) if (names[s]) add(byGirl, names[s], hbGameStats(g.data, s));
+      rated.push({ at: when(g), keys: ["u:" + g.user_id, "g:" + names[1], "g:" + names[2], "g:" + names[3]], totals: g.data?.totals || [] });
+    } catch { /* skip a broken record */ }
   }
+  for (const g of quits) {
+    const names = (g.data?.names || []) as string[];
+    if (names.length < 4) continue;
+    const hands = (g.data?.hands || []) as Record<string, any>[];
+    const lastTot = [...hands].reverse().find((h) => Array.isArray(h.totals))?.totals;
+    rated.push({ at: when(g), keys: ["u:" + g.user_id, "g:" + names[1], "g:" + names[2], "g:" + names[3]], totals: g.data?.totals || lastTot || [0, 0, 0, 0], quit: true });
+  }
+  rated.sort((a, b) => a.at - b.at);
+  const R = hbRate(rated);
+  // deno-lint-ignore no-explicit-any
+  const withRating = (sum: any, key: string) => { const r = R[key]; if (r) Object.assign(sum, { rating: r.rating, peak: r.peak, last: r.last }); return sum; };
   const { data: list } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
   const nameOf = new Map((list?.users || []).map((u) => [u.id, usernameOf(u)]));
   for (const id of quit.keys()) if (!byUser.has(id)) byUser.set(id, []);
@@ -57,7 +86,10 @@ Deno.serve(async (req: Request) => {
     // deno-lint-ignore no-explicit-any
     const sum: any = gs.length ? hbAddUp(gs) : { picks: {}, fav: null, games: 0 };
     sum.unfinished = quit.get(id) || 0;
-    return { id, name: nameOf.get(id) || "player", games: gs.length, sum };
+    sum.finished = gs.length;
+    sum.games = gs.length + sum.unfinished;          // a quit counts as a game played (and a loss)
+    return { id, name: nameOf.get(id) || "player", games: sum.games, sum: withRating(sum, "u:" + id) };
   });
-  return json({ me: me.user.id, players });
+  const girls = [...byGirl].map(([name, gs]) => ({ name, games: gs.length, sum: withRating(hbAddUp(gs), "g:" + name) }));
+  return json({ me: me.user.id, players, girls });
 });

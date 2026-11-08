@@ -15,6 +15,7 @@ Full living spec: https://claude.ai/code/artifact/a483d844-f6de-483d-a87d-b19ce7
 - Mobile gets as many features as feasible, but the interface must never feel crowded.
 - Ask Kennedy before adding creative or design ideas that aren't in this file.
 - Flag anything unverified or untested as such; don't present guesses as facts.
+- **CRITICAL (Kennedy, Nov 8, 2026): when something breaks, suspect your own latest change first and find the bug in your own code before anything else.** Never blame Netlify, caching, source files, or Kennedy ("try reloading", "maybe you didn't refresh") until you have shown your own work is fine; Kennedy has already done the obvious checks. Arguing about this over and over is taxing for Kennedy.
 
 ## Platforms and audio
 One web app, desktop and mobile layouts, installed on iPhone as a home-screen icon.

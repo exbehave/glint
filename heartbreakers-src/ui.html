@@ -4,6 +4,9 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&family=Montserrat:wght@600;700;800&display=swap">
 <style>
+/* Kennedy, Nov 8: no zooming. Double taps on cards were zooming the page; manipulation turns off double-tap zoom, and the script below blocks pinch on iPhone, which ignores user-scalable=no */
+html, body { touch-action: manipulation; }
+
 /* Layout: one-screen card table. Game totals on top; the felt holds four seat plates (Across top, Left/Right sides, You bottom) around the trick; status and your hand underneath. Single noir theme by design. */
 :root {
   --ink: #12060f;
@@ -544,6 +547,9 @@ body { background: var(--ink) url("brand/bg-port.webp") center / cover no-repeat
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
 <script>
+['gesturestart', 'gesturechange'].forEach(t => document.addEventListener(t, e => e.preventDefault(), { passive: false }));
+document.addEventListener('touchmove', e => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+
 /*ENGINE*/
 
 // ===== UI =====

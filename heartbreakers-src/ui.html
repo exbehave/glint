@@ -552,7 +552,7 @@ const initials = n => n.split(/\s+/).map(w => w[0]).join('').slice(0, 2);
 const PORTRAITS = { bgc: {} };
 
 const LAYOUTS = [['classic', 'Classic'], ['stage', 'Stage'], ['tworow', 'Big hand'], ['fan', 'Fan']];
-const S = { deck: 'bgc', levels: [null, 'medium', 'hard', 'medium'], target: 100, sound: true, layout: 'classic', me: 'Natalie', handle: '' };
+const S = { deck: 'bgc', levels: [null, 'medium', 'hard', 'medium'], target: 100, sound: true, haptics: true, layout: 'classic', me: 'Natalie', handle: '' };
 try { const saved = JSON.parse(localStorage.getItem('hearts-settings') || 'null'); if (saved) Object.assign(S, saved); } catch (e) {}
 S.deck = 'bgc';
 if (!playable().includes(S.me)) S.me = playable()[0];
@@ -647,6 +647,37 @@ const SFX = {
       t += d + 0.05;
     });
   },
+  // Small touches (Kennedy, Nov 7: the game should feel more tactile): quiet synthesized sounds for every action.
+  //   card  — a soft swish as a card lands on the table, with a tiny tap at the end
+  //   pick  — a light tick when you lift or pick a card
+  //   sweep — a gentle whoosh as a trick is collected
+  //   turn  — a faint two-note ping when it's your turn
+  //   tap   — the softest tick on buttons
+  //   nope  — a low dull thud when you tap a card you can't play
+  soft(kind) {
+    const c = this.ready(); if (!c) return;
+    const t = c.currentTime + 0.005, out = c.createGain(); out.connect(c.destination);
+    const noise = (dur) => { const n = Math.floor(c.sampleRate * dur), b = c.createBuffer(1, n, c.sampleRate), d = b.getChannelData(0); for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1; const src = c.createBufferSource(); src.buffer = b; return src; };
+    const tone = (type, f0, f1, dur, vol, at = 0) => {
+      const o = c.createOscillator(), g = c.createGain(); o.type = type;
+      o.frequency.setValueAtTime(f0, t + at); o.frequency.exponentialRampToValueAtTime(f1, t + at + dur);
+      g.gain.setValueAtTime(0.0001, t + at); g.gain.exponentialRampToValueAtTime(vol, t + at + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t + at + dur);
+      o.connect(g); g.connect(out); o.start(t + at); o.stop(t + at + dur + 0.02);
+    };
+    const swish = (dur, f0, f1, vol, q = 1.2) => {
+      const n = noise(dur), bp = c.createBiquadFilter(), g = c.createGain(); bp.type = 'bandpass'; bp.Q.value = q;
+      bp.frequency.setValueAtTime(f0, t); bp.frequency.exponentialRampToValueAtTime(f1, t + dur);
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + dur * 0.3); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      n.connect(bp); bp.connect(g); g.connect(out); n.start(t); n.stop(t + dur + 0.02);
+    };
+    const v = 0.9 + Math.random() * 0.2;   // a little variation so repeats don't sound mechanical
+    if (kind === 'card') { out.gain.value = 0.5; swish(0.12, 4200 * v, 1500 * v, 0.5); tone('triangle', 210 * v, 120, 0.05, 0.25, 0.09); }
+    else if (kind === 'pick') { out.gain.value = 0.35; tone('sine', 1900 * v, 1500, 0.03, 0.3); swish(0.04, 6000, 4000, 0.15, 2); }
+    else if (kind === 'sweep') { out.gain.value = 0.35; swish(0.34, 900 * v, 2600 * v, 0.5, 0.8); }
+    else if (kind === 'turn') { out.gain.value = 0.18; tone('sine', 659, 659, 0.12, 0.5); tone('sine', 988, 988, 0.18, 0.4, 0.09); }
+    else if (kind === 'tap') { out.gain.value = 0.22; tone('sine', 1400, 1100, 0.025, 0.3); }
+    else if (kind === 'nope') { out.gain.value = 0.4; tone('triangle', 110, 70, 0.09, 0.6); }
+  },
   glass() { // shatter
     const c = this.ready();
     if (!c) { if (S.sound && this.ctx) this.ctx.resume().then(() => { if (this.ctx.state === 'running') this.glass(); }).catch(() => {}); return; }
@@ -689,6 +720,27 @@ if (window.visualViewport) visualViewport.addEventListener('resize', fitHeight);
 function audioSessionMode() {
   try { if ('audioSession' in navigator) navigator.audioSession.type = S.sound ? 'playback' : 'auto'; } catch (e) {}
 }
+// Haptics (Kennedy, Nov 7): a light buzz on your own actions. Android: navigator.vibrate. iPhone Safari has no
+// vibrate; tapping a hidden switch control (Safari 18+) gives a system haptic tick — only inside a tap, so it only
+// fires on your own taps. Unverified on Kennedy's phone.
+let hxLabel = null;
+function haptic(ms = 10) {
+  if (!S.haptics) return;
+  try {
+    if (navigator.vibrate) { navigator.vibrate(ms); return; }
+    if (!hxLabel) {
+      const i = document.createElement('input'); i.type = 'checkbox'; i.setAttribute('switch', ''); i.id = 'hx-switch';
+      i.setAttribute('aria-hidden', 'true'); i.tabIndex = -1;
+      i.style.cssText = 'position:fixed;left:-50px;top:0;width:1px;height:1px;opacity:0;pointer-events:none';
+      hxLabel = document.createElement('label'); hxLabel.htmlFor = 'hx-switch'; hxLabel.setAttribute('aria-hidden', 'true');
+      hxLabel.style.cssText = i.style.cssText;
+      document.body.append(i, hxLabel);
+    }
+    hxLabel.click();
+  } catch (e) {}
+}
+// every button: the softest tick and a light buzz
+document.addEventListener('click', e => { if (e.target.closest('button, .seg label, .girl')) { SFX.soft('tap'); haptic(6); } }, true);
 document.addEventListener('pointerdown', () => SFX.unlock(), true);
 // coming back to the game (after switching apps) wakes the audio engine straight away
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') SFX.unlock(); });
@@ -779,6 +831,7 @@ function sweepTrick(w, done) {
   const mid = center($('trick')), tgt = center(w === 0 ? $('hand') : $('plate' + w));
   let n = 0;
   if (!cards.length) return done();
+  SFX.soft('sweep'); if (w === 0) haptic(15);
   cards.forEach((el, i) => {
     const c = center(el);
     const gx = mid.x - c.x + (i - 1.5) * 4, gy = mid.y - c.y + (1.5 - i) * 3;
@@ -818,7 +871,7 @@ let heartRun = null;
 // Taking hearts (Kennedy, Nov 6): only a trick with all four hearts gets a quote, and her small-hit and big-hit
 // lines are one combined pool for it (a Q♠ in the same trick still wins: the queen quotes play instead).
 // When every line she could use has been said this hand, she stays quiet.
-const POOLED = { hearts: ['hearts', 'fewHearts'] };
+const POOLED = {};   // Nov 7: small and big hits have their own lines again
 // second half of a two-part quote -> its first half (both normalized with normLine)
 const ONLY_AFTER = {
   'Amy': { "i'll show you something funny": 'you think this is so funny?' },
@@ -1298,6 +1351,7 @@ function step(extra) {
   if (st.trickNo === 13) return endHand();
   render();
   saveGame();
+  if (st.turn === 0 && G.phase === 'play') setTimeout(() => { if (G && G.phase === 'play' && G.st.turn === 0 && !G.busy) SFX.soft('turn'); }, 180);
   if (st.turn !== 0) {
     const lv = G.T.levels[st.turn];
     setTimeout(() => {
@@ -1336,6 +1390,7 @@ function playCard(p, c) {
   const res = doPlay(st, p, c);
   if (res) { girlsAfterTrick(G.T, res); recSave(); }
   if (p === 0) G.sel = null;
+  SFX.soft('card'); if (p === 0) haptic(12);
   const brokeNow = !wasBroken && st.broken;
   if (brokeNow) G.popBroken = true;
   let extra = 0;
@@ -1354,7 +1409,7 @@ function playCard(p, c) {
   else if (c === QS) { extra = 900; sayFirst(p, 'qsGive', null, led && queenForced(st, p) ? qsGong : qsTimpani); }
   if (brokeNow) {
     const el = $('trick').querySelector(`.card[data-c="${c}"]`);
-    if (el) setTimeout(() => glassBreak(center(el)), 160);
+    if (el) setTimeout(() => { glassBreak(center(el)); haptic(25); }, 160);
     // Kennedy, Nov 7: the shatter and her line play together, not one after the other
     // she speaks the moment she breaks them (Kennedy, Nov 5), before the next card — unless the Q♠ is already
     // on the table in this trick, which trumps it. If the queen lands later in the trick, both get said.
@@ -1376,11 +1431,10 @@ function playCard(p, c) {
       heartRun = null;                                // the queen used up this trick's hearts
       say(res.w, 'qsGet');                           // her line for playing it already went out when it landed
     } else {
-      // Kennedy, Nov 5: quotes for every heart taken were too busy; only a trick with all four hearts gets one.
-      // Nov 6: or two tricks in a row won by the same girl with 2–3 hearts each (4+ over the pair). It can fire
-      // again later; each pair counts once, so a third heavy trick in a row starts a new pair.
-      const pair = prev && prev.p === res.w && prev.h >= 2 && h >= 2;
-      if (h === 4 || pair) { say(res.w, 'hearts'); heartRun = null; }
+      // Kennedy, Nov 7: back to the original rule (more sound wanted after all): 3–4 hearts gets her big-hit line,
+      // 1–2 hearts gets her small-hit line about half the time.
+      if (h >= 3) say(res.w, 'hearts');
+      else if (h && Math.random() < 0.5) say(res.w, 'fewHearts');
     }
   }, 420);   // Kennedy, Nov 7: as quick as possible; a line still waits for a clip that's talking
   setTimeout(() => {
@@ -1393,7 +1447,7 @@ function playCard(p, c) {
 }
 
 // the queen's sound plays with her queen line; the next quote waits until its hit has landed (the ring carries under it)
-function qsGong() { if (SFX.play('gong')) voiceEnd = Math.max(voiceEnd, performance.now() + 1500); queensGambit(); }
+function qsGong() { if (SFX.play('gong')) voiceEnd = Math.max(voiceEnd, performance.now() + 1500); queensGambit(); haptic(40); }
 function qsTimpani() { if (SFX.play('timpani')) voiceEnd = Math.max(voiceEnd, performance.now() + 1200); }
 // set aside Nov 7, 2026 with SFX.wah (not called)
 function qsWah() { SFX.wah(); voiceEnd = Math.max(voiceEnd, performance.now() + 1900); }
@@ -1598,6 +1652,11 @@ function renderHand() {
   }).join('');
 }
 
+// a card you can't play: a low thud, a firmer buzz and a quick side-to-side wiggle
+function nope(el) {
+  SFX.soft('nope'); haptic(30);
+  try { el.animate([{ translate: '0 0' }, { translate: '-5px 0' }, { translate: '5px 0' }, { translate: '-3px 0' }, { translate: '0 0' }], { duration: 260, easing: 'ease-out' }); } catch (e) {}
+}
 function onHandTap(e) {
   const cardEl = e.target.closest('.card');
   if (!cardEl || !G) return;
@@ -1605,13 +1664,15 @@ function onHandTap(e) {
   if (G.phase === 'pass') {
     if (G.passSel.has(c)) G.passSel.delete(c);
     else if (G.passSel.size < 3) G.passSel.add(c);
+    else { nope(cardEl); return; }
+    SFX.soft('pick'); haptic(8);
     render();
     return;
   }
   if (G.phase !== 'play' || G.st.turn !== 0 || G.busy) return;
-  if (!legalFor(G.st, 0).includes(c)) return;
+  if (!legalFor(G.st, 0).includes(c)) { nope(cardEl); return; }
   if (G.sel === c) playCard(0, c);
-  else { G.sel = c; render(); }
+  else { G.sel = c; SFX.soft('pick'); haptic(8); render(); }
 }
 $('hand').addEventListener('click', onHandTap);
 $('hand').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onHandTap(e); } });
@@ -1715,12 +1776,14 @@ function showMenu() {
     <h2>Menu</h2>
     <div class="field"><span class="lab">Table layout</span>${segHTML('mlayout', LAYOUTS, S.layout)}</div>
     <div class="field"><span class="lab">Sound effects</span>${segHTML('msound', [['on', 'On'], ['off', 'Off']], S.sound ? 'on' : 'off')}</div>
+    <div class="field"><span class="lab">Haptics</span>${segHTML('mhaptics', [['on', 'On'], ['off', 'Off']], S.haptics ? 'on' : 'off')}</div>
     <div class="foot">Your game saves as you play: refresh or close the page and you’ll come right back to it. Exit game ends it and clears the scores.</div>
     <div class="btns"><button class="ghost" id="b-new">Exit game</button><button class="cta" id="b-keep">Back to game</button></div>
     ${ME ? `<div class="foot">Signed in as ${esc(acctName(ME))} · <button class="linkish" id="b-out" type="button">Sign out</button></div>` : ''}
   </div>`);
   $('veil').querySelectorAll('input[name="mlayout"]').forEach(r => r.onchange = () => { S.layout = r.value; applyLayout(); saveSettings(); render(); });
   $('veil').querySelectorAll('input[name="msound"]').forEach(r => r.onchange = () => { S.sound = r.value === 'on'; audioSessionMode(); if (S.sound) SFX.unlock(); saveSettings(); renderRail(); });
+  $('veil').querySelectorAll('input[name="mhaptics"]').forEach(r => r.onchange = () => { S.haptics = r.value === 'on'; saveSettings(); if (S.haptics) haptic(12); });
   $('b-keep').onclick = closeVeil;
   $('b-new').onclick = () => { clearSave(); G = null; showSetup(); };
   if ($('b-out')) $('b-out').onclick = async () => { try { await sb.auth.signOut(); } catch (e) {} ME = null; G = null; showSignIn(); };

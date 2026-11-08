@@ -2444,7 +2444,10 @@ function playCard(p, c) {
   // Kennedy, Nov 7 (trying it out): the gong when the queen is led, the timpani bend when she's played onto a trick.
   // Kennedy, Nov 7: the gong only when the queen is led AND someone is forced to take it — a player whose only
   // spades are the K♠ and/or A♠ must play one and wins the trick. Any other queen gets the timpani.
-  if (c === QS) { extra = 900; sayFirst(p, 'qsGive', null, led && queenForced(st, p) ? qsGong : qsTimpani); }
+  // Kennedy, Nov 7: when she plays the queen as the last card and it wins, she's just eating her own queen —
+  // skip her "plays the queen" line (the timpani still plays) and let her "stuck with the queen" line speak for it.
+  if (c === QS && res && res.w === p) { extra = 900; qsTimpani(); }
+  else if (c === QS) { extra = 900; sayFirst(p, 'qsGive', null, led && queenForced(st, p) ? qsGong : qsTimpani); }
   if (brokeNow) {
     const el = $('trick').querySelector(`.card[data-c="${c}"]`);
     if (el) setTimeout(() => glassBreak(center(el)), 160);

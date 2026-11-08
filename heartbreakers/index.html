@@ -509,6 +509,20 @@ body { background: var(--ink) url("data:image/webp;base64,UklGRpJ4AABXRUJQVlA4II
 
 
 /* leaderboard (Nov 7, 2026) */
+.lbchart { display: flex; flex-direction: column; gap: 12px; }
+.lbrow { display: flex; align-items: center; gap: 0; padding: 8px; border-radius: 12px; }
+.lbrow.me { background: color-mix(in srgb, var(--red) 14%, transparent); }
+.lbrow .pl { min-width: 2.4em; font-size: 12px; font-weight: 700; color: var(--mute); }
+.lbrow.me .pl, .lbrow.me .lbn { color: var(--red); }
+.lbmain { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.lbtop { display: flex; align-items: baseline; gap: 8px; }
+.lbtop .lbn { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lbg { font-size: 12px; color: var(--mute); white-space: nowrap; }
+.lbv { margin-left: auto; font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.lbbar { position: relative; height: 10px; border-radius: 99px; background: rgba(255,255,255,.07); overflow: hidden; }
+.lbbar i { position: absolute; top: 0; bottom: 0; border-radius: 99px; background: linear-gradient(90deg, color-mix(in srgb, var(--red) 55%, transparent), var(--red)); }
+.lbrow:not(.me) .lbbar i { background: linear-gradient(90deg, rgba(255,255,255,.25), rgba(255,255,255,.55)); }
+
 .lb { max-height: calc(100dvh - 32px); overflow-y: auto; }
 .lb > * { flex-shrink: 0; }
 .lbt td:last-child, .lbt th:last-child { white-space: nowrap; }
@@ -3122,9 +3136,16 @@ function showLeaders(back) {
       $('lb-body').innerHTML = `
         <div class="lbpick"><select id="lb-key" aria-label="Which board">${groups.map(g => `<optgroup label="${esc(g)}">${HB_BOARDS.filter(x => x.group === g).map(x => `<option value="${x.key}" ${x.key === b.key ? 'selected' : ''}>${esc(x.label)}</option>`).join('')}</optgroup>`).join('')}</select>
         ${segHTML('lbdir', [['high', 'Most'], ['low', 'Least']], dir)}</div>
-        <table class="tbl lbt"><thead><tr><th>Player</th><th>${esc(b.label.replace(/ \(.*\)$/, ''))}</th><th>Games</th></tr></thead><tbody>
-        ${ranked.map(x => `<tr class="${x.row.id === d.me ? 'me' : ''}"><td><span class="pl">${ordinal(x.rank)}</span>${lbAvatar(x.row)}<span class="lbn">${esc(x.row.name)}</span></td><td class="big">${hbFmt(b, x.v)}</td><td>${x.row.games}</td></tr>`).join('')}
-        </tbody></table>`;
+        <div class="lbchart" role="list">${(() => {
+          const vs = ranked.map(x => x.v), lo = Math.min(0, ...vs), hi = Math.max(0, ...vs), span = hi - lo || 1;
+          return ranked.map(x => {
+            const a = ((Math.min(x.v, 0) - lo) / span) * 100, w = (Math.abs(x.v) / span) * 100;
+            return `<div class="lbrow${x.row.id === d.me ? ' me' : ''}" role="listitem">
+              <span class="pl">${ordinal(x.rank)}</span>${lbAvatar(x.row)}
+              <div class="lbmain"><div class="lbtop"><span class="lbn">${esc(x.row.name)}</span><span class="lbg">${x.row.games} game${x.row.games === 1 ? '' : 's'}</span><b class="lbv">${hbFmt(b, x.v)}</b></div>
+              <div class="lbbar"><i style="left:${a.toFixed(1)}%;width:${Math.max(w, x.v ? 1.5 : 0).toFixed(1)}%"></i></div></div></div>`;
+          }).join('');
+        })()}</div>`;
       $('lb-key').onchange = e => { LB.key = e.target.value; LB.dir = null; draw(); };
       $('veil').querySelectorAll('input[name="lbdir"]').forEach(r => r.onchange = () => { LB.dir = r.value; draw(); });
       return;

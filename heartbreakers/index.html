@@ -1017,8 +1017,15 @@ const natalieModel = (T, q) => (s, x) => {
   if (T.cards[x] && T.cards[x].psychic !== 'all') return habitPick(T, x, s, false);
   return pickHard(s, x, T.known[x]);
 };
+// Her own future turns know the Queen's Gambit (Kennedy, Nov 7): when she's on lead with the Q♠ and someone holds
+// nothing but the A♠/K♠ in spades, she leads it. Without this her replays never saw that winning a spade trick
+// and then leading the queen forces it onto you, so she ate it herself instead (J♠ + Q♠ vs your 6♠ A♠ K♠).
+function selfPick(T, s, p) {
+  if (!s.trick.length && s.hands[p].includes(QS) && qsLeadSafe(s, p)) return QS;
+  return pickHard(s, p, T.known[p]);
+}
 function playOut(T, s, p) {
-  while (s.trickNo < 13) { const q = s.turn; doPlay(s, q, q === p ? pickHard(s, q, T.known[q]) : natalieModel(T, q)(s, q)); }
+  while (s.trickNo < 13) { const q = s.turn; doPlay(s, q, q === p ? selfPick(T, s, p) : natalieModel(T, q)(s, q)); }
   return s.pts.slice();   // raw points; valueOf() works out what a moon really costs
 }
 // What a moon actually does: the shooter takes "everyone else +26" only when that leaves her strictly lowest

@@ -1861,9 +1861,9 @@ function showNewPassword() {
 // `back` reopens whatever was on screen before (the setup panel, or nothing during a game).
 let LB = { tab: 'players', key: 'rating', data: null, at: 0 };
 // the stats Kennedy picked for the chart (Nov 8, 2026)
-const HB_CHART = ['rating', 'peak', 'winRate', 'quitRate', 'clean', 'gambit', 'moons'];
+const HB_CHART = ['rating', 'peak', 'winRate', 'quitRate', 'avgRound', 'clean', 'gambit', 'moons', 'moonPass'];
 // the stats Kennedy kept on My stats (Nov 8, 2026), in this order
-const HB_MINE = ['rating', 'peak', 'winRate', 'games', 'unfinished', 'p2', 'p3', 'p4', 'avgFinal', 'avgRound', 'gambit', 'breaks', 'moons'];
+const HB_MINE = ['rating', 'peak', 'winRate', 'games', 'unfinished', 'p2', 'p3', 'p4', 'avgFinal', 'avgRound', 'gambit', 'breaks', 'moons', 'moonPass'];
 async function loadLeaders(force) {
   if (!force && LB.data && Date.now() - LB.at < 60000) return LB.data;
   const { data: { session } } = await sb.auth.getSession();

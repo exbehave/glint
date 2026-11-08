@@ -19,7 +19,7 @@ function hbGameStats(d, seat) {
   const me = seat || 0;
   const s = { games: 1, wins: 0, p1: 0, p2: 0, p3: 0, p4: 0, final: 0, best: null, rounds: 0, pts: 0, clean: 0, worst: 0,
     tricks: 0, hearts: 0, breaks: 0, qsGot: 0, qsGave: 0, qsLed: 0, gambit: 0, qsSelf: 0, qsPassed: 0, qsPassedIn: 0,
-    moons: 0, mooned: 0, trams: 0, playedAs: me ? ((d.names || [])[me] || null) : (d.me || null) };
+    moons: 0, mooned: 0, moonPassable: 0, moonFed: 0, trams: 0, playedAs: me ? ((d.names || [])[me] || null) : (d.me || null) };
   const tot = d.totals || [];
   if (tot.length === 4) {
     s.final = tot[me]; s.best = tot[me];
@@ -40,6 +40,12 @@ function hbGameStats(d, seat) {
       if ((h.passes[me] || []).includes(HB_QS)) s.qsPassed++;
       const off = [1, 3, 2][h.dir], from = (me - off + 4) % 4;   // who passed to this seat
       if ((h.passes[from] || []).includes(HB_QS)) s.qsPassedIn++;
+    }
+    // Moon pass rate (Kennedy, Nov 8): of the moons shot by someone else in a passing round, how often the shooter
+    // was the player you passed your three cards to.
+    if (typeof h.moon === 'number' && h.moon >= 0 && h.moon !== me && h.dir !== 3 && h.dir != null) {
+      s.moonPassable++;
+      if ((me + [1, 3, 2][h.dir]) % 4 === h.moon) s.moonFed++;
     }
     if (h.tram && me === 0) s.trams++;
     // replay the tricks
@@ -149,6 +155,7 @@ const HB_BOARDS = [
   { key: 'hearts', group: 'Hearts', label: 'Hearts taken per round', dir: 'low', fmt: 'avg', v: a => hbPer(a.hearts, a.rounds) },
   { key: 'moons', group: 'Big moments', label: 'Shot the moon', dir: 'high', fmt: 'n', v: a => a.moons },
   { key: 'mooned', group: 'Big moments', label: 'Got mooned', dir: 'high', fmt: 'n', v: a => a.mooned },
+  { key: 'moonPass', group: 'Big moments', label: 'Moon pass rate (moons shot by the player you passed to)', dir: 'high', fmt: 'pct', v: a => hbPct(a.moonFed || 0, a.moonPassable || 0) },
   { key: 'trams', group: 'Big moments', label: 'TRAMs', dir: 'high', fmt: 'n', v: a => a.trams },
   { key: 'rounds', group: 'Big moments', label: 'Rounds played', dir: 'high', fmt: 'n', v: a => a.rounds },
 ];

@@ -343,7 +343,7 @@ button:focus-visible, .card:focus-visible, label:focus-within { outline: 2px sol
   .trick { max-width: 420px; max-height: 440px; min-height: 320px; }
   .slot .card { width: 92px; height: 132px; }
   .table { grid-template-columns: 150px minmax(0, 1fr) 150px; }
-  .brand img { height: 48px; }
+  .brand img { height: 84px; }
 }
 @media (max-height: 680px) {
   .trick { min-height: 196px; }
@@ -356,7 +356,7 @@ body { background: var(--ink) url("brand/bg-port.webp") center / cover no-repeat
 @media (orientation: landscape) { body { background-image: url("brand/bg-land.webp"); } }
 .rail { grid-template-columns: minmax(0, 1fr) auto auto; grid-template-areas: "brand snd menu" "scores scores scores"; gap: 10px 8px; align-items: center; }
 .brand { grid-area: brand; min-width: 0; display: flex; justify-content: center; }
-.brand img { height: 36px; width: auto; max-width: 100%; display: block; filter: drop-shadow(0 0 10px rgba(255, 61, 142, .45)); }
+.brand img { height: 66px; width: auto; max-width: 100%; display: block; filter: drop-shadow(0 0 10px rgba(255, 61, 142, .45)); }
 #b-sound { grid-area: snd; } #b-menu { grid-area: menu; }
 .scores { grid-area: scores; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); position: relative; padding: 8px 0 10px; border-top: 1px solid var(--line); }
 .scores::after { content: ""; position: absolute; left: 6%; right: 6%; bottom: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--red), transparent); box-shadow: 0 0 8px var(--red); }
@@ -399,7 +399,7 @@ body { background: var(--ink) url("brand/bg-port.webp") center / cover no-repeat
 .bubble::after { background: var(--bone); }
 .veil { background: rgba(14, 4, 12, .72); }
 .panel { background: linear-gradient(170deg, rgba(44, 15, 38, .96), rgba(20, 6, 17, .97)); border: 1.5px solid var(--line); border-radius: 18px; }
-.panel .logo { width: 100%; max-width: 340px; height: auto; display: block; filter: drop-shadow(0 0 14px rgba(255, 61, 142, .4)); }
+.panel .logo { width: calc(100% + 24px); max-width: none; margin: -6px -12px 0; height: auto; display: block; filter: drop-shadow(0 0 14px rgba(255, 61, 142, .4)); }
 .panel h1 { margin: 0; font-size: 0; }
 .panel h2 { font-family: var(--serif); font-weight: 700; font-size: 28px; }
 .panel .sub, .foot { font-family: var(--serif); font-size: 16px; color: var(--mute); }
@@ -431,7 +431,7 @@ body { background: var(--ink) url("brand/bg-port.webp") center / cover no-repeat
   }
   .table { display: contents; }
   .rail { grid-area: rail; grid-template-columns: auto minmax(0, 1fr) auto auto; grid-template-areas: "brand scores snd menu"; gap: 14px; }
-  .brand img { height: min(6vh, 40px); min-height: 24px; }
+  .brand img { height: min(11vh, 72px); min-height: 40px; }
   .scores { border-top: 0; padding: 0 0 5px; }
   .score { padding-bottom: 3px; }
   .score .tot { font-size: min(5.5vh, 26px); }

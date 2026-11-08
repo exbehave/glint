@@ -8,6 +8,8 @@ const GIRLS = {
   // those does she protect herself. For now she uses Natalie's look-ahead, which sees every hand (BAD_GIRLS.md plans
   // the humans' hands only).
   'Dalila': { level: 'genius', judgment: 1, goal: 'you-first', psychic: 'all', dials: {} },
+  // Kristen (S5, Medium, Kennedy's pick Nov 8): plain Medium play until her habits are written up in BAD_GIRLS.md
+  'Kristen': { level: 'medium', judgment: 0.4, dials: {} },
   'Judi': { level: 'hard', judgment: 0.7, signature: 'keepQueen', dials: { breakEarly: 0.05, ducking: 0.7, keepQueen: 0.6, covers: 0.7, memory: 0.7 } },
   'Victor Twins': { level: 'medium', judgment: 0.4, signature: 'grudge', dials: { grudge: 0.8, leader: 0.4, hotPotato: 0.4 } },
   'Amy': { level: 'easy', judgment: 0.1, signature: 'hotPotato', dials: { hotPotato: 0.85, spadePanic: 0.7, breakEarly: 0.6, hothead: 0.7 } }

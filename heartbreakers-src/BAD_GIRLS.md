@@ -24,7 +24,7 @@ Seasons as given in the Google Sheet. Blank = not decided yet. Every girl gets a
 | Tanisha | 2 | Needed | | | |
 | Amber M | 3 | Needed | | | |
 | Flo | 4 | Needed | | | |
-| Kristen | 5 | Needed | | | |
+| Kristen | 5 | Done | Medium (Kennedy, Nov 8) | none yet: plain Medium | |
 | Char | 6 | Needed | | | |
 | Lucci Vee | 9 | Needed | | | |
 | Mehgan | 9 | Needed | | | |

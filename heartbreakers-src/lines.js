@@ -100,15 +100,13 @@ const LINES = {
     moonVictim: ['Nah. Nah nah nah.', 'That’s crazy.'],
     win: ['Lucci Vee. Remember it.']
   },
-  'Rocky': {
-    qsGive: ['Special delivery.', 'You looked lonely. Here.'],
-    qsGet: ['Oh, now I’m locked in.', 'Bad move. Bad, bad move.'],
-    breaks: ['Hearts. Let’s rumble.', 'No more warm-ups.'],
-    hearts: ['I’m not folding.', 'That’s it? Bring more.'],
-    taunt: ['Light work.', 'Stay ready.'],
-    moon: ['Knocked out the moon.', 'All twenty-six. Down you go.'],
-    moonVictim: ['That was a cheap shot.', 'I want a rematch.'],
-    win: ['Undisputed.']
+  'Shan-Rock': {
+    qsGive: ["Let me just drop down to your level just for a second", "Taste your own medicine, swallow it like a cactus", "Her pool's going to bed tonight"],
+    qsGet: ["Ew, these girls are dirty", "Like, what the fuck are you doing, you psycho bitch?", "You scallywag-ass fucking dumpster-ass bitch!"],
+    breaks: ["Afford more than a bed sheet, you idiot!", "Everybody has their breaking point", "I broke her fucking face", "I'll make it rain on your ass", "She's hella ratchet"],
+    hearts: ["I've had my name ran through the dirt by these bully ass bitches", "Helping myself out to a hot pocket", "You sound like an ignorant bitch right now", "A low-key little bully", "You can't blame a pizza pocket"],
+    moon: ["This is for people that have been bullied their whole lives", "You saw my mental strength? Well, why don't you check out my motherfucking physical strength?", "You can't blame anybody but yourself"],
+    win: ["And bitch, when you see me, you still can't see me", "We're different", "Period, point blank!"]
   },
   'Sarah': {
     qsGive: ['Strategy, darling.', 'That’s called a play.'],

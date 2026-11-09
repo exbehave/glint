@@ -8,6 +8,10 @@ const GIRLS = {
   // those does she protect herself. For now she uses Natalie's look-ahead, which sees every hand (BAD_GIRLS.md plans
   // the humans' hands only).
   'Dalila': { level: 'genius', judgment: 1, goal: 'you-first', psychic: 'all', dials: {} },
+  // Shan-Rock (S10, Genius on your side, Kennedy Nov 9): sees every hand and knows how everyone plays, like Natalie,
+  // but turns it on the other computer players. Each card is weighed as: points the other girls eat, minus
+  // `rate` × her own points, minus `spare` × the humans' points. When she shoots the moon she takes −26, never +26 to you.
+  'Shan-Rock': { level: 'genius', judgment: 1, goal: 'help-you', rate: 1, spare: 0.5, psychic: 'all', intuit: true, dials: {} },
   // Kristen (S5, Medium, Kennedy's pick Nov 8): plain Medium play until her habits are written up in BAD_GIRLS.md
   'Kristen': { level: 'medium', judgment: 0.4, dials: {} },
   // Clermont Twins (S14, Hard, Kennedy Nov 8): a tendency to break hearts early
@@ -182,6 +186,7 @@ function playOut(T, s, p) {
 function moonFinal(T, P) {
   const m = P.indexOf(26);
   if (m < 0) return P.slice();
+  if ((T.cards[m] || {}).goal === 'help-you') return P.map((_, i) => (i === m ? -26 : 0));   // Shan-Rock never moons the humans
   const tot = T.totals || [0, 0, 0, 0];
   const after = tot.map((t, i) => t + (i === m ? 0 : 26)), low = Math.min(...after);
   const up = after[m] === low && after.filter(t => t === low).length === 1;
@@ -196,7 +201,8 @@ function valueOf(T, p, raw) {
   const hum = T.humans.filter(h => h !== p), f = moonFinal(T, raw), m = raw.indexOf(26);
   let own = f[p];
   if (m >= 0 && m !== p && !T.humans.includes(m)) own *= OTHER_MOON;
-  return { own, hum: hum.reduce((a, h) => a + f[h], 0) };
+  const cpu = [0, 1, 2, 3].filter(q => q !== p && !T.humans.includes(q));
+  return { own, hum: hum.reduce((a, h) => a + f[h], 0), cpu: cpu.reduce((a, q) => a + f[q], 0) };
 }
 // How much of herself she'll spend: her card's rate, but when she's close to losing the game she plays it safe
 // (needs 10 of your points for each of hers) — near the end and less than a queen's worth ahead of the next-lowest.
@@ -212,6 +218,10 @@ function chooseByGoal(T, p, scores) { // scores: [{x, own, hum}] averaged
   if ((T.cards[p] || {}).goal === 'ruin-you') {
     const k = rateFor(T, p);
     return scores.slice().sort((a, b) => (b.hum - k * b.own) - (a.hum - k * a.own) || a.own - b.own)[0].x;
+  }
+  if ((T.cards[p] || {}).goal === 'help-you') {
+    const c = T.cards[p], k = rateFor(T, p);
+    return scores.slice().sort((a, b) => (b.cpu - k * b.own - c.spare * b.hum) - (a.cpu - k * a.own - c.spare * a.hum) || a.hum - b.hum)[0].x;
   }
   if ((T.cards[p] || {}).goal === 'you-first') {
     const most = Math.max(...scores.map(o => o.hum));
@@ -239,17 +249,17 @@ function pickPsychic(T, p, st) {
   const R = randomish(T, p) ? Math.max(8, Math.floor(160 / L.length)) : 1;
   const hum = T.humans.filter(h => h !== p);
   const scores = L.map(c => {
-    let own = 0, hu = 0;
+    let own = 0, hu = 0, cp = 0;
     for (let r = 0; r < R; r++) {
       const s = cloneSt(st);
       doPlay(s, p, c);
       const v = valueOf(T, p, playOut(T, s, p));
-      own += v.own; hu += v.hum;
+      own += v.own; hu += v.hum; cp += v.cpu;
     }
     // Never eat the queen early when holding on costs the same (Kennedy, Nov 5): playing it now onto a spade trick
     // she'd win counts as a point worse, so she keeps her other spades and leaves the others time to slip up.
     const winsNow = c === QS && st.trick.length && suit(st.trick[0].c) === 2 && !st.trick.some(x => suit(x.c) === 2 && rank(x.c) > 12);
-    return { x: c, own: own / R + (winsNow && L.some(x => suit(x) === 2 && x !== QS) ? 1.5 : 0), hum: hu / R };
+    return { x: c, own: own / R + (winsNow && L.some(x => suit(x) === 2 && x !== QS) ? 1.5 : 0), hum: hu / R, cpu: cp / R };
   });
   // Game review (Kennedy, Nov 7): keep every option she weighed — card, her expected points, the humans' expected points.
   if (T.why) T.why[p] = { psychic: 1, rate: rateFor(T, p), runs: R, opts: scores.map(o => [o.x, +o.own.toFixed(2), +o.hum.toFixed(2)]) };
@@ -265,7 +275,7 @@ function passPsychic(T, p, hand) {
   for (let i = 0; i < top.length; i++) for (let j = i + 1; j < top.length; j++) for (let k = j + 1; k < top.length; k++) cands.push([top[i], top[j], top[k]]);
   const R = 6, hum = T.humans.filter(h => h !== p);
   const scores = cands.map(pick => {
-    let own = 0, hu = 0;
+    let own = 0, hu = 0, cp = 0;
     for (let r = 0; r < R; r++) {
       const hands = H.map(h => h.slice());
       const known = [[], [], [], []];
@@ -274,9 +284,9 @@ function passPsychic(T, p, hand) {
       passes.forEach((ps, q) => ps.forEach(c => { hands[(q + off) % 4].push(c); known[q].push({ c, q: (q + off) % 4 }); }));
       const s = newHandState(hands);
       const v = valueOf(T, p, playOut({ ...T, known }, s, p));
-      own += v.own; hu += v.hum;
+      own += v.own; hu += v.hum; cp += v.cpu;
     }
-    return { x: pick, own: own / R, hum: hu / R };
+    return { x: pick, own: own / R, hum: hu / R, cpu: cp / R };
   });
   return chooseByGoal(T, p, scores);
 }

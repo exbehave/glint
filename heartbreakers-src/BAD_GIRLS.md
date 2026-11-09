@@ -28,7 +28,7 @@ Seasons as given in the Google Sheet. Blank = not decided yet. Every girl gets a
 | Char | 6 | Needed | | | |
 | Lucci Vee | 9 | Needed | | | |
 | Mehgan | 9 | Needed | | | |
-| Rocky | 10 | Needed | | | |
+| Shan-Rock | 10 | Done | Genius on your side (Kennedy, Nov 9) | Shannon and Rocky as one player. Sees every hand and knows how everyone plays, like Natalie, but aims it at the other computer players: each card is weighed as points the other girls eat − 1 × her own − 0.5 × the humans'. Moons are always −26 for her, never +26 to the humans. Signature: Ride or die | |
 | Sarah | 11 | Needed | | | |
 | Clermont Twins | 14 | Done | Hard (Kennedy, Nov 8) | Breaks hearts early 70% (Kennedy: a tendency to break hearts early), Judgment 0.7. Signature: Breaks hearts early | |
 | Cat | | Needed | | | |

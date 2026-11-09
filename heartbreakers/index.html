@@ -3921,6 +3921,12 @@ function debugRedeal() {
   newHand();
   recSave();
 }
+// Debug (Kennedy, Nov 9): leave a debug game at once, straight back to setup (debug games never count, so no loss warning)
+function debugExit() {
+  if (!G || !G.debug) return;
+  hlStop(); document.querySelectorAll('.moonfx').forEach(e => e.remove());
+  clearSave(); G = null; debugTag(); showSetup();
+}
 function debugTag() {
   let el = document.getElementById('dbg-tag');
   if (!G || !G.debug) { if (el) el.remove(); return; }
@@ -4369,9 +4375,10 @@ function renderStatus() {
   if (G.tramming) msg = 'TRAM. The rest are yours';
   const left = 13 - st.trickNo;
   const mine = myChip();
-  el.innerHTML = `<div class="row">${mine}<span class="pill count">${left} trick${left === 1 ? '' : 's'} left</span>${st.broken ? `<span class="pill broken${G.popBroken ? ' pop' : ''}">${suitMark(3)} broken</span>` : ''}</div>${canTram() ? `<div class="row"><span class="msg">${msg}</span>${G.debug ? `<button class="ghost redeal" id="b-redeal" aria-label="Start this hand over">↺ Redeal</button>` : ''}<button class="cta tram" id="b-tram" aria-label="TRAM: the rest are mine">TRAM</button></div>` : `<div class="msg">${msg}</div>`}`;
+  el.innerHTML = `<div class="row">${mine}<span class="pill count">${left} trick${left === 1 ? '' : 's'} left</span>${st.broken ? `<span class="pill broken${G.popBroken ? ' pop' : ''}">${suitMark(3)} broken</span>` : ''}</div>${canTram() ? `<div class="row"><span class="msg">${msg}</span>${G.debug ? `<button class="ghost redeal" id="b-dexit" aria-label="Exit this debug game">Exit</button><button class="ghost redeal" id="b-redeal" aria-label="Start this hand over">↺ Redeal</button>` : ''}<button class="cta tram" id="b-tram" aria-label="TRAM: the rest are mine">TRAM</button></div>` : `<div class="msg">${msg}</div>`}`;
   if ($('b-tram')) $('b-tram').onclick = tram;
   if ($('b-redeal')) $('b-redeal').onclick = debugRedeal;
+  if ($('b-dexit')) $('b-dexit').onclick = debugExit;
   G.popBroken = false;
 }
 

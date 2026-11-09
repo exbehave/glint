@@ -3048,7 +3048,8 @@ const pickCast = () => {
   const picks = myPicks();
   let pool = playable().filter(n => n !== S.me && !picks.includes(n));
   if (picks.length + pool.length < 3) pool = pool.concat(CAST[S.deck].filter(n => n !== S.me && !picks.includes(n) && !pool.includes(n)));
-  return ['You', ...shuffle(picks.concat(shuffle(pool.slice()).slice(0, 3 - picks.length)))];
+  // Kennedy, Nov 9: picks sit in the order you chose them, clockwise from you (1st on your left, 2nd across, 3rd on your right); random girls fill the rest
+  return ['You', ...picks.slice(0, 3), ...shuffle(pool.slice()).slice(0, 3 - Math.min(3, picks.length))];
 };
 // who is speaking: seat 0 is you, voiced by the girl you play as
 const voiceOf = p => (p === 0 ? S.me : nameOf(p));
@@ -4460,7 +4461,8 @@ function showSetup() {
     for (const el of $('setup').querySelectorAll('.girls.vs .girl')) {
       const n = el.dataset.n, inp = el.querySelector('input'), mine = n === me;
       inp.checked = vs.includes(n); inp.disabled = mine; el.classList.toggle('off', mine);
-      el.querySelector('.sn').textContent = mine ? 'That’s you' : (SEASON[n] ? `Season ${SEASON[n]}` : '');
+      const at = vs.indexOf(n);   // picks sit in pick order: left, across, right
+      el.querySelector('.sn').textContent = mine ? 'That’s you' : at >= 0 ? ['Your left', 'Across', 'Your right'][at] : (SEASON[n] ? `Season ${SEASON[n]}` : '');
     }
     const k = vs.length;
     $('vs-note').innerHTML = k === 0 ? 'Tap up to three girls to play against, or leave them all off for three at random.'

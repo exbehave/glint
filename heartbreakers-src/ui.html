@@ -347,6 +347,7 @@ html, body { overflow-x: hidden; overflow-x: clip; }
 .tbl tr.me td:first-child { color: var(--red); font-weight: 700; border-radius: 8px 0 0 8px; padding-left: 8px; }
 .tbl tr.me td:last-child { border-radius: 0 8px 8px 0; padding-right: 8px; }
 .moon { font-family: var(--display); font-size: 20px; color: var(--violet); }
+.redeal { padding: 8px 12px; font-size: 13px; white-space: nowrap; }
 #dbg-tag { position: fixed; top: max(8px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: 70; max-width: min(92vw, 420px);
   background: rgba(20,6,18,.92); border: 1px solid #ffb02e; color: #ffd28a; border-radius: 12px; padding: 5px 12px; font-size: 12px; cursor: pointer; text-align: center; }
 #dbg-tag b { color: #ffb02e; letter-spacing: .08em; text-transform: uppercase; }
@@ -1506,6 +1507,15 @@ function debugDeal(kind) {
   }
   return dealHands();
 }
+// Debug (Kennedy, Nov 9): start the hand over with a fresh deal of the same preset. Only on your turn (beside TRAM),
+// when no computer turn or trick sweep is pending; the scores and round number stay, the abandoned hand is dropped from the recording.
+function debugRedeal() {
+  if (!G || !G.debug || G.phase !== 'play' || G.busy || G.tramming || !G.st || G.st.turn !== 0) return;
+  if (G.rec && G.rec.hands.length) G.rec.hands.pop();
+  G.table = []; G.sel = null;
+  newHand();
+  recSave();
+}
 function debugTag() {
   let el = document.getElementById('dbg-tag');
   if (!G || !G.debug) { if (el) el.remove(); return; }
@@ -1954,8 +1964,9 @@ function renderStatus() {
   if (G.tramming) msg = 'TRAM. The rest are yours';
   const left = 13 - st.trickNo;
   const mine = myChip();
-  el.innerHTML = `<div class="row">${mine}<span class="pill count">${left} trick${left === 1 ? '' : 's'} left</span>${st.broken ? `<span class="pill broken${G.popBroken ? ' pop' : ''}">${suitMark(3)} broken</span>` : ''}</div>${canTram() ? `<div class="row"><span class="msg">${msg}</span><button class="cta tram" id="b-tram" aria-label="TRAM: the rest are mine">TRAM</button></div>` : `<div class="msg">${msg}</div>`}`;
+  el.innerHTML = `<div class="row">${mine}<span class="pill count">${left} trick${left === 1 ? '' : 's'} left</span>${st.broken ? `<span class="pill broken${G.popBroken ? ' pop' : ''}">${suitMark(3)} broken</span>` : ''}</div>${canTram() ? `<div class="row"><span class="msg">${msg}</span>${G.debug ? `<button class="ghost redeal" id="b-redeal" aria-label="Start this hand over">↺ Redeal</button>` : ''}<button class="cta tram" id="b-tram" aria-label="TRAM: the rest are mine">TRAM</button></div>` : `<div class="msg">${msg}</div>`}`;
   if ($('b-tram')) $('b-tram').onclick = tram;
+  if ($('b-redeal')) $('b-redeal').onclick = debugRedeal;
   G.popBroken = false;
 }
 

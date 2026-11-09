@@ -2563,7 +2563,8 @@ function sayNow(p, ev, then, start) {
   }, 2400);
 }
 // Which way each sprite looks (viewer's left or right). Side seats mirror a sprite so she looks in toward the table.
-const FACING = { 'Amy': 'right' };
+// Kennedy, Nov 8: Dalila turns her head the same way Amy does, so she gets mirrored on side seats too
+const FACING = { 'Amy': 'right', 'Dalila': 'right' };
 function seatFlip(nm, el) {
   const f = FACING[nm];
   if (!f || !el) return false;

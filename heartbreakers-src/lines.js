@@ -149,7 +149,7 @@ const LINES = {
   },
   'Natalie': {
     tram: ["That's really annoying"],
-    qsGive: ["Lookin like a Crenshaw weave, bitch","Who's the hoe now?","(Maniacal laughter)"],
+    qsGive: ["Lookin like a Crenshaw weave, bitch","Who's the hoe now?","[Maniacal Laughter]"],
     qsGet: ["You're trying to be Natalie and you'll never be!"],
     breaks: ["I run LA!","How do you feel about that?","Bitch, yeah, I run LA"],
     fewHearts: ["That's really annoying","Are you kidding me!?"],

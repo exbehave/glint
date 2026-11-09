@@ -30,7 +30,7 @@ Seasons as given in the Google Sheet. Blank = not decided yet. Every girl gets a
 | Mehgan | 9 | Needed | | | |
 | Rocky | 10 | Needed | | | |
 | Sarah | 11 | Needed | | | |
-| Clermonts | 14 | Needed | | | |
+| Clermonts | 14 | Done | Hard (Kennedy, Nov 8) | Breaks hearts early 70% (Kennedy: a tendency to break hearts early), Judgment 0.7. Signature: Breaks hearts early | |
 | Cat | | Needed | | | |
 | Camilla | | Needed | | | |
 | Rima | | Needed | | | |

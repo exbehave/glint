@@ -139,6 +139,15 @@ const LINES = {
     moon: ["I'm not that stupid and I'm really not that innocent"],
     win: ["I'm a bad girl and I'm gonna do what I wanna do", "She really messed with the wrong, wrong girl"]
   },
+  'Clermonts': {
+    qsGive: ["You look dusty!", "Is it a doo-doo mask?", "Watch and learn, ladies"],
+    qsGet: ["That gives myself permission to whoop your ass", "Bitch, calm the fuck down and know your place", "Bitch, shut up!"],
+    breaks: ["We're the Clermont twins"],
+    fewHearts: ["Oh baby girl, no", "Bitch, you don't run shit", "Oh hell no"],
+    hearts: ["No one gives a fuck about five dollar pack of cigarettes, honey"],
+    moon: ["I really feel like I'm the best", "If you look up bad bitch in the dictionary, you'll find the Clermont twins"],
+    win: ["Who are you? Who are we? We are that bitch! (1)", "Who are you? Who are we? We are that bitch! (2)", "Who are you? Who are we? We are that bitch! (3)"]
+  },
   'Natalie': {
     tram: ["That's really annoying"],
     qsGive: ["Lookin like a Crenshaw weave, bitch","Who's the hoe now?","(Maniacal laughter)"],

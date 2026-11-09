@@ -2237,7 +2237,7 @@ function hlTimeline(rec, moments, clips, opts = {}) {
     }
     const seg = { t0: t, m, i, cardsAt: [], quotes: [] };
     if (sw) { sw.b = seg; sw = null; }
-    if (m.kind === 'moon') { t = hlMoonSeg(rec, seg, clips, A, t); T.push(seg); prev = seg; return; }
+    if (m.kind === 'moon') { t = hlMoonSeg(rec, seg, clips, A, t, opts); T.push(seg); prev = seg; return; }
     m.trick.cards.forEach((x, k) => {
       const at = t + 0.3 + k * CARD;
       seg.cardsAt.push(at); if (x.c === QS && k === 0) t += 0.6;   // a led queen bounces longer (1 s), like the table
@@ -2583,27 +2583,31 @@ function hlSwish(g, W, H, rec, TL, seg, t) {
 // by her seat; then it slows down: the hearts and the Q♠ fly up and fan into a full circle around a glowing moon,
 // a gloved hand with stiletto nails swings in a pink chrome revolver, cocks it, and fires through the middle.
 // The cards blow outward, the moon cracks around a smoking bullet hole, “Shot the Moon” slams in, she blows the smoke away.
-const HLM = { FF: 0.5, FF0: 0.25, PAUSE: 0.45, RING: 1.0, GUN: 0.7, COCK: 1.75, BANG: 2.6 };
-function hlMoonSeg(rec, seg, clips, A, t) {
-  const m = seg.m, ff = m.ff && m.ff.length ? m.ff : [m.trick];
-  seg.moon = true; seg.ff = ff.map((tr, k) => ({ tr, at: t + HLM.FF0 + k * HLM.FF }));
-  seg.ff.forEach(f => { A.push({ at: f.at + 0.04, soft: 'card' }); A.push({ at: f.at + 0.25, soft: 'sweep' }); });
+const HLM = { FF: 0.4, FF0: 0.25, PAUSE: 0.45, RING: 1.0, GUN: 0.7, COCK: 1.75, BANG: 2.6 };
+function hlMoonSeg(rec, seg, clips, A, t, opts = {}) {
+  // Kennedy, Nov 9: the fast-forward is only for replays; in the game she goes straight to the circle and the shot
+  const m = seg.m, ff = m.ff && m.ff.length ? m.ff : [m.trick], skipFF = !!opts.bare;
+  seg.moon = true; seg.ff = skipFF ? [] : ff.map((tr, k) => ({ tr, at: t + HLM.FF0 + k * HLM.FF }));
+  seg.ff.forEach(f => { A.push({ at: f.at + 0.04, soft: 'card' }); A.push({ at: f.at + 0.19, soft: 'sweep' }); });
   seg.pts = [];   // her point cards, in the order she took them: [{c, at (when it reached her pile)}]
-  seg.ff.forEach(f => f.tr.cards.forEach(x => { if (suit(x.c) === 3 || x.c === QS) seg.pts.push({ c: x.c, at: f.at + HLM.FF }); }));
-  const F0 = t + HLM.FF0 + ff.length * HLM.FF + HLM.PAUSE;
-  seg.ringAt = F0; seg.gunAt = F0 + HLM.RING - 0.1; seg.cockAt = F0 + HLM.COCK; seg.bangAt = F0 + HLM.BANG;
-  // quiet build-up (just the hammer), the shot, then the choir after it
-  A.push({ at: seg.cockAt, sfx: 'cock' }); A.push({ at: seg.bangAt, sfx: 'shot', gain: 1.6 }); A.push({ at: seg.bangAt + 0.45, sfx: 'choir-ahh' });
-  let q0 = seg.bangAt + 0.75;
+  ff.forEach((tr, k) => tr.cards.forEach(x => { if (suit(x.c) === 3 || x.c === QS) seg.pts.push({ c: x.c, at: skipFF ? t : seg.ff[k].at + HLM.FF }); }));
+  const F0 = skipFF ? t + 0.35 : t + HLM.FF0 + ff.length * HLM.FF + HLM.PAUSE;
+  seg.ringAt = F0;
+  // the choir and her moon line start as the cards fly into the circle; the gun fires once she's done talking
+  A.push({ at: F0, sfx: 'choir-ahh' });
+  let q0 = F0 + 0.15;
   for (const q of m.quotes) {
     const buf = clips[hlVoice(rec, q.p) + '|' + normLine(q.line)] || null;
     const len = buf ? (buf.sp != null ? buf.sp : buf.duration) : 1.8;
     if (buf) A.push({ at: q0, buf });
-    seg.quotes.push({ q, t0: q0, t1: q0 + len + 0.85 });
+    seg.quotes.push({ q, t0: q0, t1: q0 + len + 0.6 });
     q0 += len + 0.25;
   }
-  seg.gustAt = seg.bangAt + 1.7; seg.gunOut = Math.max(seg.bangAt + 2.5, q0 - 0.2);
-  seg.t1 = Math.max(seg.bangAt + 4.0, q0 + 0.7);
+  seg.bangAt = Math.max(F0 + HLM.BANG, q0 + 0.2);
+  seg.gunAt = seg.bangAt - (HLM.BANG - HLM.RING + 0.1); seg.cockAt = seg.bangAt - (HLM.BANG - HLM.COCK);
+  A.push({ at: seg.cockAt, sfx: 'cock' }); A.push({ at: seg.bangAt, sfx: 'shot', gain: 1.6 });
+  seg.gustAt = seg.bangAt + 1.7; seg.gunOut = seg.bangAt + 2.5;
+  seg.t1 = seg.bangAt + 4.0;
   return seg.t1;
 }
 const hlClamp = v => Math.max(0, Math.min(1, v));
@@ -2716,11 +2720,11 @@ function hlMoonDraw(g, W, H, rec, seg, t, L, U, seatXY) {
       const e = t - f.at; if (e < 0 || e > HLM.FF) continue;
       const w = seatXY[f.tr.w];
       f.tr.cards.forEach((x, k) => {
-        const at = k * 0.045, ee = e - at; if (ee < 0) return;
+        const at = k * 0.035, ee = e - at; if (ee < 0) return;
         const [ox, oy] = off[x.p], sx0 = cx + ox * cw * 1.32, sy0 = cy + oy * cw * 1.12;
-        const u = hlEaseOut(ee / 0.1); let px = sx0 + ox * 60 * cw / 66 * (1 - u), py = sy0 + oy * 60 * cw / 66 * (1 - u), sc = 1, al = u;
-        const sw = e - 0.25 - k * 0.02;
-        if (sw > 0) { const q = hlEaseIO(sw / 0.22); px += (w[0] - px) * q; py += (w[1] - py) * q; sc = 1 - 0.65 * q; al *= 1 - q * 0.9; }
+        const u = hlEaseOut(ee / 0.08); let px = sx0 + ox * 60 * cw / 66 * (1 - u), py = sy0 + oy * 60 * cw / 66 * (1 - u), sc = 1, al = u;
+        const sw = e - 0.19 - k * 0.015;
+        if (sw > 0) { const q = hlEaseIO(sw / 0.17); px += (w[0] - px) * q; py += (w[1] - py) * q; sc = 1 - 0.65 * q; al *= 1 - q * 0.9; }
         hlCard(g, x.c, px, py, cw * sc, x.c === QS ? 'rgba(178,140,255,.8)' : null, al);
       });
     }

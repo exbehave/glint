@@ -139,7 +139,8 @@ const LINES = {
     moon: ["I'm not that stupid and I'm really not that innocent"],
     win: ["I'm a bad girl and I'm gonna do what I wanna do", "She really messed with the wrong, wrong girl"]
   },
-  'Clermonts': {
+  'Clermont Twins': {
+    tram: ["Oh hell no", "Oh baby girl, no"],
     qsGive: ["You look dusty!", "Is it a doo-doo mask?", "Watch and learn, ladies"],
     qsGet: ["That gives myself permission to whoop your ass", "Bitch, calm the fuck down and know your place", "Bitch, shut up!"],
     breaks: ["We're the Clermont twins"],

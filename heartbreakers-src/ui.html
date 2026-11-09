@@ -1356,15 +1356,19 @@ function recStart() {
 }
 const recHand = () => (G && G.rec && G.rec.hands[G.rec.hands.length - 1]) || null;
 let recSaving = Promise.resolve();
+// Kennedy, Nov 9: debug games are recorded in full, but in their own admin-only table (hb_debug_games), never in
+// hb_games, so nothing from debug mode can reach ratings, leaderboards or stats.
+const gamesTable = rec => (rec && rec.debug ? 'hb_debug_games' : 'hb_games');
 function recSave() {
   if (!sb || !G || !G.rec) return;
+  const table = gamesTable(G.rec);
   const row = { id: G.rec.id, finished: !!G.rec.finished, updated_at: new Date().toISOString(), data: JSON.parse(JSON.stringify(G.rec)) };
   recSaving = recSaving.then(async () => {
     try {
       const { data: { session } } = await sb.auth.getSession();
       if (!session) return;
-      let { error } = await sb.from('hb_games').upsert(row);
-      if (error) { await sb.auth.refreshSession().catch(() => {}); ({ error } = await sb.from('hb_games').upsert(row)); }
+      let { error } = await sb.from(table).upsert(row);
+      if (error) { await sb.auth.refreshSession().catch(() => {}); ({ error } = await sb.from(table).upsert(row)); }
     } catch (e) {}
   });
 }
@@ -1392,11 +1396,11 @@ function saveGame() {
 let cloudTimer = 0, cloudBlob;
 function cloudSave(blob) {
   if (!sb || !ME || !G || !G.rec) return;
-  const id = G.rec.id;
+  const id = G.rec.id, table = gamesTable(G.rec);
   cloudBlob = blob;
   clearTimeout(cloudTimer);
   const push = () => { const b = cloudBlob; recSaving = recSaving.then(async () => {
-    try { await sb.from('hb_games').update({ save: b ? JSON.parse(b) : null }).eq('id', id); } catch (e) {}
+    try { await sb.from(table).update({ save: b ? JSON.parse(b) : null }).eq('id', id); } catch (e) {}
   }); };
   if (blob === null) push(); else cloudTimer = setTimeout(push, 1500);
 }
@@ -1451,16 +1455,20 @@ async function setupOrResume() {
   try { local = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); } catch (e) {}
   if (sb && ME) {
     try {
+      const open = t => sb.from(t).select('id, save').eq('user_id', ME.id).eq('finished', false).is('data->quit', null)
+        .not('save', 'is', null).order('updated_at', { ascending: false }).limit(1);
       const ask = Promise.all([
-        sb.from('hb_games').select('id, save').eq('user_id', ME.id).eq('finished', false).is('data->quit', null)
-          .not('save', 'is', null).order('updated_at', { ascending: false }).limit(1),
-        local && local.g && local.g.rec ? sb.from('hb_games').select('id, finished, data->quit').eq('id', local.g.rec.id).limit(1) : null,
+        open('hb_games'),
+        IS_ADMIN ? open('hb_debug_games') : null,
+        local && local.g && local.g.rec ? sb.from(gamesTable(local.g.rec)).select('id, finished, data->quit').eq('id', local.g.rec.id).limit(1) : null,
       ]);
-      const [cloud, mine] = await Promise.race([ask, new Promise((_, no) => setTimeout(() => no(new Error('slow')), 4000))]);
+      const [cloud, dcloud, mine] = await Promise.race([ask, new Promise((_, no) => setTimeout(() => no(new Error('slow')), 4000))]);
       const row = mine && mine.data && mine.data[0];
       if (row && (row.finished || row.quit)) { local = null; try { localStorage.removeItem(SAVE_KEY); } catch (e) {} }
-      const c = cloud && cloud.data && cloud.data[0] && cloud.data[0].save;
-      if (c && (!local || (c.at || 0) > (local.at || 0))) local = c;
+      for (const q of [cloud, dcloud]) {
+        const c = q && q.data && q.data[0] && q.data[0].save;
+        if (c && (!local || (c.at || 0) > (local.at || 0))) local = c;
+      }
     } catch (e) {}
   }
   if (!resumeGame(local)) showSetup();

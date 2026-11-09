@@ -865,9 +865,11 @@ async function showMyGames(back) {
   $('mg-x').onclick = () => (back ? back() : closeVeil());
   let rows = [];
   try {
-    const { data, error } = await sb.from('hb_games').select('id, started_at, finished, data').eq('user_id', ME.id).order('started_at', { ascending: false }).limit(25);
-    if (error) throw error;
-    rows = (data || []).filter(r => r.data && r.data.hands && r.data.hands.length);
+    const q = t => sb.from(t).select('id, started_at, finished, data').eq('user_id', ME.id).order('started_at', { ascending: false }).limit(25);
+    const [real, dbg] = await Promise.all([q('hb_games'), IS_ADMIN ? q('hb_debug_games') : null]);   // debug games live apart (admin only)
+    if (real.error) throw real.error;
+    rows = (real.data || []).concat((dbg && dbg.data) || []).filter(r => r.data && r.data.hands && r.data.hands.length)
+      .sort((a, b) => (a.started_at < b.started_at ? 1 : -1)).slice(0, 25);
   } catch (e) { if ($('mg-sub')) $('mg-sub').textContent = 'Couldn’t load your games. Try again in a moment.'; return; }
   if (!$('mg-list')) return;
   $('mg-sub').textContent = rows.length ? 'Tap a game to watch its highlights.' : 'No games yet.';
@@ -876,7 +878,7 @@ async function showMyGames(back) {
     const place = 1 + tot.filter(x => x < tot[0]).length;
     const res = d.quit ? 'Left early' : !r.finished ? 'Unfinished' : tot[0] === low ? 'Won' : `${['', '1st', '2nd', '3rd', '4th'][place]} place`;
     const when = new Date(r.started_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-    return `<button class="mg-row" type="button" data-i="${i}" ${n ? '' : 'disabled'}><span class="mg-when">${esc(when)}</span><span class="mg-who">as ${esc(d.me || '')} · vs ${esc(d.names.slice(1).join(', '))}</span><span class="mg-res">${esc(res)}${d.practice ? ' · practice' : ''}</span><span class="mg-n">${n ? `${n} highlight${n === 1 ? '' : 's'}` : 'no highlights'}</span></button>`;
+    return `<button class="mg-row" type="button" data-i="${i}" ${n ? '' : 'disabled'}><span class="mg-when">${esc(when)}</span><span class="mg-who">as ${esc(d.me || '')} · vs ${esc(d.names.slice(1).join(', '))}</span><span class="mg-res">${esc(res)}${d.debug ? ' · debug' : d.practice ? ' · practice' : ''}</span><span class="mg-n">${n ? `${n} highlight${n === 1 ? '' : 's'}` : 'no highlights'}</span></button>`;
   }).join('');
   $('mg-list').querySelectorAll('.mg-row').forEach(b => b.onclick = () => showHighlights(rows[+b.dataset.i].data, () => showMyGames(back)));
 }

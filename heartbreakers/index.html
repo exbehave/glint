@@ -2996,9 +2996,11 @@ async function showMyGames(back) {
   $('mg-x').onclick = () => (back ? back() : closeVeil());
   let rows = [];
   try {
-    const { data, error } = await sb.from('hb_games').select('id, started_at, finished, data').eq('user_id', ME.id).order('started_at', { ascending: false }).limit(25);
-    if (error) throw error;
-    rows = (data || []).filter(r => r.data && r.data.hands && r.data.hands.length);
+    const q = t => sb.from(t).select('id, started_at, finished, data').eq('user_id', ME.id).order('started_at', { ascending: false }).limit(25);
+    const [real, dbg] = await Promise.all([q('hb_games'), IS_ADMIN ? q('hb_debug_games') : null]);   // debug games live apart (admin only)
+    if (real.error) throw real.error;
+    rows = (real.data || []).concat((dbg && dbg.data) || []).filter(r => r.data && r.data.hands && r.data.hands.length)
+      .sort((a, b) => (a.started_at < b.started_at ? 1 : -1)).slice(0, 25);
   } catch (e) { if ($('mg-sub')) $('mg-sub').textContent = 'Couldn’t load your games. Try again in a moment.'; return; }
   if (!$('mg-list')) return;
   $('mg-sub').textContent = rows.length ? 'Tap a game to watch its highlights.' : 'No games yet.';
@@ -3007,7 +3009,7 @@ async function showMyGames(back) {
     const place = 1 + tot.filter(x => x < tot[0]).length;
     const res = d.quit ? 'Left early' : !r.finished ? 'Unfinished' : tot[0] === low ? 'Won' : `${['', '1st', '2nd', '3rd', '4th'][place]} place`;
     const when = new Date(r.started_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-    return `<button class="mg-row" type="button" data-i="${i}" ${n ? '' : 'disabled'}><span class="mg-when">${esc(when)}</span><span class="mg-who">as ${esc(d.me || '')} · vs ${esc(d.names.slice(1).join(', '))}</span><span class="mg-res">${esc(res)}${d.practice ? ' · practice' : ''}</span><span class="mg-n">${n ? `${n} highlight${n === 1 ? '' : 's'}` : 'no highlights'}</span></button>`;
+    return `<button class="mg-row" type="button" data-i="${i}" ${n ? '' : 'disabled'}><span class="mg-when">${esc(when)}</span><span class="mg-who">as ${esc(d.me || '')} · vs ${esc(d.names.slice(1).join(', '))}</span><span class="mg-res">${esc(res)}${d.debug ? ' · debug' : d.practice ? ' · practice' : ''}</span><span class="mg-n">${n ? `${n} highlight${n === 1 ? '' : 's'}` : 'no highlights'}</span></button>`;
   }).join('');
   $('mg-list').querySelectorAll('.mg-row').forEach(b => b.onclick = () => showHighlights(rows[+b.dataset.i].data, () => showMyGames(back)));
 }
@@ -3751,15 +3753,19 @@ function recStart() {
 }
 const recHand = () => (G && G.rec && G.rec.hands[G.rec.hands.length - 1]) || null;
 let recSaving = Promise.resolve();
+// Kennedy, Nov 9: debug games are recorded in full, but in their own admin-only table (hb_debug_games), never in
+// hb_games, so nothing from debug mode can reach ratings, leaderboards or stats.
+const gamesTable = rec => (rec && rec.debug ? 'hb_debug_games' : 'hb_games');
 function recSave() {
   if (!sb || !G || !G.rec) return;
+  const table = gamesTable(G.rec);
   const row = { id: G.rec.id, finished: !!G.rec.finished, updated_at: new Date().toISOString(), data: JSON.parse(JSON.stringify(G.rec)) };
   recSaving = recSaving.then(async () => {
     try {
       const { data: { session } } = await sb.auth.getSession();
       if (!session) return;
-      let { error } = await sb.from('hb_games').upsert(row);
-      if (error) { await sb.auth.refreshSession().catch(() => {}); ({ error } = await sb.from('hb_games').upsert(row)); }
+      let { error } = await sb.from(table).upsert(row);
+      if (error) { await sb.auth.refreshSession().catch(() => {}); ({ error } = await sb.from(table).upsert(row)); }
     } catch (e) {}
   });
 }
@@ -3787,11 +3793,11 @@ function saveGame() {
 let cloudTimer = 0, cloudBlob;
 function cloudSave(blob) {
   if (!sb || !ME || !G || !G.rec) return;
-  const id = G.rec.id;
+  const id = G.rec.id, table = gamesTable(G.rec);
   cloudBlob = blob;
   clearTimeout(cloudTimer);
   const push = () => { const b = cloudBlob; recSaving = recSaving.then(async () => {
-    try { await sb.from('hb_games').update({ save: b ? JSON.parse(b) : null }).eq('id', id); } catch (e) {}
+    try { await sb.from(table).update({ save: b ? JSON.parse(b) : null }).eq('id', id); } catch (e) {}
   }); };
   if (blob === null) push(); else cloudTimer = setTimeout(push, 1500);
 }
@@ -3846,16 +3852,20 @@ async function setupOrResume() {
   try { local = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); } catch (e) {}
   if (sb && ME) {
     try {
+      const open = t => sb.from(t).select('id, save').eq('user_id', ME.id).eq('finished', false).is('data->quit', null)
+        .not('save', 'is', null).order('updated_at', { ascending: false }).limit(1);
       const ask = Promise.all([
-        sb.from('hb_games').select('id, save').eq('user_id', ME.id).eq('finished', false).is('data->quit', null)
-          .not('save', 'is', null).order('updated_at', { ascending: false }).limit(1),
-        local && local.g && local.g.rec ? sb.from('hb_games').select('id, finished, data->quit').eq('id', local.g.rec.id).limit(1) : null,
+        open('hb_games'),
+        IS_ADMIN ? open('hb_debug_games') : null,
+        local && local.g && local.g.rec ? sb.from(gamesTable(local.g.rec)).select('id, finished, data->quit').eq('id', local.g.rec.id).limit(1) : null,
       ]);
-      const [cloud, mine] = await Promise.race([ask, new Promise((_, no) => setTimeout(() => no(new Error('slow')), 4000))]);
+      const [cloud, dcloud, mine] = await Promise.race([ask, new Promise((_, no) => setTimeout(() => no(new Error('slow')), 4000))]);
       const row = mine && mine.data && mine.data[0];
       if (row && (row.finished || row.quit)) { local = null; try { localStorage.removeItem(SAVE_KEY); } catch (e) {} }
-      const c = cloud && cloud.data && cloud.data[0] && cloud.data[0].save;
-      if (c && (!local || (c.at || 0) > (local.at || 0))) local = c;
+      for (const q of [cloud, dcloud]) {
+        const c = q && q.data && q.data[0] && q.data[0].save;
+        if (c && (!local || (c.at || 0) > (local.at || 0))) local = c;
+      }
     } catch (e) {}
   }
   if (!resumeGame(local)) showSetup();

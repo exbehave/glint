@@ -761,9 +761,9 @@ const SFX = {
   //   turn  — a faint two-note ping when it's your turn
   //   tap   — the softest tick on buttons
   //   nope  — a low dull thud when you tap a card you can't play
-  soft(kind) {
+  soft(kind, o) {   // o (optional, highlights reel): { at: audio time, dest: node }
     const c = this.ready(); if (!c) return;
-    const t = c.currentTime + 0.005, out = c.createGain(); out.connect(c.destination);
+    const t = (o && o.at != null ? o.at : c.currentTime) + 0.005, out = c.createGain(); out.connect((o && o.dest) || c.destination);
     const noise = (dur) => { const n = Math.floor(c.sampleRate * dur), b = c.createBuffer(1, n, c.sampleRate), d = b.getChannelData(0); for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1; const src = c.createBufferSource(); src.buffer = b; return src; };
     const tone = (type, f0, f1, dur, vol, at = 0) => {
       const o = c.createOscillator(), g = c.createGain(); o.type = type;
@@ -785,11 +785,11 @@ const SFX = {
     else if (kind === 'tap') { out.gain.value = 0.22; tone('sine', 1400, 1100, 0.025, 0.3); }
     else if (kind === 'nope') { out.gain.value = 0.4; tone('triangle', 110, 70, 0.09, 0.6); }
   },
-  glass() { // shatter
+  glass(o) { // shatter; o (optional, highlights reel): { at, dest }
     const c = this.ready();
-    if (!c) { if (S.sound && this.ctx) this.ctx.resume().then(() => { if (this.ctx.state === 'running') this.glass(); }).catch(() => {}); return; }
-    const t = c.currentTime + 0.02;
-    const out = c.createGain(); out.gain.value = 0.32; out.connect(c.destination);
+    if (!c) { if (!o && S.sound && this.ctx) this.ctx.resume().then(() => { if (this.ctx.state === 'running') this.glass(); }).catch(() => {}); return; }
+    const t = (o && o.at != null ? o.at : c.currentTime) + 0.02;
+    const out = c.createGain(); out.gain.value = 0.32; out.connect((o && o.dest) || c.destination);
     const len = Math.floor(c.sampleRate * 0.6), buf = c.createBuffer(1, len, c.sampleRate), d = buf.getChannelData(0);
     for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
     const n = c.createBufferSource(); n.buffer = buf;

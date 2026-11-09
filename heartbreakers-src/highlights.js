@@ -607,6 +607,36 @@ function hlGunDraw(g, P, cock, kick, U) {
   return { x: P.gx + X * Math.cos(P.rot) - Y * Math.sin(P.rot), y: P.gy + X * Math.sin(P.rot) + Y * Math.cos(P.rot) };
 }
 
+// Kennedy, Nov 9: the cards land in the deck's devil heart, not a circle: a heart outline (16 sin³t, 13 cos t − 5 cos 2t −
+// 2 cos 3t − cos 4t), a card on each horn and two on the tail, the Q♠ as the arrow tip. Units: y down, the heart's
+// biggest inscribed circle (r 8.3, centre 3.5 below the dip) sits on the moon at cx, cy.
+const HL_HEART = (() => {
+  const P = [], M = 720;
+  for (let i = 0; i <= M; i++) { const t = i / M * Math.PI * 2; P.push([16 * Math.sin(t) ** 3, -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t)) - 3.5]); }
+  const C = [0]; for (let i = 1; i < P.length; i++) C.push(C[i - 1] + Math.hypot(P[i][0] - P[i - 1][0], P[i][1] - P[i - 1][1]));
+  return { P, C, len: C[C.length - 1], inR: 8.3 };
+})();
+function hlDevilSlots(N) {   // [{x, y, rot}] in heart units; the last slot is the tail's arrow tip
+  const extra = N >= 8 ? 5 : 0, M = N - extra, H = HL_HEART, out = [];
+  for (let j = 0; j < M; j++) {
+    const want = (j + 0.5) / M * H.len; let i = 1; while (i < H.C.length - 1 && H.C[i] < want) i++;
+    const [x, y] = H.P[i], tx = H.P[i][0] - H.P[i - 1][0], ty = H.P[i][1] - H.P[i - 1][1];
+    let nx = ty, ny = -tx; if (nx * x + ny * y < 0) { nx = -nx; ny = -ny; }   // outward
+    out.push({ x, y, rot: Math.atan2(ny, nx) });   // laid end to end along the line
+  }
+  if (extra) {
+    out.push({ x: -12.5, y: -21, rot: -0.5 }, { x: 12.5, y: -21, rot: 0.5 });   // horns, pointing up and out
+    // tail: three cards chained from the bottom point, swooping down and round to the right, the last one the arrow tip
+    const B = u => [2 * (1 - u) * u * 7 + u * u * 26, (1 - u) ** 2 * 13.5 + 2 * (1 - u) * u * 32 + u * u * 4];
+    const gap = H.len / M, Q = []; let acc = 0, prev = B(0);
+    for (let i = 1; i <= 400; i++) { const q = B(i / 400); acc += Math.hypot(q[0] - prev[0], q[1] - prev[1]); Q.push([acc, q, prev]); prev = q; }
+    for (const d of [0.62, 1.6, 2.6].map(f => f * gap)) {
+      const [, [x, y], [px, py]] = Q.find(e => e[0] >= d) || Q[Q.length - 1];
+      out.push({ x, y, rot: Math.atan2(y - py, x - px) + Math.PI / 2 });
+    }
+  }
+  return out;
+}
 function hlMoonDraw(g, W, H, rec, seg, t, L, U, seatXY) {
   const cw = L.cw, cx = L.cx, cy = L.cy, who = seg.m.who, rng = hlRng(seg.i * 71 + 5), tau = t;
   const off = [[0, 1], [-1, 0], [0, -1], [1, 0]];
@@ -635,10 +665,13 @@ function hlMoonDraw(g, W, H, rec, seg, t, L, U, seatXY) {
     }
   }
   // ---- her point cards: on her pile as they arrive, then up into the circle, then blown away by the shot
-  const N = seg.pts.length, Rr = Math.max(cw * 1.35, N * cw * 0.66 * 0.8 / (Math.PI * 2) + cw * 0.15), ring = seg.ringAt, bang = seg.bangAt;
-  const R = Rr, rcw = cw * 0.66;
-  // the moon behind the circle
-  const moonA = hlClamp((t - ring - 0.45) / 0.5), Rd = R - rcw * 0.45;
+  let rcw; const N = seg.pts.length, ring = seg.ringAt, bang = seg.bangAt; const hs = Math.min(W * 0.6 / 38, H * 0.52 / 46), R = 15 * hs;
+  rcw = Math.min(cw * 0.85, HL_HEART.len / Math.max(1, N - 5) * hs * 0.88 / 1.4);   // a big heart, the cards sized to almost meet end to end
+  const mir = who === 2 || who === 3 ? -1 : 1;   // the gun comes from the right for these seats: the tail swings left, out of its way
+  const slots = hlDevilSlots(N).map(q => ({ x: q.x * mir, y: q.y, rot: q.rot * mir })), qk = seg.pts.findIndex(p => p.c === QS);
+  const slotOf = k => slots[N >= 8 && qk >= 0 ? (k === qk ? N - 1 : k === N - 1 ? qk : k) : k];   // the Q♠ takes the arrow tip
+  // the moon inside the heart
+  const moonA = hlClamp((t - ring - 0.45) / 0.5), Rd = HL_HEART.inR * hs * 0.97;
   if (moonA > 0) {
     const dim = t > bang ? 1 - 0.35 * hlClamp((t - bang) / 0.6) : 1, pulse = t < bang ? 1 + 0.03 * Math.sin((t - ring) * 7) * hlClamp((t - seg.cockAt) / 0.3) : 1;
     g.save(); g.globalAlpha = moonA * dim;
@@ -655,11 +688,12 @@ function hlMoonDraw(g, W, H, rec, seg, t, L, U, seatXY) {
   }
   seg.pts.forEach((p, k) => {
     if (t < p.at) return;
-    const a = -Math.PI / 2 + k * Math.PI * 2 / N + (t > ring + HLM.RING ? (Math.min(t, bang) - ring - HLM.RING) * 0.35 : 0);
-    const pileXY = [pileX + (k - N / 2) * cw * 0.09, pileY - k * cw * 0.012], ringXY = [cx + Math.cos(a) * R, cy + Math.sin(a) * R];
+    const sl = slotOf(k), breathe = t > ring + HLM.RING && t < bang ? 1 + 0.025 * Math.sin((t - ring - HLM.RING) * 5) : 1;
+    const a = Math.atan2(sl.y, sl.x);   // which way it blows out from the middle
+    const pileXY = [pileX + (k - N / 2) * cw * 0.09, pileY - k * cw * 0.012], ringXY = [cx + sl.x * hs * breathe, cy + sl.y * hs * breathe];
     const fly = hlEaseIO((t - ring - k * 0.035) / (HLM.RING - 0.35));
     let px = pileXY[0] + (ringXY[0] - pileXY[0]) * fly, py = pileXY[1] + (ringXY[1] - pileXY[1]) * fly - Math.sin(Math.PI * fly) * cw * 0.8;
-    let rot = (k - N / 2) * 0.06 * (1 - fly) + (a + Math.PI / 2) * fly, sc = (0.5 + 0.16 * fly), al = 1;
+    let rot = (k - N / 2) * 0.06 * (1 - fly) + sl.rot * fly, sc = 0.5 + (rcw / cw - 0.5) * fly, al = 1;
     if (t > bang) {   // blown outward, spinning, gone
       const e = t - bang - 0.03, d = (0.7 + rng() * 0.9) * Math.max(W, H), sp = (rng() - 0.5) * 14;
       if (e > 0) { const q = hlEaseOut(e / 1.1); px += Math.cos(a) * d * q; py += Math.sin(a) * d * q + cw * 2 * q * q; rot += sp * q; al = 1 - hlClamp(e / 1.0); }

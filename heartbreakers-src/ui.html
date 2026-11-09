@@ -1062,7 +1062,16 @@ function lineFor(p, ev) {
   // two-part quotes: the second half only once she has said the first half earlier in this game (Kennedy, Nov 6)
   const saidG = (G && G.saidGame) || new Set();
   const recent = lastQuote && performance.now() - lastQuote.at < PAIR_WINDOW ? lastQuote : null;
-  const set = pool(ev).filter(l => { const first = (ONLY_AFTER[nm] || {})[normLine(l)]; return !first || saidG.has(nm + '|' + first) || (recent && pairScore(recent.line, l) >= 2); });
+  let set = pool(ev).filter(l => { const first = (ONLY_AFTER[nm] || {})[normLine(l)]; return !first || saidG.has(nm + '|' + first) || (recent && pairScore(recent.line, l) >= 2); });
+  // Kennedy, Nov 9: taking the Q♠, she may borrow one of her own "plays the queen" lines when it answers the line the
+  // girl who just played the queen on her said (pair score ≥ 3, e.g. Amy “Nobody touches my weave” → Natalie “Lookin
+  // like a Crenshaw weave, bitch”). A borrowed line sits out the next time she plays the queen herself.
+  const skip = (G && G.qsSkip && G.qsSkip[nm]) || [];
+  if (ev === 'qsGive' && skip.length) { const kept = set.filter(l => !skip.includes(normLine(l))); if (kept.length) set = kept; }
+  let borrowed = [];
+  if (ev === 'qsGet' && recent && recent.ev === 'qsGive' && recent.nm !== nm)
+    borrowed = ((LINES[nm] && LINES[nm].qsGive) || []).filter(l => !set.includes(l) && pairScore(recent.line, l) >= 3);
+  set = set.concat(borrowed);
   if (!set.length) return null; // the admin cleared this moment: she stays quiet
   // Kennedy, Nov 7: no speech bubbles without sound. Once the clips have loaded (signed in, sound on), she only says
   // lines that have a clip; a moment with none stays quiet.
@@ -1091,7 +1100,9 @@ function lineFor(p, ev) {
     if (Math.max(...cs) >= 2) pick = opts.filter((l, i) => cs[i] >= 2);
   }
   const l = pick[Math.floor(Math.random() * pick.length)];
-  lastQuote = { line: normLine(l), nm, at: performance.now() };
+  lastQuote = { line: normLine(l), nm, ev, at: performance.now() };
+  if (G && ev === 'qsGive' && G.qsSkip && G.qsSkip[nm]) delete G.qsSkip[nm];          // she's sat it out once
+  if (G && borrowed.includes(l)) ((G.qsSkip || (G.qsSkip = {}))[nm] = (G.qsSkip[nm] || [])).push(normLine(l));
   const rh = recHand(); if (rh) (rh.says || (rh.says = [])).push(pairSc ? [p, ev, l, Date.now() - rh.t0, pairSc, recent.line] : [p, ev, l, Date.now() - rh.t0]);   // 6th: the quote it answered (Nov 9, for highlights)
   lastLine[nm] = l; lastByMoment[nm + '|' + ev] = l; used.add(l);
   if (G) (G.saidGame || (G.saidGame = new Set())).add(nm + '|' + normLine(l));
@@ -1393,7 +1404,7 @@ function saveGame() {
     const blob = JSON.stringify({ v: 1, who: whoAmI(), at: Date.now(), target: S.target, heartRun, said, g: {
       totals: G.totals, handNo: G.handNo, names: G.names, hands: G.hands, dir: G.dir, known: G.known, phase: G.phase,
       st: G.st ? Object.assign({}, G.st, { played: Array.from(G.st.played) }) : null,
-      table: G.table, shown: G.shown, drawnPts: G.drawnPts, rec: G.rec || null, mem: G.T.mem, qsSaid: !!G.qsSaid, saidGame: [...(G.saidGame || [])], debug: G.debug || null, autoMe: !!G.autoMe, showAll: !!G.showAll } });
+      table: G.table, shown: G.shown, drawnPts: G.drawnPts, rec: G.rec || null, mem: G.T.mem, qsSaid: !!G.qsSaid, saidGame: [...(G.saidGame || [])], qsSkip: G.qsSkip || null, debug: G.debug || null, autoMe: !!G.autoMe, showAll: !!G.showAll } });
     localStorage.setItem(SAVE_KEY, blob);
     cloudSave(blob);
   } catch (e) {}
@@ -1428,7 +1439,7 @@ function resumeGame(d) {
     if (st) st.played = Uint8Array.from(st.played);
     Object.assign(G, { hands: st ? st.hands : g.hands, dir: g.dir, known: g.known, received: new Set(), passSel: new Set(), phase: g.phase, st,
       table: g.table || [], sel: null, busy: false, wonBy: null, shown: g.shown || [0, 0, 0, 0], drawnPts: g.drawnPts || [0, 0, 0, 0], popBroken: false,
-      rec: g.rec || null, qsSaid: !!g.qsSaid, saidGame: new Set(g.saidGame || []), debug: g.debug || null, autoMe: !!g.autoMe, showAll: !!g.showAll });
+      rec: g.rec || null, qsSaid: !!g.qsSaid, saidGame: new Set(g.saidGame || []), qsSkip: g.qsSkip || null, debug: g.debug || null, autoMe: !!g.autoMe, showAll: !!g.showAll });
     Object.assign(G.T, { hands: G.hands, dir: G.dir, known: G.known });
     for (const k in saidThisHand) delete saidThisHand[k];
     for (const k in d.said || {}) saidThisHand[k] = new Set(d.said[k]);

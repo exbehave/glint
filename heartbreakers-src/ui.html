@@ -1698,6 +1698,7 @@ function canTram() {
   if (!G || G.phase !== 'play' || G.busy || G.looking || G.tramming || !G.st) return false;
   const st = G.st;
   if (st.turn !== 0 || st.trickNo >= 13) return false;
+  if (G.debug) return true;   // debug games (admin only): TRAM on every one of your turns, whatever is left (Kennedy, Nov 9)
   // No moon possible: you have at least one point this round and so does someone else (Kennedy, Nov 7). Restored Nov 8
   // after the sure-win check below replaced it by mistake and let a TRAM claim a moon.
   if (!(st.pts[0] >= 1 && [1, 2, 3].some(q => st.pts[q] >= 1))) return false;
@@ -1807,7 +1808,7 @@ function endHand() {
 function moonShow(moon, done) {
   const rec = G.rec, hi = rec ? rec.hands.length - 1 : -1;
   const text = lineFor(moon, 'moon');
-  if (!rec || hi < 0 || !rec.hands[hi].plays || rec.hands[hi].plays.length < 52) return done(null);
+  if (!rec || hi < 0 || !rec.hands[hi].plays || hlTricks(rec.hands[hi]).length < 13) return done(null);
   const m = hlMoonMoment(rec, hi, moon);
   if (text) m.quotes = [{ p: moon, ev: 'moon', line: text }];
   const el = document.createElement('div'); el.className = 'moonfx';

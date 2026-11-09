@@ -17,6 +17,19 @@ function hlTricks(h) {
     const cards = P.slice(i, i + 4).map(x => ({ p: x[0], c: x[1] }));
     out.push({ n: i / 4, cards, w: winnerOf(cards).p, t0: P[i][2], t1: P[i + 4] ? P[i + 4][2] : Infinity });
   }
+  // a TRAM claimed the rest (in a debug game it can take a moon): the claimed cards become the tricks you'd have won,
+  // the half-played trick first, then one card from each hand per trick
+  if (h.tram && h.tram.hands) {
+    const hands = h.tram.hands.map(x => x.slice()), table = (h.tram.table || []).map(([p, c]) => ({ p, c }));
+    let ms = h.tram.ms || (out.length ? out[out.length - 1].t1 : 0);
+    if (out.length) out[out.length - 1].t1 = Math.min(out[out.length - 1].t1, ms);
+    for (let n = out.length; n < 13; n++) {
+      const cards = n === out.length ? table.slice() : [];
+      for (let k = 0; k < 4; k++) if (!cards.some(x => x.p === k) && hands[k].length) cards.push({ p: k, c: hands[k].shift() });
+      if (cards.length < 4) break;
+      out.push({ n, cards, w: h.tram.by != null ? h.tram.by : 0, t0: ms, t1: n === 12 ? Infinity : ms, tram: true });
+    }
+  }
   return out;
 }
 function hlMoonMoment(rec, hi, who) {   // also used by the game, the moment she shoots it
@@ -32,7 +45,7 @@ function hlFind(rec) {
     const trickAt = ms => tricks.find(t => ms >= t.t0 && ms < t.t1) || tricks[tricks.length - 1];
     const used = new Set();
     for (const t of tricks) {
-      if (!t.cards.some(x => x.c === QS)) continue;
+      if (t.tram || !t.cards.some(x => x.c === QS)) continue;   // cards claimed by a TRAM were never played
       const qs = says.filter(s => (s.ev === 'qsGive' || s.ev === 'qsGet') && s.ms >= t.t0 && s.ms < t.t1);
       qs.forEach(s => used.add(s));
       found.push({ kind: 'qs', hand: hi, trick: t, quotes: qs, rank: 2, who: t.w, by: t.cards.find(x => x.c === QS).p });

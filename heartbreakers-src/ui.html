@@ -324,6 +324,15 @@ html, body { overflow-x: hidden; overflow-x: clip; }
 .seatrow { display: grid; grid-template-columns: 58px 1fr; gap: 10px; align-items: center; }
 .seatrow .sn { font-size: 14px; font-weight: 700; }
 .foot { font-size: 12.5px; color: var(--mute); line-height: 1.5; }
+/* Highlights reel + My games (Nov 9) */
+.panel.hl { max-width: 560px; }
+.hl-stage { display: grid; place-items: center; }
+.hl-stage canvas { display: block; max-width: 100%; max-height: min(58vh, 640px); width: auto; height: auto; border-radius: 12px; border: 1px solid var(--line); background: var(--ink); }
+.mg { display: flex; flex-direction: column; gap: 8px; max-height: 55vh; overflow-y: auto; }
+.mg-row { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; text-align: left; background: rgba(10,3,9,.4); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; color: var(--bone); font: inherit; cursor: pointer; }
+.mg-row:disabled { opacity: .5; cursor: default; }
+.mg-when { font-weight: 700; } .mg-res { justify-self: end; font-weight: 700; color: var(--red); }
+.mg-who { grid-column: 1 / -1; color: var(--mute); font-size: 14px; } .mg-n { grid-column: 1 / -1; font-size: 13px; color: var(--mute); }
 .linkish { background: none; border: 0; padding: 0; font: inherit; color: var(--bone); text-decoration: underline; cursor: pointer; }
 .btns { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
 .tbl { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
@@ -1043,7 +1052,7 @@ function lineFor(p, ev) {
   }
   const l = pick[Math.floor(Math.random() * pick.length)];
   lastQuote = { line: normLine(l), nm, at: performance.now() };
-  const rh = recHand(); if (rh) (rh.says || (rh.says = [])).push(pairSc ? [p, ev, l, Date.now() - rh.t0, pairSc] : [p, ev, l, Date.now() - rh.t0]);
+  const rh = recHand(); if (rh) (rh.says || (rh.says = [])).push(pairSc ? [p, ev, l, Date.now() - rh.t0, pairSc, recent.line] : [p, ev, l, Date.now() - rh.t0]);   // 6th: the quote it answered (Nov 9, for highlights)
   lastLine[nm] = l; lastByMoment[nm + '|' + ev] = l; used.add(l);
   if (G) (G.saidGame || (G.saidGame = new Set())).add(nm + '|' + normLine(l));
   return l;
@@ -1743,9 +1752,13 @@ function finishHand(raw, moon, choice) {
     <div><h2>${head}</h2><div class="sub">${over ? `Game to ${S.target}. Lowest score wins.` : `Next round: ${nd === 'hold' ? 'no passing' : 'pass ' + nd}.`}</div></div>
     ${moonLine}${react}
     <table class="tbl"><thead><tr><th>Player</th><th>Round</th><th>Total</th></tr></thead><tbody>${rows}</tbody></table>
-    <div class="btns">${over ? `<button class="ghost" id="b-setup">Main menu</button><button class="cta" id="b-again">Play again</button>` : `<button class="cta" id="b-next">Deal next round</button>`}</div>
+    <div class="btns">${over ? `${G.rec && hlFind(G.rec).length ? `<button class="ghost" id="b-hl">Highlights</button>` : ''}<button class="ghost" id="b-setup">Main menu</button><button class="cta" id="b-again">Play again</button>` : `<button class="cta" id="b-next">Deal next round</button>`}</div>
   </div>`);
-  if (over) { $('b-again').onclick = startGame; $('b-setup').onclick = showSetup; }
+  if (over) {
+    $('b-again').onclick = startGame; $('b-setup').onclick = showSetup;
+    // Highlights (Kennedy, Nov 9): back returns to this score screen
+    if ($('b-hl')) { const panel = $('veil').innerHTML, rec = G.rec; $('b-hl').onclick = () => showHighlights(rec, () => { openVeil(panel); $('b-again').onclick = startGame; $('b-setup').onclick = showSetup; $('b-hl').onclick = () => showHighlights(rec); }); }
+  }
   else $('b-next').onclick = () => { closeVeil(); newHand(); };
 }
 
@@ -2125,7 +2138,7 @@ function showMenu() {
     <div class="field"><span class="lab">Sound effects</span>${segHTML('msound', [['on', 'On'], ['off', 'Off']], S.sound ? 'on' : 'off')}</div>
     <div class="field"><span class="lab">Haptics</span>${segHTML('mhaptics', [['on', 'On'], ['off', 'Off']], S.haptics ? 'on' : 'off')}</div>
     <div class="foot">Your game saves as you play: refresh or close the page and you’ll come right back to it. Exit game ends it${G && G.rec && G.rec.practice ? '' : '. Leaving a rated game counts as a loss'}.</div>
-    ${ME ? `<button class="ghost" id="b-lb" type="button">Leaderboard</button>` : ''}
+    ${ME ? `<button class="ghost" id="b-lb" type="button">Leaderboard</button><button class="ghost" id="b-mg" type="button">My games</button>` : ''}
     <div class="btns"><button class="ghost" id="b-new">Exit game</button><button class="cta" id="b-keep">Back to game</button></div>
     ${ME ? `<div class="foot">Signed in as ${esc(acctName(ME))} · <button class="linkish" id="b-out" type="button">Sign out</button></div>` : ''}
   </div>`);
@@ -2134,6 +2147,7 @@ function showMenu() {
   $('veil').querySelectorAll('input[name="mhaptics"]').forEach(r => r.onchange = () => { S.haptics = r.value === 'on'; saveSettings(); if (S.haptics) haptic(12); });
   $('b-keep').onclick = closeVeil;
   if ($('b-lb')) $('b-lb').onclick = () => showLeaders(showMenu);
+  if ($('b-mg')) $('b-mg').onclick = () => showMyGames(showMenu);
   // Kennedy, Nov 8: leaving a rated game counts as a loss, so warn first (practice games just end)
   $('b-new').onclick = () => {
     const rated = ME && G && G.rec && !G.rec.practice && G.phase !== 'over';

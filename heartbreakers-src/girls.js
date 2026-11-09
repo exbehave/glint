@@ -220,7 +220,7 @@ function chooseByGoal(T, p, scores) { // scores: [{x, own, hum}] averaged
     return scores.slice().sort((a, b) => (b.hum - k * b.own) - (a.hum - k * a.own) || a.own - b.own)[0].x;
   }
   if ((T.cards[p] || {}).goal === 'help-you') {
-    const c = T.cards[p], k = rateFor(T, p);
+    const c = T.cards[p], k = c.rate;   // no end-of-game boost: that's for girls playing to win (Kennedy, Nov 9: she was winning 58–73%)
     return scores.slice().sort((a, b) => (b.cpu - k * b.own - c.spare * b.hum) - (a.cpu - k * a.own - c.spare * a.hum) || a.hum - b.hum)[0].x;
   }
   if ((T.cards[p] || {}).goal === 'you-first') {

@@ -1190,7 +1190,7 @@ function chooseByGoal(T, p, scores) { // scores: [{x, own, hum}] averaged
     return scores.slice().sort((a, b) => (b.hum - k * b.own) - (a.hum - k * a.own) || a.own - b.own)[0].x;
   }
   if ((T.cards[p] || {}).goal === 'help-you') {
-    const c = T.cards[p], k = rateFor(T, p);
+    const c = T.cards[p], k = c.rate;   // no end-of-game boost: that's for girls playing to win (Kennedy, Nov 9: she was winning 58–73%)
     return scores.slice().sort((a, b) => (b.cpu - k * b.own - c.spare * b.hum) - (a.cpu - k * a.own - c.spare * a.hum) || a.hum - b.hum)[0].x;
   }
   if ((T.cards[p] || {}).goal === 'you-first') {
@@ -3088,9 +3088,35 @@ const playable = () => (ROSTER[S.deck] || CAST[S.deck]).slice();
 // Your girl sits out; the three opponents come from everyone else.
 // Kennedy, Nov 8: you can pick up to three opponents on the setup screen (S.vs); empty seats are filled at random.
 const myPicks = () => (S.vs || []).filter((n, i, a) => n !== S.me && playable().includes(n) && a.indexOf(n) === i).slice(0, 3);
+// Kennedy, Nov 9: Shan-Rock (the Genius on your side) is earned in rated games. She can sit at your table only
+// after two rated losses in a row (quits count as losses; a tie for first is a win); every win locks her again,
+// and a brand-new player starts locked. Practice and debug games are always open. Playing AS her is never locked:
+// you play your own cards, her helping brain only runs when she's a computer player.
+const SR_NAME = 'Shan-Rock', SR_NEED = 2, SR_SINCE = '2026-11-08T07:00:00Z';   // SINCE = the ratings' fresh start
+let SR = null;   // { streak } once loaded; null = not known yet (treated as locked)
+async function loadSrLock() {
+  if (!sb || !ME) { SR = { streak: SR_NEED }; return; }
+  try {
+    const { data, error } = await sb.from('hb_games').select('finished, updated_at, data->winners, data->quit, data->practice, data->debug')
+      .eq('user_id', ME.id).gte('started_at', SR_SINCE).order('updated_at', { ascending: false }).limit(40);
+    if (error) throw error;
+    let streak = 0;
+    for (const r of data || []) {
+      if (r.practice || r.debug) continue;
+      if (r.quit) { streak++; continue; }
+      if (!r.finished) continue;                                   // a game still in progress doesn't count yet
+      if ((r.winners || []).includes(0)) break;                     // you won (or tied for first)
+      streak++;
+    }
+    SR = { streak };
+  } catch (e) { SR = null; }
+}
+const srRatedNow = () => !!ME && !S.practice && !S.debug;
+const srLocked = (rated = srRatedNow()) => rated && !(SR && SR.streak >= SR_NEED);
+const srToGo = () => Math.max(1, SR_NEED - ((SR && SR.streak) || 0));
 const pickCast = () => {
-  const picks = myPicks();
-  let pool = playable().filter(n => n !== S.me && !picks.includes(n));
+  const picks = myPicks().filter(n => !(n === SR_NAME && srLocked()));
+  let pool = playable().filter(n => n !== S.me && !picks.includes(n) && !(n === SR_NAME && srLocked()));
   if (picks.length + pool.length < 3) pool = pool.concat(CAST[S.deck].filter(n => n !== S.me && !picks.includes(n) && !pool.includes(n)));
   // Kennedy, Nov 9: picks sit in the order you chose them, clockwise from you (1st on your left, 2nd across, 3rd on your right); random girls fill the rest
   return ['You', ...picks.slice(0, 3), ...shuffle(pool.slice()).slice(0, 3 - Math.min(3, picks.length))];
@@ -4551,7 +4577,7 @@ function showSetup() {
     <div class="field"><label class="lab" for="handle">Your name</label><input class="handle-in" id="handle" name="handle" maxlength="16" autocomplete="nickname" autocapitalize="words" spellcheck="false" placeholder="Name or handle" value="${esc(S.handle)}"></div>
     <div class="field"><span class="lab">Play as</span><div class="girls">${playable().map(n => `<label class="girl"><input type="radio" id="me-${n.replace(/\W/g, '')}" name="me" value="${esc(n)}" ${n === S.me ? 'checked' : ''}>${portraitHTML(n)}<span>${esc(n)}</span>${SEASON[n] ? `<span class="sn">Season ${SEASON[n]}</span>` : ''}</label>`).join('')}</div></div>
     <div class="field"><span class="lab">Computer players</span>
-      <div class="sub">Every girl plays her own way: Amy is Easy, Kristen and the Victor Twins are Medium, Judi and the Clermont Twins are Hard, Natalie and Dalila are Genius, and Shan-Rock is a Genius on your side.</div>
+      <div class="sub">Every girl plays her own way: Amy is Easy, Kristen and the Victor Twins are Medium, Judi and the Clermont Twins are Hard, Natalie and Dalila are Genius, and Shan-Rock is a Genius on your side. In rated games Shan-Rock only joins your table after you lose two in a row.</div>
       <div class="girls vs">${playable().map(n => `<label class="girl" data-n="${esc(n)}"><input type="checkbox" name="vs" value="${esc(n)}">${portraitHTML(n)}<span>${esc(n)}</span><span class="sn">${SEASON[n] ? `Season ${SEASON[n]}` : ''}</span></label>`).join('')}</div>
       <div class="sub vs-note" id="vs-note" role="status"></div>
     </div>
@@ -4568,12 +4594,14 @@ function showSetup() {
   let vs = myPicks();
   const vsSync = () => {
     const me = ($('setup').querySelector('input[name="me"]:checked') || {}).value || S.me;
-    vs = vs.filter(n => n !== me);
+    const fm = $('setup').querySelector('input[name="mode"]:checked'), dm = $('setup').querySelector('input[name="debug"]:checked');
+    const srOff = srLocked(!!ME && !(fm ? fm.value === 'practice' : S.practice) && !(dm && dm.value));
+    vs = vs.filter(n => n !== me && !(n === SR_NAME && srOff && SR));   // while the check loads, keep a saved pick of her
     for (const el of $('setup').querySelectorAll('.girls.vs .girl')) {
-      const n = el.dataset.n, inp = el.querySelector('input'), mine = n === me;
-      inp.checked = vs.includes(n); inp.disabled = mine; el.classList.toggle('off', mine);
+      const n = el.dataset.n, inp = el.querySelector('input'), mine = n === me, lock = n === SR_NAME && srOff && !mine;
+      inp.checked = vs.includes(n) && !lock; inp.disabled = mine || lock; el.classList.toggle('off', mine || lock);
       const at = vs.indexOf(n);   // picks sit in pick order: left, across, right
-      el.querySelector('.sn').textContent = mine ? 'That’s you' : at >= 0 ? ['Your left', 'Across', 'Your right'][at] : (SEASON[n] ? `Season ${SEASON[n]}` : '');
+      el.querySelector('.sn').textContent = mine ? 'That’s you' : lock ? (SR ? `Locked · ${srToGo()} ${srToGo() === 1 ? 'loss' : 'losses'} to go` : 'Checking…') : at >= 0 ? ['Your left', 'Across', 'Your right'][at] : (SEASON[n] ? `Season ${SEASON[n]}` : '');
     }
     const k = vs.length;
     $('vs-note').innerHTML = k === 0 ? 'Tap up to three girls to play against, or leave them all off for three at random.'
@@ -4586,8 +4614,9 @@ function showSetup() {
     if (inp.checked) { vs.push(inp.value); if (vs.length > 3) vs.shift(); }
     vsSync();
   }));
-  $('setup').querySelectorAll('input[name="me"]').forEach(inp => inp.addEventListener('change', vsSync));
+  $('setup').querySelectorAll('input[name="me"], input[name="mode"], input[name="debug"]').forEach(inp => inp.addEventListener('change', vsSync));
   vsSync();
+  loadSrLock().then(() => { if ($('setup')) vsSync(); });   // fresh after every game
   $('setup').addEventListener('submit', e => {
     e.preventDefault();
     const f = new FormData(e.target);
@@ -4595,7 +4624,7 @@ function showSetup() {
     if (f.get('mode')) S.practice = f.get('mode') === 'practice';
     S.debug = IS_ADMIN ? (f.get('debug') || '') : '';
     S.me = f.get('me') || S.me;
-    S.vs = vs.filter(n => n !== S.me);
+    S.vs = vs.filter(n => n !== S.me && !(n === SR_NAME && srLocked()));
     S.handle = String(f.get('handle') || '').trim().slice(0, 16);
     S.sound = f.get('sound') === 'on';
     S.layout = f.get('layout');

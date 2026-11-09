@@ -363,6 +363,13 @@ html, body { overflow-x: hidden; overflow-x: clip; }
 .tbl tr.me td:first-child { color: var(--red); font-weight: 700; border-radius: 8px 0 0 8px; padding-left: 8px; }
 .tbl tr.me td:last-child { border-radius: 0 8px 8px 0; padding-right: 8px; }
 .moon { font-family: var(--display); font-size: 20px; color: var(--violet); }
+#dbg-tag { position: fixed; top: max(8px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: 70; max-width: min(92vw, 420px);
+  background: rgba(20,6,18,.92); border: 1px solid #ffb02e; color: #ffd28a; border-radius: 12px; padding: 5px 12px; font-size: 12px; cursor: pointer; text-align: center; }
+#dbg-tag b { color: #ffb02e; letter-spacing: .08em; text-transform: uppercase; }
+#dbg-tag span { display: none; color: #f6edf2; margin-top: 4px; line-height: 1.35; }
+#dbg-tag.open span { display: block; }
+.field.dbg .lab small { font-weight: 500; opacity: .65; margin-left: 6px; text-transform: none; letter-spacing: 0; }
+.field.dbg .seg { flex-wrap: wrap; }
 .moonfx { position: fixed; inset: 0; z-index: 80; background: #12060f; }
 .moonfx canvas { width: 100%; height: 100%; display: block; }
 .moonfx .skip { position: absolute; bottom: max(10px, env(safe-area-inset-bottom)); left: 0; right: 0; text-align: center; font-size: 12px; color: rgba(246,237,242,.55); letter-spacing: .08em; }
@@ -3727,7 +3734,7 @@ function saveGame() {
     const blob = JSON.stringify({ v: 1, who: whoAmI(), at: Date.now(), target: S.target, heartRun, said, g: {
       totals: G.totals, handNo: G.handNo, names: G.names, hands: G.hands, dir: G.dir, known: G.known, phase: G.phase,
       st: G.st ? Object.assign({}, G.st, { played: Array.from(G.st.played) }) : null,
-      table: G.table, shown: G.shown, drawnPts: G.drawnPts, rec: G.rec || null, mem: G.T.mem, qsSaid: !!G.qsSaid, saidGame: [...(G.saidGame || [])] } });
+      table: G.table, shown: G.shown, drawnPts: G.drawnPts, rec: G.rec || null, mem: G.T.mem, qsSaid: !!G.qsSaid, saidGame: [...(G.saidGame || [])], debug: G.debug || null } });
     localStorage.setItem(SAVE_KEY, blob);
     cloudSave(blob);
   } catch (e) {}
@@ -3762,7 +3769,7 @@ function resumeGame(d) {
     if (st) st.played = Uint8Array.from(st.played);
     Object.assign(G, { hands: st ? st.hands : g.hands, dir: g.dir, known: g.known, received: new Set(), passSel: new Set(), phase: g.phase, st,
       table: g.table || [], sel: null, busy: false, wonBy: null, shown: g.shown || [0, 0, 0, 0], drawnPts: g.drawnPts || [0, 0, 0, 0], popBroken: false,
-      rec: g.rec || null, qsSaid: !!g.qsSaid, saidGame: new Set(g.saidGame || []) });
+      rec: g.rec || null, qsSaid: !!g.qsSaid, saidGame: new Set(g.saidGame || []), debug: g.debug || null });
     Object.assign(G.T, { hands: G.hands, dir: G.dir, known: G.known });
     for (const k in saidThisHand) delete saidThisHand[k];
     for (const k in d.said || {}) saidThisHand[k] = new Set(d.said[k]);
@@ -3811,12 +3818,64 @@ async function setupOrResume() {
   if (!resumeGame(local)) showSetup();
 }
 
+
+// ---------- Debug mode (Kennedy, Nov 9): admin only. Rigged deals for testing the big moments; no passing,
+// the same deal every round, never rated (recorded as practice, data.debug = the preset). ----------
+let IS_ADMIN = false;
+async function loadAdmin() {
+  IS_ADMIN = false;
+  if (!sb || !ME) return;
+  try { const { data } = await sb.from('glint_roles').select('role').eq('user_id', ME.id).maybeSingle(); IS_ADMIN = !!(data && data.role === 'admin'); } catch (e) {}
+}
+// cards: suit = floor(c / 13) (0 clubs, 1 diamonds, 2 spades, 3 hearts), rank = c % 13 + 2
+const DEBUG_PRESETS = [
+  ['', 'Off'],
+  ['moon-you', 'You shoot the moon'],
+  ['moon-girl', 'A girl shoots the moon'],
+  ['gambit-you', 'Your Queen’s Gambit'],
+];
+const DEBUG_HINT = {
+  'moon-you': 'You hold all 13 clubs: you win every trick and the others dump every heart and the Q♠ on you. The rest are yours from the first trick, so TRAM shows too (tap it for a quick moon).',
+  'moon-girl': 'One girl holds all 13 clubs, so she wins every trick and takes every point. Just play along.',
+  'gambit-you': 'Win the first trick with your A♣, then lead the Q♠. The A♠ and K♠ are each alone in a girl’s hand, so one of them has to take her.',
+};
+function debugDeal(kind) {
+  const deck = shuffle([...Array(52).keys()]), suit_ = c => Math.floor(c / 13);
+  const take = (pool, f, n) => { const out = []; for (let i = 0; i < pool.length && out.length < n; ) { if (f(pool[i])) out.push(pool.splice(i, 1)[0]); else i++; } return out; };
+  if (kind === 'moon-you' || kind === 'moon-girl') {
+    const who = kind === 'moon-you' ? 0 : 1 + Math.floor(Math.random() * 3);
+    const clubs = [...Array(13).keys()], rest = deck.filter(c => c >= 13);
+    return [0, 1, 2, 3].map(p => p === who ? clubs : take(rest, () => true, 13));
+  }
+  if (kind === 'gambit-you') {
+    const A_C = 12, Q_S = QS, K_S = QS + 1, A_S = QS + 2, lowS = [26, 27, 28, 29, 30, 31, 32, 33, 34, 35];
+    const pool = deck.filter(c => c !== A_C && suit_(c) !== 2);   // every card but the A♣ and the spades
+    const clubFor = () => take(pool, c => suit_(c) === 0, 1);
+    const h1 = [A_S, ...clubFor()], h3 = [K_S, ...clubFor()], h2 = [...lowS, ...clubFor()];
+    if (!h1.concat(h2, h3).includes(0)) { const i = pool.indexOf(0); if (i >= 0) { pool.splice(i, 1); h2.push(0); } }   // the 2♣ starts it, not you
+    const me = [A_C, Q_S, ...take(pool, c => c !== 0, 11)];
+    h1.push(...take(pool, () => true, 13 - h1.length)); h3.push(...take(pool, () => true, 13 - h3.length)); h2.push(...take(pool, () => true, 13 - h2.length));
+    return [me, h1, h2, h3];
+  }
+  return dealHands();
+}
+function debugTag() {
+  let el = document.getElementById('dbg-tag');
+  if (!G || !G.debug) { if (el) el.remove(); return; }
+  if (!el) { el = document.createElement('div'); el.id = 'dbg-tag'; document.body.appendChild(el); }
+  const name = (DEBUG_PRESETS.find(x => x[0] === G.debug) || [, G.debug])[1];
+  el.innerHTML = `<b>Debug</b> · ${esc(name)}<span>${esc(DEBUG_HINT[G.debug] || '')}</span>`;
+  el.onclick = () => el.classList.toggle('open');
+  el.classList.add('open'); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('open'), 7000);
+}
+
 function startGame() {
-  G = { totals: [0, 0, 0, 0], handNo: 0, names: pickCast() };
+  G = { totals: [0, 0, 0, 0], handNo: 0, names: pickCast(), debug: IS_ADMIN && S.debug ? S.debug : null };
   // the table the girls play at: each one plays by her own stats card (girls.js); a girl without a card plays her seat's level
   G.T = { cards: G.names.map((n, p) => (p && GIRLS[n]) || null), levels: G.names.map((n, p) => (p ? (GIRLS[n] ? GIRLS[n].level : S.levels[p]) : 'hard')),
     humans: [0], totals: G.totals, target: S.target, mem: newTableMem() };
   recStart();
+  if (G.debug) Object.assign(G.rec, { practice: true, debug: G.debug });   // debug games never count
   recSave();
   closeVeil();
   newHand();
@@ -3826,12 +3885,13 @@ function newHand() {
   for (const k in saidThisHand) delete saidThisHand[k];
   heartRun = null; if (G) G.qsSaid = false;
   Object.assign(G, {
-    hands: dealHands(), dir: G.handNo % 4, known: [[], [], [], []], received: new Set(),
+    hands: G.debug ? debugDeal(G.debug) : dealHands(), dir: G.debug ? 3 : G.handNo % 4, known: [[], [], [], []], received: new Set(),
     st: null, table: [], sel: null, busy: false, wonBy: null,
     shown: [0, 0, 0, 0], drawnPts: [0, 0, 0, 0], popBroken: false
   });
   if (G.rec) G.rec.hands.push({ deal: G.hands.map(h => h.slice()), dir: G.dir, passes: null, plays: [], t0: Date.now() });
   SFX.play('shuffle');
+  debugTag();
   $('trick').innerHTML = '';
   if (G.dir === 3) return beginPlay();
   G.phase = 'pass';
@@ -4155,7 +4215,7 @@ function finishHand(raw, moon, choice, said) {
   const how = choice === 'down' ? (moon === 0 ? 'You take 26 off your score.' : (isPlural(nameOf(moon)) ? 'They take 26 off their score.' : 'She takes 26 off her score.')) : 'Everyone else takes 26.';
   const moonLine = moon >= 0 ? `<div class="moon">${moon === 0 ? 'You shot the moon.' : `${nameOf(moon)} shot the moon.`} ${how}</div>` : '';
   openVeil(`<div class="panel" role="dialog" aria-label="Scores">
-    <div><h2>${head}</h2><div class="sub">${over ? `Game to ${S.target}. Lowest score wins.` : `Next round: ${nd === 'hold' ? 'no passing' : 'pass ' + nd}.`}</div></div>
+    <div><h2>${head}</h2><div class="sub">${over ? `Game to ${S.target}. Lowest score wins.` : G.debug ? 'Next round: the same debug deal.' : `Next round: ${nd === 'hold' ? 'no passing' : 'pass ' + nd}.`}</div></div>
     ${moonLine}${react}
     <table class="tbl"><thead><tr><th>Player</th><th>Round</th><th>Total</th></tr></thead><tbody>${rows}</tbody></table>
     <div class="btns">${over ? `${G.rec && hlFind(G.rec).length ? `<button class="ghost" id="b-hl">Highlights</button>` : ''}<button class="ghost" id="b-setup">Main menu</button><button class="cta" id="b-again">Play again</button>` : `<button class="cta" id="b-next">Deal next round</button>`}</div>
@@ -4342,6 +4402,7 @@ function showSetup() {
       <div class="sub vs-note" id="vs-note" role="status"></div>
     </div>
     ${ME ? `<div class="field"><span class="lab">Game</span>${segHTML('mode', [['rated', 'Rated'], ['practice', 'Practice']], S.practice ? 'practice' : 'rated')}<div class="sub">Practice games don’t count toward your rating or stats.</div></div>` : ''}
+    ${IS_ADMIN ? `<div class="field dbg"><span class="lab">Debug deal <small>only you see this</small></span>${segHTML('debug', DEBUG_PRESETS, S.debug || '')}<div class="sub">Rigged hands for testing moons and gambits. No passing, the same deal every round, never rated.</div></div>` : ''}
     <div class="field"><span class="lab">Play to</span>${segHTML('target', [[50, '50 points'], [100, '100 points']], S.target)}</div>
     <div class="field"><span class="lab">Table layout</span>${segHTML('layout', LAYOUTS, S.layout)}</div>
     <div class="field"><span class="lab">Sound effects</span>${segHTML('sound', [['on', 'On'], ['off', 'Off']], S.sound ? 'on' : 'off')}</div>
@@ -4377,6 +4438,7 @@ function showSetup() {
     const f = new FormData(e.target);
     S.target = +f.get('target');
     if (f.get('mode')) S.practice = f.get('mode') === 'practice';
+    S.debug = IS_ADMIN ? (f.get('debug') || '') : '';
     S.me = f.get('me') || S.me;
     S.vs = vs.filter(n => n !== S.me);
     S.handle = String(f.get('handle') || '').trim().slice(0, 16);
@@ -4400,6 +4462,7 @@ async function bootGate() {
   try { const { data: { session } } = await sb.auth.getSession(); ME = session ? session.user : null; } catch (e) { ME = null; }
   if (!ME) return showSignIn();
   if (ME.user_metadata && ME.user_metadata.must_change) return showNewPassword();
+  await loadAdmin();
   setupOrResume();
 }
 function showSignIn(note) {

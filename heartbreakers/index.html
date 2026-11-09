@@ -2200,10 +2200,10 @@ function hlTimeline(rec, moments, clips) {
     const seg = { t0: t, m, i, cardsAt: [], quotes: [] };
     m.trick.cards.forEach((x, k) => {
       const at = t + 0.3 + k * CARD;
-      seg.cardsAt.push(at);
+      seg.cardsAt.push(at); if (x.c === QS && k === 0) t += 0.6;   // a led queen bounces longer (1 s), like the table
       A.push({ at: at + 0.2, soft: 'card' });
-      if (x.c === QS) A.push({ at, sfx: k === 0 ? 'gong' : 'timpani' });
-      if (m.kind === 'breaks' && suit(x.c) === 3 && !m.trick.cards.slice(0, k).some(y => suit(y.c) === 3)) A.push({ at: at + 0.2, glass: true });
+      if (x.c === QS) { A.push({ at, sfx: k === 0 ? 'gong' : 'timpani' }); if (k === 0) seg.gambitAt = at; }
+      if (m.kind === 'breaks' && suit(x.c) === 3 && !m.trick.cards.slice(0, k).some(y => suit(y.c) === 3)) { A.push({ at: at + 0.2, glass: true }); seg.glassAt = at + 0.2; seg.glassK = k; }
     });
     t += 0.3 + 4 * CARD + AFTER;
     if (m.kind === 'moon') A.push({ at: t - 0.3, sfx: ['choir-ahh', 'kids-woah'][i % 2] });
@@ -2264,10 +2264,10 @@ function hlSuit(g, s, x, y, size, col) {           // a suit mark centered at x,
     g.fillText(SYM[s], x, y + size * 0.04);
   }
 }
-function hlCard(g, c, cx, cy, w, glow, alpha = 1) {
+function hlCard(g, c, cx, cy, w, glow, alpha = 1, rot = 0, ring = null) {
   const k = w / 66, h = 94 * k, r = 9 * k, s = suit(c), col = s === 1 || s === 3 ? '#ff3d8e' : s === 0 ? '#4fe3b2' : '#ece8f2';
-  const x = cx - w / 2, y = cy - h / 2;
-  g.save(); g.globalAlpha = alpha;
+  const x = -w / 2, y = -h / 2;
+  g.save(); g.translate(cx, cy); if (rot) g.rotate(rot); cx = 0; cy = 0; g.globalAlpha = alpha;
   g.shadowColor = glow || 'rgba(0,0,0,.55)'; g.shadowBlur = (glow ? 16 : 20) * k; g.shadowOffsetY = glow ? 0 : 8 * k;
   const grd = g.createLinearGradient(x, y, x + w * 0.18, y + h);
   grd.addColorStop(0, '#2b0f27'); grd.addColorStop(1, '#150712');
@@ -2278,6 +2278,7 @@ function hlCard(g, c, cx, cy, w, glow, alpha = 1) {
   if (tex) { g.save(); g.beginPath(); g.roundRect(x, y, w, h, r); g.clip(); g.globalAlpha = alpha * 0.3; const tw = w * 1.1, th = tw * tex.naturalHeight / tex.naturalWidth; g.drawImage(tex, cx - tw / 2, y + h * 0.34 - th * 0.2 * (th > h * 0.66 ? 1 : 0), tw, th); g.restore(); }
   g.lineWidth = 1.5 * k; g.strokeStyle = c === QS ? 'rgba(178,140,255,.75)' : 'rgba(232,222,236,.6)';
   g.beginPath(); g.roundRect(x, y, w, h, r); g.stroke();
+  if (ring) { g.lineWidth = 2.5 * k; g.strokeStyle = ring; g.beginPath(); g.roundRect(x - 1.5 * k, y - 1.5 * k, w + 3 * k, h + 3 * k, r + k); g.stroke(); }
   // corner index: rank, suit under it
   g.fillStyle = col; g.font = HL_FONT(700, 22 * k, 'caps'); g.textAlign = 'center'; g.textBaseline = 'top';
   const ix = x + 5 * k + (RL(rank(c)).length > 1 ? 13 : 8) * k;
@@ -2286,6 +2287,72 @@ function hlCard(g, c, cx, cy, w, glow, alpha = 1) {
   // big suit bottom right
   g.globalAlpha = alpha * 0.92; hlSuit(g, s, x + w - 6 * k - 17 * k, y + h - 5 * k - 18 * k, 34 * k, col);
   g.restore();
+}
+function hlRng(seed) { let a = seed >>> 0 || 1; return () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+// The table's Queen's Gambit banner (2.3 s): lettering slams in and sizzles, smoke curls up off it, sparks fly.
+function hlGambit(g, x, y, e, U, rng) {
+  const f = e / 2.3, KF = [[0, 0, 1.8], [.12, 1, .96], [.2, 1, 1], [.8, 1, 1.03], [1, 0, 1.08]];
+  let j = 0; while (j < KF.length - 2 && f > KF[j + 1][0]) j++;
+  const u = Math.max(0, Math.min(1, (f - KF[j][0]) / (KF[j + 1][0] - KF[j][0]))), op = f >= 1 ? 0 : KF[j][1] + (KF[j + 1][1] - KF[j][1]) * u, sc = KF[j][2] + (KF[j + 1][2] - KF[j][2]) * u;
+  const fs = 8.6 * U, bw = fs * 6.4, bh = fs * 2.2;
+  // smoke (16 puffs) and sparks (26), each on its own clock like the table's
+  for (let i = 0; i < 16; i++) {
+    const z = (40 + rng() * 70) * U / 3.9, px = x + (rng() - 0.5) * bw, py = y + (rng() - 0.5) * bh * 0.6, dx = (rng() - 0.5) * 60 * U / 3.9, d = 1.7 + rng() * 0.9, dl = 0.15 + rng() * 0.5, rise = (90 + rng() * 80) * U / 3.9;
+    const q = (e - dl) / d; if (q <= 0 || q >= 1) continue;
+    const a = q < 0.25 ? q / 0.25 : 1 - (q - 0.25) / 0.75, s2 = 0.5 + 1.2 * q, cx = px + dx * q, cy = py - rise * q, rr = z / 2 * s2;
+    const grd = g.createRadialGradient(cx, cy, 0, cx, cy, rr);
+    grd.addColorStop(0, `rgba(220,200,210,${0.38 * a})`); grd.addColorStop(0.4, `rgba(160,120,150,${0.18 * a})`); grd.addColorStop(1, 'rgba(160,120,150,0)');
+    g.fillStyle = grd; g.beginPath(); g.arc(cx, cy, rr, 0, Math.PI * 2); g.fill();
+  }
+  if (op > 0) {
+    g.save(); g.translate(x, y); g.scale(sc, sc); g.globalAlpha = op;
+    const bg = g.createRadialGradient(0, 0, 0, 0, 0, bw / 2);
+    bg.addColorStop(0, 'rgba(12,4,12,.85)'); bg.addColorStop(0.7, 'rgba(12,4,12,.55)'); bg.addColorStop(1, 'rgba(12,4,12,0)');
+    g.fillStyle = bg; g.fillRect(-bw / 2, -bh / 2 - fs * 0.4, bw, bh + fs * 0.8);
+    const jx = (Math.floor(e / 0.045) % 2 ? 0.6 : -0.5) * U / 3.9, jy = (Math.floor(e / 0.045) % 2 ? -0.4 : 0.3) * U / 3.9, lit = Math.floor(e / 0.045) % 2 ? 1.35 : 0.9;
+    g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = HL_FONT(800, fs, 'caps');
+    for (const [c, b] of [['#ff3d8e', 70], ['#ff3d8e', 38], ['#ff3d8e', 18], ['#ff9a3c', 6]]) { g.shadowColor = c; g.shadowBlur = b * U / 3.9 * lit; g.fillStyle = '#fff4e8'; g.fillText('Queen’s Gambit', jx, jy - fs * 0.15); }
+    g.shadowBlur = 0; g.fillStyle = '#ffb877'; g.font = HL_FONT(700, fs * 0.22, 'caps');
+    g.letterSpacing = `${fs * 0.066}px`; g.fillText('NO WAY OUT', 0, fs * 0.62); g.letterSpacing = '0px';
+    g.restore();
+  }
+  for (let i = 0; i < 26; i++) {
+    const px = x + (rng() - 0.5) * bw * sc, py = y, a = rng() * Math.PI * 2, dist = (30 + rng() * 70) * U / 3.9, d = 0.5 + rng() * 0.5, dl = rng() * 1.2;
+    const q = (e - dl) / d; if (q <= 0 || q >= 1) continue;
+    const qq = 1 - Math.pow(1 - q, 2), sx = px + Math.cos(a) * dist * qq, sy = py + (Math.sin(a) * dist - 20 * U / 3.9) * qq;
+    g.save(); g.globalAlpha = 1 - q; g.shadowColor = '#ff3d8e'; g.shadowBlur = 12 * U / 3.9; g.fillStyle = '#ffd08a';
+    g.beginPath(); g.arc(sx, sy, 1.5 * U / 3.9 * 1.4, 0, Math.PI * 2); g.fill(); g.restore();
+  }
+}
+// The table's heartbreak: a white flash, cracks racing out from the card, shards flying off and falling.
+function hlGlass(g, x, y, e, U, W, H, rng) {
+  const k = U / 3.9;
+  if (e < 0.38) { g.save(); g.globalAlpha = e < 0.057 ? 0.14 * e / 0.057 : 0.14 * (1 - (e - 0.057) / 0.323); g.fillStyle = '#fff'; g.fillRect(0, 0, W, H); g.restore(); }
+  const RAYS = 11, rays = [];
+  for (let i = 0; i < RAYS; i++) {
+    let a = (i / RAYS) * Math.PI * 2 + (rng() - 0.5) * 0.4, px = x, py = y; const pts = [[px, py]], total = (75 + rng() * 95) * k;
+    for (let s2 = 0; s2 < 4; s2++) { a += (rng() - 0.5) * 0.45; const sg = total / 4 * (0.7 + rng() * 0.6); px += Math.cos(a) * sg; py += Math.sin(a) * sg; pts.push([px, py]); }
+    rays.push(pts);
+  }
+  const lines = rays.slice(); for (const j of [1, 2]) for (let i = 0; i < RAYS; i++) if (rng() < 0.75) lines.push([rays[i][j], rays[(i + 1) % RAYS][j]]);
+  const fade = e < 0.825 ? 1 : Math.max(0, 1 - (e - 0.825) / 0.675);
+  g.save(); g.globalAlpha = fade; g.strokeStyle = 'rgba(240,244,255,.85)'; g.lineCap = 'round';
+  lines.forEach((pts, i) => {
+    const d0 = i < RAYS ? 0 : 0.11, dur = i < RAYS ? 0.17 : 0.12, p = Math.max(0, Math.min(1, (e - d0) / dur)); if (!p) return;
+    const segs = pts.length - 1, upto = p * segs; g.lineWidth = (i < RAYS ? 1.6 : 1) * k; g.beginPath(); g.moveTo(pts[0][0], pts[0][1]);
+    for (let s2 = 1; s2 <= segs; s2++) { const f = Math.min(1, upto - (s2 - 1)); if (f <= 0) break; const [ax, ay] = pts[s2 - 1], [bx, by] = pts[s2]; g.lineTo(ax + (bx - ax) * f, ay + (by - ay) * f); }
+    g.stroke();
+  });
+  g.restore();
+  for (let i = 0; i < 12; i++) {
+    const s2 = (7 + rng() * 13) * k, hh = s2 * (0.6 + rng() * 0.8), a = rng() * Math.PI * 2, dist = (50 + rng() * 90) * k;
+    const dx = Math.cos(a) * dist, dy = Math.sin(a) * dist + (70 + rng() * 60) * k, rt = (rng() * 540 - 270) * Math.PI / 180, d = 0.75 + rng() * 0.45;
+    const tri = [[rng(), rng()], [rng(), rng()], [rng(), rng()]], q = Math.min(1, e / d); if (q >= 1) continue;
+    const qq = 1 - Math.pow(1 - q, 2.2);
+    g.save(); g.translate(x + dx * qq, y + dy * qq); g.rotate(rt * qq); g.globalAlpha = 1 - q;
+    const grd = g.createLinearGradient(-s2 / 2, -hh / 2, s2 / 2, hh / 2); grd.addColorStop(0, 'rgba(255,255,255,.85)'); grd.addColorStop(1, 'rgba(220,225,255,.15)');
+    g.fillStyle = grd; g.beginPath(); tri.forEach(([u, v], j) => (j ? g.lineTo : g.moveTo).call(g, (u - 0.5) * s2, (v - 0.5) * hh)); g.closePath(); g.fill(); g.restore();
+  }
 }
 function hlWrap(g, text, maxW) {
   const words = String(text).split(/\s+/), lines = [];
@@ -2317,9 +2384,9 @@ function hlPlate(g, x, y, ps, nm, sub, lit, flip) {   // a seat plate: portrait,
 function hlFrame(g, W, H, rec, TL, t) {
   const U = Math.min(W, H) / 100, tall = H > W * 1.2, wide = W > H * 1.2;
   // layout per shape: tall stacks the quote under the table; wide puts it beside the table; square tightens the table
-  const L = tall ? { cx: W / 2, cy: H * 0.5, sx: 37 * U, sy: 42 * U, ps: 21 * U, cw: 13 * U, qx: W / 2, qy: H * 0.87, qw: W * 0.86, capY: H * 0.12 }
-    : wide ? { cx: W * 0.36, cy: H * 0.53, sx: 40 * U, sy: 30 * U, ps: 15 * U, cw: 10.5 * U, qx: W * 0.79, qy: H * 0.54, qw: W * 0.34, capY: H * 0.06 }
-    : { cx: W / 2, cy: H * 0.41, sx: 37 * U, sy: 27 * U, ps: 13.5 * U, cw: 9 * U, qx: W / 2, qy: H * 0.9, qw: W * 0.84, capY: H * 0.032 };
+  const L = tall ? { cx: W / 2, cy: H * 0.5, sx: 39 * U, sy: 46 * U, ps: 16 * U, cw: 16 * U, qx: W / 2, qy: H * 0.9, qw: W * 0.86, capY: H * 0.12 }
+    : wide ? { cx: W * 0.36, cy: H * 0.53, sx: 44 * U, sy: 33 * U, ps: 14 * U, cw: 13 * U, qx: W * 0.8, qy: H * 0.54, qw: W * 0.3, capY: H * 0.06 }
+    : { cx: W / 2, cy: H * 0.44, sx: 36 * U, sy: 31 * U, ps: 12 * U, cw: 11 * U, qx: W / 2, qy: H * 0.915, qw: W * 0.84, capY: H * 0.032 };
   // background: the table's rose-filigree art, cropped to fill
   g.fillStyle = '#12060f'; g.fillRect(0, 0, W, H);
   const bgi = hlImg(W > H ? HL_SRC.land : HL_SRC.port);
@@ -2348,6 +2415,13 @@ function hlFrame(g, W, H, rec, TL, t) {
     return;
   }
   const m = seg.m, { cx: tx, cy, sx, sy, ps } = L;
+  g.save();
+  if (seg.gambitAt != null && t >= seg.gambitAt && t < seg.gambitAt + 0.5) {   // the table shakes when the queen is led
+    const f = (t - seg.gambitAt) / 0.5, ks = [[0, 0, 0], [.15, -9, 3], [.3, 8, -4], [.45, -6, 2], [.6, 5, -2], [.75, -3, 1], [1, 0, 0]];
+    let j = 0; while (j < ks.length - 2 && f > ks[j + 1][0]) j++;
+    const u = (f - ks[j][0]) / (ks[j + 1][0] - ks[j][0]), k1 = U / 3.9;
+    g.translate((ks[j][1] + (ks[j + 1][1] - ks[j][1]) * u) * k1, (ks[j][2] + (ks[j + 1][2] - ks[j][2]) * u) * k1);
+  }
   // the table's devil-heart outline behind the trick
   const hi = hlImg(HL_SRC.heart);
   if (hi) { g.save(); g.globalAlpha = 0.16; const hw = L.cw * 1.9, hh = hw * hi.naturalHeight / hi.naturalWidth; g.drawImage(hi, tx - hw / 2, cy - hh / 2, hw, hh); g.restore(); }
@@ -2355,27 +2429,53 @@ function hlFrame(g, W, H, rec, TL, t) {
   for (let p = 0; p < 4; p++) {
     const [x, y] = seatXY[p], nm = hlVoice(rec, p);
     const speaking = seg.quotes.some(qq => qq.q.p === p && t >= qq.t0 && t < qq.t1);
+    const k = seg.cardsAt.findIndex(a => t < a), turn = k >= 0 && m.trick.cards[k].p === p && t > seg.t0 + 0.15;
     const flip = (FACING[nm] === 'right' && p === 3) || (FACING[nm] === 'left' && p === 1);
-    hlPlate(g, x, y, ps, nm, p === 0 ? (rec.handle ? rec.handle.toUpperCase() : 'YOU') : 'CPU', speaking, flip);
+    hlPlate(g, x, y, ps, nm, p === 0 ? (rec.handle ? rec.handle.toUpperCase() : 'YOU') : 'CPU', speaking || turn, flip);
   }
-  // the trick, card by card toward the middle, then swept to whoever took it
-  const cw = L.cw, off = [[0, 1], [-1, 0], [0, -1], [1, 0]];
-  const sw = seg.sweepAt != null ? ease((t - seg.sweepAt) / 0.45) : 0, wxy = seatXY[m.trick.w];
+  // the trick, the table's way: each card slides into its slot (the Q♠ drops in and bounces, glowing violet),
+  // the winner's card gets a bone ring, then the cards gather in the middle, tilt, and fly off to whoever took them
+  const cw = L.cw, off = [[0, 1], [-1, 0], [0, -1], [1, 0]], rng = hlRng(seg.i * 97 + 13);
+  const tilt = m.trick.cards.map(() => rng() * 18 - 9);
+  const done4 = seg.cardsAt[3] + 0.3, wxy = seatXY[m.trick.w];
   m.trick.cards.forEach((x, k) => {
     const at = seg.cardsAt[k]; if (t < at) return;
-    const a = ease((t - at) / 0.28), [ox, oy] = off[x.p];
-    const from = seatXY[x.p], toX = tx + ox * cw * 1.04, toY = cy + oy * cw * 0.9;
-    let px = from[0] + (toX - from[0]) * a, py = from[1] + (toY - from[1]) * a;
-    if (sw > 0) { px += (wxy[0] - px) * sw; py += (wxy[1] - py) * sw; }
-    const won = t > seg.cardsAt[3] + 0.35 && x.p === m.trick.w;
-    hlCard(g, x.c, px, py, cw * (1 - sw * 0.4), x.c === QS ? 'rgba(178,140,255,.85)' : won ? 'rgba(255,61,142,.75)' : null, 1 - sw * 0.9);
+    const [ox, oy] = off[x.p], sx0 = tx + ox * cw * 1.32, sy0 = cy + oy * cw * 1.12;
+    let px = sx0, py = sy0, sc = 1, rot = 0, al = 1, e = t - at;
+    if (x.c === QS) {                                  // qsBounce: from above, bounce, settle (1 s)
+      const f = Math.min(1, e / 1), ky = [[0, -80, 1.2, 0, 0], [.28, 0, 1, 0, 1], [.44, -24, 1.05, -3, 1], [.6, 0, 1, 0, 1], [.72, -10, 1, 2, 1], [.84, 0, 1, 0, 1], [.93, -3, 1, 0, 1], [1, 0, 1, 0, 1]];
+      let j = 0; while (j < ky.length - 2 && f > ky[j + 1][0]) j++;
+      const a0 = ky[j], a1 = ky[j + 1], u = (f - a0[0]) / (a1[0] - a0[0] || 1), q = 1 - Math.pow(1 - u, 2), lerp = (i) => a0[i] + (a1[i] - a0[i]) * q;
+      py += lerp(1) * cw / 66; sc = lerp(2); rot = lerp(3) * Math.PI / 180; al = lerp(4);
+    } else {                                           // in0–in3: slide 80–90px from the seat's side, .28 s ease-out
+      const u = Math.min(1, e / 0.28), q = 1 - Math.pow(1 - u, 2), d = (x.p === 0 ? 90 : 80) * cw / 66 * (1 - q);
+      px += ox * d; py += oy * d; al = q;
+    }
+    // sweep (.86 s, 40 ms apart): gather at the middle with a tilt, hold, then off to the winner, shrinking
+    const sw0 = seg.sweepAt + k * 0.04;
+    if (seg.sweepAt != null && t > sw0) {
+      const f = Math.min(1, (t - sw0) / 0.86), E = v => v < .5 ? 4 * v * v * v : 1 - Math.pow(-2 * v + 2, 3) / 2;
+      const gx = tx + (k - 1.5) * 4 * cw / 66, gy = cy + (1.5 - k) * 3 * cw / 66;
+      if (f < 0.36) { const q = E(f / 0.36); px += (gx - px) * q; py += (gy - py) * q; rot += tilt[k] * Math.PI / 180 * q; }
+      else if (f < 0.5) { px = gx; py = gy; rot += tilt[k] * Math.PI / 180 * (1 - 0.4 * (f - 0.36) / 0.14); }
+      else { const q = E((f - 0.5) / 0.5); px = gx + (wxy[0] - gx) * q; py = gy + (wxy[1] - gy) * q; rot += tilt[k] * Math.PI / 180 * (0.6 - 0.3 * q); sc *= 1 - 0.7 * q; al *= 1 - q; }
+    }
+    const qsGlow = x.c === QS ? Math.max(0.35, e < 0.72 ? 1 : 1 - (e - 0.72) / 0.88) : 0;
+    const won = t > done4 + 0.1 && x.p === m.trick.w;
+    hlCard(g, x.c, px, py, cw * sc, qsGlow ? `rgba(178,140,255,${0.9 * qsGlow})` : null, al, rot, won ? 'rgba(246,237,242,.95)' : null);
   });
+  if (seg.glassAt != null && t >= seg.glassAt && t < seg.glassAt + 1.6) {
+    const x = m.trick.cards[seg.glassK], [ox, oy] = off[x.p];
+    hlGlass(g, tx + ox * cw * 1.32, cy + oy * cw * 1.12, t - seg.glassAt, U, W, H, hlRng(seg.i * 31 + 7));
+  }
   // caption
   g.fillStyle = '#f6edf2'; g.font = HL_FONT(700, 3.5 * U, 'caps'); g.textAlign = 'center'; g.textBaseline = 'middle';
   g.save(); g.shadowColor = 'rgba(0,0,0,.8)'; g.shadowBlur = 2 * U;
   g.fillText(hlCaption(rec, m).toUpperCase(), wide ? tx : W / 2, L.capY);
   g.restore();
   if (logo && tall) { const lw = 46 * U, lh = lw * logo.naturalHeight / logo.naturalWidth; g.drawImage(logo, (W - lw) / 2, H * 0.025, lw, lh); }
+  g.restore();
+  if (seg.gambitAt != null && t >= seg.gambitAt && t < seg.gambitAt + 3.2) hlGambit(g, W / 2, H * (tall ? 0.44 : 0.46), t - seg.gambitAt, U, hlRng(seg.i * 53 + 3));
   // the quote being said, in the table's bubble style
   const cur = seg.quotes.filter(qq => t >= qq.t0 && t < qq.t1).pop();
   if (cur) {

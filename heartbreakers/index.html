@@ -363,6 +363,13 @@ html, body { overflow-x: hidden; overflow-x: clip; }
 .tbl tr.me td:first-child { color: var(--red); font-weight: 700; border-radius: 8px 0 0 8px; padding-left: 8px; }
 .tbl tr.me td:last-child { border-radius: 0 8px 8px 0; padding-right: 8px; }
 .moon { font-family: var(--display); font-size: 20px; color: var(--violet); }
+.peek { position: relative; z-index: 7; background: rgba(12, 4, 12, .78); border-radius: 6px; padding: 1px 5px; display: flex; flex-wrap: wrap; justify-content: center; gap: 1px 6px; margin-top: 3px; font-size: 10.5px; line-height: 1.25; font-weight: 700; color: #e9dff0; letter-spacing: .02em; }
+.peek .r { color: var(--pink, #ff3d8e); }
+.field.dbg .sub { margin-top: 6px; }
+.dseats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 4px; }
+.dseats label { display: flex; flex-direction: column; gap: 3px; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; opacity: .9; min-width: 0; }
+.dseats select { width: 100%; min-width: 0; background: rgba(10, 3, 9, .6); color: inherit; border: 1px solid var(--line); border-radius: 10px; padding: 7px 6px; font: inherit; font-size: 13px; text-transform: none; letter-spacing: 0; }
+.field.dbg #b-dfinal { margin-top: 10px; }
 .redeal { padding: 8px 12px; font-size: 13px; white-space: nowrap; }
 #dbg-tag { position: fixed; top: max(8px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: 70; max-width: min(92vw, 420px);
   background: rgba(20,6,18,.92); border: 1px solid #ffb02e; color: #ffd28a; border-radius: 12px; padding: 5px 12px; font-size: 12px; cursor: pointer; text-align: center; }
@@ -3783,7 +3790,7 @@ function saveGame() {
     const blob = JSON.stringify({ v: 1, who: whoAmI(), at: Date.now(), target: S.target, heartRun, said, g: {
       totals: G.totals, handNo: G.handNo, names: G.names, hands: G.hands, dir: G.dir, known: G.known, phase: G.phase,
       st: G.st ? Object.assign({}, G.st, { played: Array.from(G.st.played) }) : null,
-      table: G.table, shown: G.shown, drawnPts: G.drawnPts, rec: G.rec || null, mem: G.T.mem, qsSaid: !!G.qsSaid, saidGame: [...(G.saidGame || [])], debug: G.debug || null } });
+      table: G.table, shown: G.shown, drawnPts: G.drawnPts, rec: G.rec || null, mem: G.T.mem, qsSaid: !!G.qsSaid, saidGame: [...(G.saidGame || [])], debug: G.debug || null, autoMe: !!G.autoMe, showAll: !!G.showAll } });
     localStorage.setItem(SAVE_KEY, blob);
     cloudSave(blob);
   } catch (e) {}
@@ -3818,7 +3825,7 @@ function resumeGame(d) {
     if (st) st.played = Uint8Array.from(st.played);
     Object.assign(G, { hands: st ? st.hands : g.hands, dir: g.dir, known: g.known, received: new Set(), passSel: new Set(), phase: g.phase, st,
       table: g.table || [], sel: null, busy: false, wonBy: null, shown: g.shown || [0, 0, 0, 0], drawnPts: g.drawnPts || [0, 0, 0, 0], popBroken: false,
-      rec: g.rec || null, qsSaid: !!g.qsSaid, saidGame: new Set(g.saidGame || []), debug: g.debug || null });
+      rec: g.rec || null, qsSaid: !!g.qsSaid, saidGame: new Set(g.saidGame || []), debug: g.debug || null, autoMe: !!g.autoMe, showAll: !!g.showAll });
     Object.assign(G.T, { hands: G.hands, dir: G.dir, known: G.known });
     for (const k in saidThisHand) delete saidThisHand[k];
     for (const k in d.said || {}) saidThisHand[k] = new Set(d.said[k]);
@@ -3927,6 +3934,36 @@ function debugExit() {
   hlStop(); document.querySelectorAll('.moonfx').forEach(e => e.remove());
   clearSave(); G = null; debugTag(); showSetup();
 }
+// Debug (Kennedy, Nov 9): the computer plays your cards (Hard's judgment), at the girls' pace
+function debugAutoPlay() {
+  clearTimeout(G._auto);
+  G._auto = setTimeout(() => {
+    if (!G || !G.debug || !G.autoMe || G.phase !== 'play' || !G.st || G.st.turn !== 0 || G.busy || G.tramming || !$('veil').hidden) return;
+    playCard(0, pickHard(G.st, 0, (G.known && G.known[0]) || []));
+  }, 600);
+}
+// Debug (Kennedy, Nov 9): move the girls between seats mid-game. Each girl takes her brain and voice with her;
+// the cards (and scores) stay with the seat.
+function debugSwapSeats(a, b) {
+  if (!G || !G.debug || a === b || !a || !b) return;
+  const sw = arr => { if (arr) { const t = arr[a]; arr[a] = arr[b]; arr[b] = t; } };
+  sw(G.names); sw(G.T.cards); sw(G.T.levels); if (G.rec) sw(G.rec.names);
+  render(); saveGame(); recSave();
+}
+// Debug: every score 1–4 points short of the target (seats shuffled), so the first points anyone takes this round end the game
+function debugFinalRound() {
+  if (!G || !G.debug) return;
+  const gaps = shuffle([1, 2, 3, 4]);
+  for (let i = 0; i < 4; i++) G.totals[i] = S.target - gaps[i];
+  if (G.rec) G.rec.totals = G.totals.slice();
+  render(); saveGame(); recSave();
+}
+// Debug: everyone's cards, small, under their plates (suit by suit, high to low)
+function peekHTML(p) {
+  const h = (G && G.st && G.phase !== 'pass' ? G.st.hands[p] : G.hands[p]) || [];
+  return `<div class="peek">${[2, 3, 1, 0].map(su => { const cs = h.filter(c => suit(c) === su).sort((a, b) => rank(b) - rank(a));
+    return cs.length ? `<span class="${su === 1 || su === 3 ? 'r' : ''}">${suitMark(su)}${cs.map(c => RL(rank(c))).join(' ')}</span>` : ''; }).join('')}</div>`;
+}
 function debugTag() {
   let el = document.getElementById('dbg-tag');
   if (!G || !G.debug) { if (el) el.remove(); return; }
@@ -4012,6 +4049,7 @@ function step(extra) {
   render();
   saveGame();
   if (st.turn === 0 && G.phase === 'play') setTimeout(() => { if (G && G.phase === 'play' && G.st.turn === 0 && !G.busy) SFX.soft('turn'); }, 180);
+  if (st.turn === 0 && G.debug && G.autoMe) debugAutoPlay();
   if (st.turn !== 0) {
     const lv = G.T.levels[st.turn];
     setTimeout(() => {
@@ -4329,7 +4367,7 @@ function renderPlates() {
     const nm = nameOf(p);
     if (p) {
       el.classList.add('seat');
-      el.innerHTML = `${portraitHTML(nm, seatFlip(nm, el))}<div class="pinfo"><span class="nm">${esc(nm)}</span><span class="ph">CPU</span><span class="rule"></span><span class="pts"><b class="rp${v ? ' has' : ''}${bump ? ' bump' : ''}">${v}</b>this round</span></div>`;
+      el.innerHTML = `${portraitHTML(nm, seatFlip(nm, el))}<div class="pinfo"><span class="nm">${esc(nm)}</span><span class="ph">CPU</span><span class="rule"></span><span class="pts"><b class="rp${v ? ' has' : ''}${bump ? ' bump' : ''}">${v}</b>this round</span>${G.debug && G.showAll ? peekHTML(p) : ''}</div>`;
       continue;
     }
     el.innerHTML = `<div class="whoc"><span class="nm">${esc(nm)}</span></div>
@@ -4454,8 +4492,8 @@ try { matchMedia('(orientation: landscape) and (max-height: 560px), (orientation
 try { let lastW = 0; new ResizeObserver(() => { const w = $('hand').clientWidth; if (G && w !== lastW) { lastW = w; renderHand(); } }).observe($('hand')); } catch (e) {}
 
 // ---------- overlays ----------
-function openVeil(html) { const v = $('veil'); v.innerHTML = html; v.hidden = false; }
-function closeVeil() { $('veil').hidden = true; $('veil').innerHTML = ''; }
+function openVeil(html) { const v = $('veil'); v.innerHTML = html; v.hidden = false; const t = document.getElementById('dbg-tag'); if (t) t.style.display = 'none'; }
+function closeVeil() { $('veil').hidden = true; $('veil').innerHTML = ''; const t = document.getElementById('dbg-tag'); if (t) t.style.display = ''; if (G && G.debug && G.autoMe && G.phase === 'play' && G.st && G.st.turn === 0) debugAutoPlay(); }
 
 function segHTML(name, opts, val) {
   return `<div class="seg">${opts.map(([v, l]) => `<label class="${v === 'genius' ? 'g' : ''}"><input type="radio" id="${name}-${v}" name="${name}" value="${v}" ${String(v) === String(val) ? 'checked' : ''}>${l}</label>`).join('')}</div>`;
@@ -4680,6 +4718,12 @@ function showMenu() {
     <div class="field"><span class="lab">Haptics</span>${segHTML('mhaptics', [['on', 'On'], ['off', 'Off']], S.haptics ? 'on' : 'off')}</div>
     <div class="foot">Your game saves as you play: refresh or close the page and you’ll come right back to it. Exit game ends it${G && G.rec && G.rec.practice ? '' : '. Leaving a rated game counts as a loss'}.</div>
     ${ME ? `<button class="ghost" id="b-lb" type="button">Leaderboard</button><button class="ghost" id="b-mg" type="button">My games</button>` : ''}
+    ${G && G.debug ? `<div class="field dbg"><span class="lab">Debug <small>only you see this</small></span>
+      <div class="sub">Play my cards</div>${segHTML('dauto', [['on', 'On'], ['off', 'Off']], G.autoMe ? 'on' : 'off')}
+      <div class="sub">Show all hands</div>${segHTML('dpeek', [['on', 'On'], ['off', 'Off']], G.showAll ? 'on' : 'off')}
+      <div class="sub">Seats</div><div class="dseats">${[1, 2, 3].map(p => `<label>${['', 'Your left', 'Across', 'Your right'][p]}<select data-seat="${p}">${[1, 2, 3].map(q => `<option value="${q}" ${q === p ? 'selected' : ''}>${esc(G.names[q])}</option>`).join('')}</select></label>`).join('')}</div>
+      <button class="ghost" id="b-dfinal" type="button">Make this the final round</button>
+      <div class="sub">Puts every score 1–4 points short of ${S.target}, so the first points anyone takes this round end the game.</div></div>` : ''}
     <div class="btns"><button class="ghost" id="b-new">Exit game</button><button class="cta" id="b-keep">Back to game</button></div>
     ${ME ? `<div class="foot">Signed in as ${esc(acctName(ME))} · <button class="linkish" id="b-out" type="button">Sign out</button></div>` : ''}
   </div>`);
@@ -4687,6 +4731,10 @@ function showMenu() {
   $('veil').querySelectorAll('input[name="msound"]').forEach(r => r.onchange = () => { S.sound = r.value === 'on'; audioSessionMode(); if (S.sound) SFX.unlock(); saveSettings(); renderRail(); });
   $('veil').querySelectorAll('input[name="mhaptics"]').forEach(r => r.onchange = () => { S.haptics = r.value === 'on'; saveSettings(); if (S.haptics) haptic(12); });
   $('b-keep').onclick = closeVeil;
+  $('veil').querySelectorAll('input[name="dauto"]').forEach(r => r.onchange = () => { G.autoMe = r.value === 'on'; saveGame(); });
+  $('veil').querySelectorAll('input[name="dpeek"]').forEach(r => r.onchange = () => { G.showAll = r.value === 'on'; saveGame(); render(); });
+  if ($('b-dfinal')) $('b-dfinal').onclick = () => { debugFinalRound(); closeVeil(); };
+  $('veil').querySelectorAll('.dseats select').forEach(sel => sel.onchange = () => { debugSwapSeats(+sel.dataset.seat, +sel.value); showMenu(); });
   if ($('b-lb')) $('b-lb').onclick = () => showLeaders(showMenu);
   if ($('b-mg')) $('b-mg').onclick = () => showMyGames(showMenu);
   // Kennedy, Nov 8: leaving a rated game counts as a loss, so warn first (practice games just end)

@@ -969,23 +969,31 @@ let heartRun = null;
 // Taking hearts (Kennedy, Nov 6): only a trick with all four hearts gets a quote, and her small-hit and big-hit
 // lines are one combined pool for it (a Q♠ in the same trick still wins: the queen quotes play instead).
 // When every line she could use has been said this hand, she stays quiet.
-const POOLED = {};   // Nov 7: small and big hits have their own lines again
+// Nov 9 (Kennedy): every girl's small-hit and big-hit lines are one pool again, whatever the number of hearts;
+// quote pairing picks the line that best answers what was just said. When a trick gets a line is unchanged
+// (3–4 hearts always, 1–2 hearts half the time).
+const POOLED = { hearts: ['hearts', 'fewHearts'], fewHearts: ['hearts', 'fewHearts'] };
 // second half of a two-part quote -> its first half (both normalized with normLine)
+// Kennedy, Nov 9: the exception is a second half that answers the quote just said (pair score ≥ 2), e.g. “Reno's a
+// state!” right after Natalie's “I run LA!”.
 const ONLY_AFTER = {
   'Amy': { "i'll show you something funny": 'you think this is so funny?' },
+  'Victor Twins': { "reno's a state!": 'reno? the casino?' },
 };
 // ---------- quote pairing helpers ----------
 let lastQuote = null;            // { line (normalized), nm, at } — the last quote said, for the next one to answer
 const PAIR_WINDOW = 25000;       // a quote older than this (ms) has nothing to answer
 let PAIR_MAP = null;
-function pairScore(a, b) {       // a: normalized line said first; b: candidate reply
+// numbered takes (“Done! (2)”) share their pairs: the number is dropped before matching
+const baseLine = s => normLine(s).replace(/\s*\(\d+\)$/, '');
+function pairScore(a, b) {       // a: line said first; b: candidate reply
   if (!PAIR_MAP) {
     PAIR_MAP = {};
-    const add = (x, y, sc) => { const m = PAIR_MAP[normLine(x)] || (PAIR_MAP[normLine(x)] = {}); m[normLine(y)] = Math.max(m[normLine(y)] || 0, sc); };
+    const add = (x, y, sc) => { const m = PAIR_MAP[baseLine(x)] || (PAIR_MAP[baseLine(x)] = {}); m[baseLine(y)] = Math.max(m[baseLine(y)] || 0, sc); };
     (typeof PAIRS !== 'undefined' ? PAIRS : []).forEach(([x, y, sc]) => add(x, y, sc));
     (typeof KENNEDY_PAIRS !== 'undefined' ? KENNEDY_PAIRS : []).forEach(([x, y]) => add(x, y, 5));
   }
-  return (PAIR_MAP[a] || {})[normLine(b)] || 0;
+  return (PAIR_MAP[baseLine(a)] || {})[baseLine(b)] || 0;
 }
 function tableLines(p) {         // every line the other speakers at the table could say (with a clip, once clips have loaded)
   const out = [];
@@ -1000,10 +1008,12 @@ function tableLines(p) {         // every line the other speakers at the table c
 function lineFor(p, ev) {
   const nm = voiceOf(p);
   const pool1 = e => { const own = LINES[nm] && LINES[nm][e]; return own || GENERIC_LINES[e] || []; };
-  const pool = e => [...new Set((POOLED[e] || [e]).flatMap(pool1))];
+  // a pooled moment uses only her own lines when she has any for it; the generic lines are a last resort
+  const pool = e => { const ms = POOLED[e] || [e], own = ms.flatMap(m => (LINES[nm] && LINES[nm][m]) || []); return [...new Set(own.length ? own : ms.flatMap(pool1))]; };
   // two-part quotes: the second half only once she has said the first half earlier in this game (Kennedy, Nov 6)
   const saidG = (G && G.saidGame) || new Set();
-  const set = pool(ev).filter(l => { const first = (ONLY_AFTER[nm] || {})[normLine(l)]; return !first || saidG.has(nm + '|' + first); });
+  const recent = lastQuote && performance.now() - lastQuote.at < PAIR_WINDOW ? lastQuote : null;
+  const set = pool(ev).filter(l => { const first = (ONLY_AFTER[nm] || {})[normLine(l)]; return !first || saidG.has(nm + '|' + first) || (recent && pairScore(recent.line, l) >= 2); });
   if (!set.length) return null; // the admin cleared this moment: she stays quiet
   // Kennedy, Nov 7: no speech bubbles without sound. Once the clips have loaded (signed in, sound on), she only says
   // lines that have a clip; a moment with none stays quiet.
@@ -1023,7 +1033,6 @@ function lineFor(p, ev) {
   // (pairs.js; Kennedy's own links first). When nothing answers it, lean toward lines someone else at the table
   // has a comeback for, so the next quote has something to answer.
   let pick = opts, pairSc = 0;
-  const recent = lastQuote && performance.now() - lastQuote.at < PAIR_WINDOW ? lastQuote : null;
   if (recent) {
     const sc = opts.map(l => pairScore(recent.line, l)), best = Math.max(...sc);
     if (best >= 2) { pick = opts.filter((l, i) => sc[i] === best); pairSc = best; }

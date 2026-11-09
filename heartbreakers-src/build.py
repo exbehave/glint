@@ -15,3 +15,7 @@ sfx = {f[:-4]: 'data:audio/mp4;base64,' + base64.b64encode(open(os.path.join(D, 
 s = s.replace('/*SFX*/{}', json.dumps(sfx))
 open(os.path.join(D, 'hearts.html'), 'w', encoding='utf-8').write(s)
 print('built', len(s))
+
+# quote pairing coverage (Nov 9): warn about quotes with no pairs and pair lines that match no quote
+import subprocess
+subprocess.run(['node', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'check_pairs.js')])

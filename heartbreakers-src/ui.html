@@ -707,11 +707,23 @@ const SFX = {
     return b.duration;
   },
   ctx: null,
-  unlock() {
+  gen: 0,          // how many audio engines this page has made (logged with each clip)
+  stale: false,    // set when the page comes back after being hidden: the next tap builds a fresh engine
+  unlock(tap) {   // tap: called from the person's own tap or key (iPhone only lets a new engine start then)
     audioSessionMode();
     if (!S.sound) return;
     try {
-      if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+      // Kennedy, Nov 9: after leaving the game and coming back, every sound stayed silent until the app was closed
+      // and Sound was toggled. The sound log showed the engine saying "running" and clips "played" the whole time,
+      // so resuming isn't enough: iPhone can hand back an engine that reports running but outputs nothing (WebKit
+      // bugs 217606, 263627). On the first tap after coming back, close it and start a fresh one. Decoded clips
+      // carry over (an AudioBuffer isn't tied to one engine); the effects are decoded again from the page.
+      if (this.ctx && this.stale && tap) {
+        const old = this.ctx; this.ctx = null; this.bufs = {};
+        try { old.close(); } catch (e) {}
+      }
+      if (tap) this.stale = false;
+      if (!this.ctx) { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); this.gen++; }
       // iPhone parks the engine as "interrupted" (not just "suspended") after switching apps or a notification;
       // resume from any state that isn't running (Nov 7, 2026: the old check only woke "suspended").
       if (this.ctx.state !== 'running') this.ctx.resume().then(() => this.preload()).catch(() => {});
@@ -824,8 +836,13 @@ fitHeight();
 window.addEventListener('resize', fitHeight);
 window.addEventListener('orientationchange', () => setTimeout(fitHeight, 300));
 if (window.visualViewport) visualViewport.addEventListener('resize', fitHeight);
-function audioSessionMode() {
-  try { if ('audioSession' in navigator) navigator.audioSession.type = S.sound ? 'playback' : 'auto'; } catch (e) {}
+function audioSessionMode(reset) {
+  try {
+    if (!('audioSession' in navigator)) return;
+    // coming back from the background: flip it off and back on, the same thing turning Sound off and on did
+    if (reset && S.sound) navigator.audioSession.type = 'auto';
+    navigator.audioSession.type = S.sound ? 'playback' : 'auto';
+  } catch (e) {}
 }
 // Haptics (Kennedy, Nov 7): a light buzz on your own actions. Android: navigator.vibrate. iPhone Safari has no
 // vibrate; tapping a hidden switch control (Safari 18+) gives a system haptic tick — only inside a tap, so it only
@@ -848,12 +865,16 @@ function haptic(ms = 10) {
 }
 // every button: the softest tick and a light buzz
 document.addEventListener('click', e => { if (e.target.closest('button, .seg label, .girl')) { SFX.soft('tap'); haptic(6); } }, true);
-document.addEventListener('pointerdown', () => SFX.unlock(), true);
+document.addEventListener('pointerdown', () => SFX.unlock(true), true);
 // coming back to the game (after switching apps) wakes the audio engine straight away
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') SFX.unlock(); });
-window.addEventListener('pageshow', () => SFX.unlock());
-document.addEventListener('touchend', () => SFX.unlock(), true);
-document.addEventListener('keydown', () => SFX.unlock(), true);
+// Leaving marks the engine stale; coming back (and the next tap) builds a new one and re-asserts the audio session.
+let hiddenAt = 0;
+const comeBack = () => { if (hiddenAt && Date.now() - hiddenAt > 800) { SFX.stale = true; audioSessionMode(true); } hiddenAt = 0; SFX.unlock(); };
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') hiddenAt = Date.now(); else comeBack(); });
+window.addEventListener('pagehide', () => { hiddenAt = hiddenAt || Date.now(); });
+window.addEventListener('pageshow', e => { if (e.persisted) hiddenAt = hiddenAt || 1; comeBack(); });
+document.addEventListener('touchend', () => SFX.unlock(true), true);
+document.addEventListener('keydown', () => SFX.unlock(true), true);
 
 // ---------- effects ----------
 function queensGambit() {
@@ -1190,7 +1211,7 @@ function playClip(nm, ev, text, onSpoken, onStart) {
   // no clips loaded yet (e.g. every load failed): try again quietly, at most every 30 s
   if (!bitesLoaded() && !bitesLoading && Date.now() - bitesLastTry > 30000) loadBites();
   const list = text && BITES[nm] && BITES[nm][normLine(text)];
-  const why = { girl: nm, line: text, ev };
+  const why = { girl: nm, line: text, ev, gen: SFX.gen };   // gen: which audio engine (a new one after each return)
   if (!list || !list.length) { why.result = bitesLoaded() ? 'no clip for this line' : 'clips not loaded'; soundLog(why); }
   if (list && list.length) {
     const b = list[Math.floor(Math.random() * list.length)];
@@ -1779,7 +1800,7 @@ function renderRail() {
     + [0, 1, 2, 3].map(i => `<div class="score${i === 0 ? ' me' : ''}"><div class="who">${esc(i === 0 && S.handle ? S.handle : nameOf(i))}</div><div class="tot">${G.totals[i]}</div></div>`).join('') + `</div>`
     + `<button class="icon-btn${S.sound ? '' : ' off'}" id="b-sound" aria-label="${S.sound ? 'Turn sound effects off' : 'Turn sound effects on'}" aria-pressed="${S.sound}">${S.sound ? ICON_ON : ICON_OFF}</button>`
     + `<button class="icon-btn" id="b-menu" aria-label="Game menu">${ICON_MENU}</button>`;
-  $('b-sound').onclick = () => { S.sound = !S.sound; saveSettings(); audioSessionMode(); if (S.sound) SFX.unlock(); renderRail(); };
+  $('b-sound').onclick = () => { S.sound = !S.sound; saveSettings(); audioSessionMode(); if (S.sound) { SFX.stale = true; SFX.unlock(true); } renderRail(); };
   $('b-menu').onclick = showMenu;
 }
 

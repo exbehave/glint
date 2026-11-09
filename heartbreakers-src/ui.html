@@ -347,6 +347,9 @@ html, body { overflow-x: hidden; overflow-x: clip; }
 .tbl tr.me td:first-child { color: var(--red); font-weight: 700; border-radius: 8px 0 0 8px; padding-left: 8px; }
 .tbl tr.me td:last-child { border-radius: 0 8px 8px 0; padding-right: 8px; }
 .moon { font-family: var(--display); font-size: 20px; color: var(--violet); }
+.moonfx { position: fixed; inset: 0; z-index: 80; background: #12060f; }
+.moonfx canvas { width: 100%; height: 100%; display: block; }
+.moonfx .skip { position: absolute; bottom: max(10px, env(safe-area-inset-bottom)); left: 0; right: 0; text-align: center; font-size: 12px; color: rgba(246,237,242,.55); letter-spacing: .08em; }
 .moonopt { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 100%; }
 .moonopt small { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px 10px; font-size: 12px; font-weight: 500; opacity: .85; }
 
@@ -1731,11 +1734,39 @@ function endHand() {
   const raw = G.st.pts.slice();
   const moon = raw.indexOf(26);
   if (moon < 0) return finishHand(raw, -1, null);
-  if (moon === 0) return moonChooser(c => finishHand(raw, 0, c));
-  finishHand(raw, moon, botMoonChoice(moon));
+  moonShow(moon, said => {
+    if (moon === 0) return moonChooser(c => finishHand(raw, 0, c, said));
+    finishHand(raw, moon, botMoonChoice(moon), said);
+  });
 }
 
-function finishHand(raw, moon, choice) {
+// Shooting the moon (Kennedy, Nov 9): before the choice or the scores, the same animation as the highlights:
+// a fast-forward of every trick she took points in, then the point cards fan into a circle around a moon and a
+// pink revolver shoots through it. Her moon line plays with the shot. Tap to skip. done(said) gets the line she said
+// (or null), so the score screen shows it without playing it again.
+function moonShow(moon, done) {
+  const rec = G.rec, hi = rec ? rec.hands.length - 1 : -1;
+  const text = lineFor(moon, 'moon');
+  if (!rec || hi < 0 || !rec.hands[hi].plays || rec.hands[hi].plays.length < 52) return done(null);
+  const m = hlMoonMoment(rec, hi, moon);
+  if (text) m.quotes = [{ p: moon, ev: 'moon', line: text }];
+  const el = document.createElement('div'); el.className = 'moonfx';
+  el.innerHTML = '<canvas></canvas><div class="skip">Tap to skip</div>';
+  document.body.appendChild(el);
+  let over = false;
+  const fin = () => { if (over) return; over = true; hlStop(); el.remove(); done(text ? { p: moon, text } : null); };
+  const timeout = new Promise(r => setTimeout(() => r({}), 2500));
+  Promise.race([hlLoadClips(rec, [m]).catch(() => ({})), timeout]).then(clips => {
+    if (over) return;
+    const cv = el.querySelector('canvas'), dpr = Math.min(2, devicePixelRatio || 1);
+    cv.width = Math.round(innerWidth * dpr); cv.height = Math.round(innerHeight * dpr);
+    const TL = hlTimeline(rec, [m], clips || {}, { bare: true });
+    hlPlay(cv, rec, TL, { onEnd: () => setTimeout(fin, 250) });
+    setTimeout(() => { el.onclick = fin; }, 300);
+  });
+}
+
+function finishHand(raw, moon, choice, said) {
   const fin = moon < 0 ? raw.slice() : moonOptions(moon)[choice];
   fin.forEach((v, i) => (G.totals[i] += v));
   G.handNo++;
@@ -1762,8 +1793,8 @@ function finishHand(raw, moon, choice) {
   // sounds (Kennedy's picks, Nov 7): a moon gets the voice "ahh" or the kids' "woah"; winning the game gets
   // applause, the fanfare or the ta-da (one at random). Kennedy, Nov 7: each sound plays together with its line,
   // not before it. The moon line and its sound go first; the win sound starts with the win line (after the moon line).
-  if (moon >= 0) SFX.play(['choir-ahh', 'kids-woah']);
-  if (moon >= 0) react += quoteHTML(moon, 'moon');
+  if (moon >= 0 && said !== undefined) { if (said) react += `<div class="quote">${portraitHTML(voiceOf(said.p))}<div><div class="who">${esc(voiceOf(said.p))}</div><div class="q">“${esc(String(said.text).replace(/\s*\(\d+\)$/, ''))}”</div></div></div>`; }
+  else if (moon >= 0) { SFX.play(['choir-ahh', 'kids-woah']); react += quoteHTML(moon, 'moon'); }
   const winSfx = () => SFX.play(['applause', 'fanfare', 'ta-da']);
   if (over && winners.length === 1) react += quoteHTML(G.names.indexOf(winners[0]), 'win', winSfx);
   else if (over && winners.length) { if (moon >= 0) setTimeout(winSfx, Math.max(0, voiceEnd - performance.now())); else winSfx(); }

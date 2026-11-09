@@ -153,9 +153,9 @@ const LINES = {
     qsGet: ["You're trying to be Natalie and you'll never be!"],
     breaks: ["I run LA!","How do you feel about that?","Bitch, yeah, I run LA"],
     fewHearts: ["That's really annoying","Are you kidding me!?"],
-    hearts: ["Gun's blazing!","What about your daughter? You never called her back!"],
+    hearts: ["Are you kidding me!? I run LA!","What about your daughter? You never called her back!"],
     taunt: ['Know your place.', 'Who runs this? Exactly.'],
-    moon: ["Are you kidding me!? I run LA!"],
+    moon: ["Gun's blazing!"],
     moonVictim: ['Who approved this?', 'Not in my house.'],
     win: ["You wanted to taste Natalie? You got a taste, bitch","I'm international, bitch!"]
   },

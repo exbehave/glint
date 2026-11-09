@@ -19,6 +19,11 @@ function hlTricks(h) {
   }
   return out;
 }
+function hlMoonMoment(rec, hi, who) {   // also used by the game, the moment she shoots it
+  const h = rec.hands[hi], tricks = hlTricks(h);
+  const ff = tricks.filter(t => t.w === who && t.cards.some(x => suit(x.c) === 3 || x.c === QS));
+  return { kind: 'moon', hand: hi, trick: tricks[tricks.length - 1], ff, quotes: [], rank: 3, who, choice: h.choice };
+}
 function hlFind(rec) {
   if (!rec || !rec.hands) return [];
   const found = [];
@@ -33,10 +38,8 @@ function hlFind(rec) {
       found.push({ kind: 'qs', hand: hi, trick: t, quotes: qs, rank: 2, who: t.w, by: t.cards.find(x => x.c === QS).p });
     }
     if (h.moon >= 0 && tricks.length) {
-      const last = tricks[tricks.length - 1], q = found.find(f => f.hand === hi && f.trick === last);   // the Q♠ fell in the moon's last trick: one moment
-      const moonQ = says.filter(s => s.ev === 'moon');
-      if (q) found.splice(found.indexOf(q), 1);
-      found.push({ kind: 'moon', hand: hi, trick: last, quotes: q ? q.quotes.concat(moonQ) : moonQ, rank: 3, who: h.moon, choice: h.choice });
+      // the moon (Kennedy, Nov 9): a fast-forward of every trick she took points in, then the revolver finale
+      found.push(Object.assign(hlMoonMoment(rec, hi, h.moon), { quotes: says.filter(s => s.ev === 'moon') }));
     }
     // breaks / hearts (Kennedy, Nov 9, evening): only a real back-and-forth on one trick — the reply has a pair score of 3+,
     // it comes right after the quote it answers (nothing said in between), a different girl said that quote,
@@ -78,19 +81,20 @@ function hlCaption(rec, m) {
 
 // The timeline: every moment as timed steps, so playing and recording draw the same frames and schedule the same sounds.
 // clips: line -> decoded buffer (or null); done before the reel starts so nothing waits mid-reel.
-function hlTimeline(rec, moments, clips) {
+function hlTimeline(rec, moments, clips, opts = {}) {
   const T = [], A = [];   // T: segments {t0, t1, m, i}; A: audio {at, buf | sfx}
   let t = 0;
   const INTRO = 1.6, CARD = 0.42, AFTER = 0.5, GAP = 0.25, OUTRO = 3;
-  T.push({ t0: 0, t1: INTRO, intro: true }); t = INTRO;
+  if (!opts.bare) { T.push({ t0: 0, t1: INTRO, intro: true }); t = INTRO; }   // bare: the moon alone, during the game
   const SWISH = 0.5;
   let prev = null, sw = null;
   moments.forEach((m, i) => {
-    if (prev && !(prev.m.hand === m.hand && m.trick.n === prev.m.trick.n + 1)) {   // a jump: swish over to it
+    if (prev && (m.kind === 'moon' || !(prev.m.hand === m.hand && m.trick.n === prev.m.trick.n + 1))) {   // a jump: swish over to it
       sw = { t0: t, t1: t + SWISH, swish: true, a: prev }; T.push(sw); A.push({ at: t, sfx: 'whoosh' }); t += SWISH;
     }
     const seg = { t0: t, m, i, cardsAt: [], quotes: [] };
     if (sw) { sw.b = seg; sw = null; }
+    if (m.kind === 'moon') { t = hlMoonSeg(rec, seg, clips, A, t); T.push(seg); prev = seg; return; }
     m.trick.cards.forEach((x, k) => {
       const at = t + 0.3 + k * CARD;
       seg.cardsAt.push(at); if (x.c === QS && k === 0) t += 0.6;   // a led queen bounces longer (1 s), like the table
@@ -99,7 +103,6 @@ function hlTimeline(rec, moments, clips) {
       if (m.kind === 'breaks' && suit(x.c) === 3 && !m.trick.cards.slice(0, k).some(y => suit(y.c) === 3)) { A.push({ at: at + 0.2, glass: true }); seg.glassAt = at + 0.2; seg.glassK = k; }
     });
     t += 0.3 + 4 * CARD + AFTER;
-    if (m.kind === 'moon') A.push({ at: t - 0.3, sfx: ['choir-ahh', 'kids-woah'][i % 2] });
     for (const q of m.quotes) {
       const buf = clips[hlVoice(rec, q.p) + '|' + normLine(q.line)] || null;
       const len = buf ? (buf.sp != null ? buf.sp : buf.duration) : 1.8;
@@ -111,6 +114,7 @@ function hlTimeline(rec, moments, clips) {
     t += 1.1;
     seg.t1 = t; T.push(seg); prev = seg;
   });
+  if (opts.bare) return { T, A, len: t };
   T.push({ t0: t, t1: t + OUTRO, outro: true }); A.push({ at: t + 0.2, sfx: ['applause', 'fanfare', 'ta-da'][moments.length % 3] });
   return { T, A, len: t + OUTRO };
 }
@@ -183,7 +187,7 @@ function hlCard(g, c, cx, cy, w, glow, alpha = 1, rot = 0, ring = null) {
 }
 function hlRng(seed) { let a = seed >>> 0 || 1; return () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 // The table's Queen's Gambit banner (2.3 s): lettering slams in and sizzles, smoke curls up off it, sparks fly.
-function hlGambit(g, x, y, e, U, rng) {
+function hlGambit(g, x, y, e, U, rng, title = 'Queen’s Gambit', sub = 'NO WAY OUT') {
   const f = e / 2.3, KF = [[0, 0, 1.8], [.12, 1, .96], [.2, 1, 1], [.8, 1, 1.03], [1, 0, 1.08]];
   let j = 0; while (j < KF.length - 2 && f > KF[j + 1][0]) j++;
   const u = Math.max(0, Math.min(1, (f - KF[j][0]) / (KF[j + 1][0] - KF[j][0]))), op = f >= 1 ? 0 : KF[j][1] + (KF[j + 1][1] - KF[j][1]) * u, sc = KF[j][2] + (KF[j + 1][2] - KF[j][2]) * u;
@@ -204,9 +208,9 @@ function hlGambit(g, x, y, e, U, rng) {
     g.fillStyle = bg; g.fillRect(-bw / 2, -bh / 2 - fs * 0.4, bw, bh + fs * 0.8);
     const jx = (Math.floor(e / 0.045) % 2 ? 0.6 : -0.5) * U / 3.9, jy = (Math.floor(e / 0.045) % 2 ? -0.4 : 0.3) * U / 3.9, lit = Math.floor(e / 0.045) % 2 ? 1.35 : 0.9;
     g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = HL_FONT(800, fs, 'caps');
-    for (const [c, b] of [['#ff3d8e', 70], ['#ff3d8e', 38], ['#ff3d8e', 18], ['#ff9a3c', 6]]) { g.shadowColor = c; g.shadowBlur = b * U / 3.9 * lit; g.fillStyle = '#fff4e8'; g.fillText('Queen’s Gambit', jx, jy - fs * 0.15); }
+    for (const [c, b] of [['#ff3d8e', 70], ['#ff3d8e', 38], ['#ff3d8e', 18], ['#ff9a3c', 6]]) { g.shadowColor = c; g.shadowBlur = b * U / 3.9 * lit; g.fillStyle = '#fff4e8'; g.fillText(title, jx, jy - fs * 0.15); }
     g.shadowBlur = 0; g.fillStyle = '#ffb877'; g.font = HL_FONT(700, fs * 0.22, 'caps');
-    g.letterSpacing = `${fs * 0.066}px`; g.fillText('NO WAY OUT', 0, fs * 0.62); g.letterSpacing = '0px';
+    g.letterSpacing = `${fs * 0.066}px`; g.fillText(sub, 0, fs * 0.62); g.letterSpacing = '0px';
     g.restore();
   }
   for (let i = 0; i < 26; i++) {
@@ -316,6 +320,10 @@ function hlFrame(g, W, H, rec, TL, t) {
     const u = (f - ks[j][0]) / (ks[j + 1][0] - ks[j][0]), k1 = U / 3.9;
     g.translate((ks[j][1] + (ks[j + 1][1] - ks[j][1]) * u) * k1, (ks[j][2] + (ks[j + 1][2] - ks[j][2]) * u) * k1);
   }
+  if (seg.bangAt != null && t >= seg.bangAt && t < seg.bangAt + 0.5) {   // the shot shakes it harder
+    const e = t - seg.bangAt, a = Math.exp(-e * 9) * 3.2 * U;
+    g.translate(Math.sin(e * 90) * a, Math.cos(e * 73) * a * 0.7);
+  }
   // the table's devil-heart outline behind the trick
   const hi = hlImg(HL_SRC.heart);
   if (hi) { g.save(); g.globalAlpha = 0.16; const hw = L.cw * 1.9, hh = hw * hi.naturalHeight / hi.naturalWidth; g.drawImage(hi, tx - hw / 2, cy - hh / 2, hw, hh); g.restore(); }
@@ -325,11 +333,16 @@ function hlFrame(g, W, H, rec, TL, t) {
     const speaking = seg.quotes.some(qq => qq.q.p === p && t >= qq.t0 && t < qq.t1);
     const k = seg.cardsAt.findIndex(a => t < a), turn = k >= 0 && m.trick.cards[k].p === p && t > seg.t0 + 0.15;
     const flip = (FACING[nm] === 'right' && p === 3) || (FACING[nm] === 'left' && p === 1);
-    hlPlate(g, x, y, ps, nm, p === 0 ? (rec.handle ? rec.handle.toUpperCase() : 'YOU') : 'CPU', speaking || turn, flip);
+    const focus = seg.moon && t > seg.ringAt;   // the finale: her seat lit, the others dimmed
+    g.save(); if (focus && p !== m.who) g.globalAlpha = 1 - 0.55 * hlClamp((t - seg.ringAt) / 0.5);
+    hlPlate(g, x, y, ps, nm, p === 0 ? (rec.handle ? rec.handle.toUpperCase() : 'YOU') : 'CPU', speaking || turn || (focus && p === m.who), flip);
+    g.restore();
   }
   // the trick, the table's way: each card slides into its slot (the Q♠ drops in and bounces, glowing violet),
   // the winner's card gets a bone ring, then the cards gather in the middle, tilt, and fly off to whoever took them
   const cw = L.cw, off = [[0, 1], [-1, 0], [0, -1], [1, 0]], rng = hlRng(seg.i * 97 + 13);
+  if (seg.moon) hlMoonDraw(g, W, H, rec, seg, t, L, U, seatXY);
+  else {
   const tilt = m.trick.cards.map(() => rng() * 18 - 9);
   const done4 = seg.cardsAt[3] + 0.3, wxy = seatXY[m.trick.w];
   m.trick.cards.forEach((x, k) => {
@@ -362,6 +375,7 @@ function hlFrame(g, W, H, rec, TL, t) {
     const x = m.trick.cards[seg.glassK], [ox, oy] = off[x.p];
     hlGlass(g, tx + ox * cw * 1.32, cy + oy * cw * 1.12, t - seg.glassAt, U, W, H, hlRng(seg.i * 31 + 7));
   }
+  }
   // caption
   g.fillStyle = '#f6edf2'; g.font = HL_FONT(700, 3.5 * U, 'caps'); g.textAlign = 'center'; g.textBaseline = 'middle';
   g.save(); g.shadowColor = 'rgba(0,0,0,.8)'; g.shadowBlur = 2 * U;
@@ -370,6 +384,11 @@ function hlFrame(g, W, H, rec, TL, t) {
   if (logo && tall) { const lw = 46 * U, lh = lw * logo.naturalHeight / logo.naturalWidth; g.drawImage(logo, (W - lw) / 2, H * 0.025, lw, lh); }
   g.restore();
   if (seg.gambitAt != null && t >= seg.gambitAt && t < seg.gambitAt + 3.2) hlGambit(g, W / 2, H * (tall ? 0.44 : 0.46), t - seg.gambitAt, U, hlRng(seg.i * 53 + 3));
+  if (seg.bangAt != null) {
+    const e = t - seg.bangAt;
+    if (e >= 0 && e < 0.14) { g.save(); g.globalAlpha = 0.55 * (1 - e / 0.14); g.fillStyle = '#fff6ee'; g.fillRect(0, 0, W, H); g.restore(); }
+    if (e >= 0.12 && e < 3.2) hlGambit(g, wide ? tx : W / 2, cy, e - 0.12, U, hlRng(seg.i * 53 + 3), 'Shot the Moon', hlLabel(rec, m.who).toUpperCase());
+  }
   // the quote being said, in the table's bubble style
   const cur = seg.quotes.filter(qq => t >= qq.t0 && t < qq.t1).pop();
   if (cur) {
@@ -415,6 +434,269 @@ function hlSwish(g, W, H, rec, TL, seg, t) {
   g.restore();
 }
 
+
+// ---------- shooting the moon (Kennedy, Nov 9) ----------
+// A fast-forward of every trick she took points in (cards only: no quotes, no effects), her point cards piling up
+// by her seat; then it slows down: the hearts and the Q♠ fly up and fan into a full circle around a glowing moon,
+// a gloved hand with stiletto nails swings in a pink chrome revolver, cocks it, and fires through the middle.
+// The cards blow outward, the moon cracks around a smoking bullet hole, “Shot the Moon” slams in, she blows the smoke away.
+const HLM = { FF: 0.5, FF0: 0.25, PAUSE: 0.45, RING: 1.0, GUN: 0.7, COCK: 1.75, BANG: 2.6 };
+function hlMoonSeg(rec, seg, clips, A, t) {
+  const m = seg.m, ff = m.ff && m.ff.length ? m.ff : [m.trick];
+  seg.moon = true; seg.ff = ff.map((tr, k) => ({ tr, at: t + HLM.FF0 + k * HLM.FF }));
+  seg.ff.forEach(f => { A.push({ at: f.at + 0.04, soft: 'card' }); A.push({ at: f.at + 0.25, soft: 'sweep' }); });
+  seg.pts = [];   // her point cards, in the order she took them: [{c, at (when it reached her pile)}]
+  seg.ff.forEach(f => f.tr.cards.forEach(x => { if (suit(x.c) === 3 || x.c === QS) seg.pts.push({ c: x.c, at: f.at + HLM.FF }); }));
+  const F0 = t + HLM.FF0 + ff.length * HLM.FF + HLM.PAUSE;
+  seg.ringAt = F0; seg.gunAt = F0 + HLM.RING - 0.1; seg.cockAt = F0 + HLM.COCK; seg.bangAt = F0 + HLM.BANG;
+  // quiet build-up (just the hammer), the shot, then the choir after it
+  A.push({ at: seg.cockAt, sfx: 'cock' }); A.push({ at: seg.bangAt, sfx: 'shot', gain: 1.6 }); A.push({ at: seg.bangAt + 0.45, sfx: 'choir-ahh' });
+  let q0 = seg.bangAt + 0.75;
+  for (const q of m.quotes) {
+    const buf = clips[hlVoice(rec, q.p) + '|' + normLine(q.line)] || null;
+    const len = buf ? (buf.sp != null ? buf.sp : buf.duration) : 1.8;
+    if (buf) A.push({ at: q0, buf });
+    seg.quotes.push({ q, t0: q0, t1: q0 + len + 0.85 });
+    q0 += len + 0.25;
+  }
+  seg.gustAt = seg.bangAt + 1.7; seg.gunOut = Math.max(seg.bangAt + 2.5, q0 - 0.2);
+  seg.t1 = Math.max(seg.bangAt + 4.0, q0 + 0.7);
+  return seg.t1;
+}
+const hlClamp = v => Math.max(0, Math.min(1, v));
+const hlEaseOut = v => 1 - Math.pow(1 - hlClamp(v), 3);
+const hlEaseIO = v => { v = hlClamp(v); return v < 0.5 ? 4 * v * v * v : 1 - Math.pow(-2 * v + 2, 3) / 2; };
+
+// The revolver, in profile, muzzle to the right. Units: the gun's length is 1, origin at the web of the hand.
+// cock: 0 = hammer down, 1 = pulled back. Drawn into whatever transform the caller set.
+function hlRevolver(g, cock, lw) {
+  const chrome = (y0, y1) => { const gr = g.createLinearGradient(0, y0, 0, y1);
+    gr.addColorStop(0, '#ffe6f2'); gr.addColorStop(0.22, '#ff8cc6'); gr.addColorStop(0.48, '#a3215f'); gr.addColorStop(0.56, '#ffd3ea');
+    gr.addColorStop(0.8, '#ff5fa8'); gr.addColorStop(1, '#4d0b2c'); return gr; };
+  const ink = '#1c0616';
+  g.lineJoin = 'round'; g.lineCap = 'round'; g.lineWidth = lw; g.strokeStyle = ink;
+  const shape = (f, fill) => { g.beginPath(); f(); g.fillStyle = fill; g.fill(); g.stroke(); };
+  // ejector rod housing under the barrel, then the barrel with its top rib and front sight
+  shape(() => { g.moveTo(0.16, 0.012); g.lineTo(0.62, 0.012); g.quadraticCurveTo(0.68, 0.04, 0.62, 0.07); g.lineTo(0.16, 0.07); g.closePath(); }, chrome(0.012, 0.07));
+  shape(() => { g.moveTo(0.14, -0.1); g.lineTo(0.8, -0.095); g.lineTo(0.8, 0.016); g.lineTo(0.14, 0.018); g.closePath(); }, chrome(-0.1, 0.018));
+  shape(() => { g.moveTo(0.73, -0.095); g.lineTo(0.765, -0.135); g.lineTo(0.785, -0.135); g.lineTo(0.792, -0.095); g.closePath(); }, '#ffb3d9');
+  g.save(); g.globalAlpha = 0.7; g.strokeStyle = '#fff'; g.lineWidth = lw * 1.1;
+  g.beginPath(); g.moveTo(0.2, -0.078); g.lineTo(0.77, -0.075); g.stroke(); g.restore();
+  // the bore
+  g.beginPath(); g.ellipse(0.8, -0.04, 0.01, 0.03, 0, 0, Math.PI * 2); g.fillStyle = '#0b0208'; g.fill();
+  // frame
+  shape(() => { g.moveTo(-0.23, -0.055); g.quadraticCurveTo(-0.15, -0.115, -0.05, -0.112); g.lineTo(0.16, -0.105); g.lineTo(0.16, 0.08);
+    g.lineTo(0.06, 0.105); g.lineTo(-0.11, 0.105); g.quadraticCurveTo(-0.19, 0.1, -0.235, 0.05); g.closePath(); }, chrome(-0.1, 0.105));
+  // cylinder with its flutes (they slide over by a chamber as the hammer comes back)
+  shape(() => { g.roundRect(-0.05, -0.11, 0.2, 0.2, 0.035); }, chrome(-0.11, 0.09));
+  g.save(); g.beginPath(); g.roundRect(-0.05, -0.11, 0.2, 0.2, 0.035); g.clip();
+  g.strokeStyle = 'rgba(60,8,36,.75)'; g.lineWidth = lw * 1.6;
+  for (let i = 0; i < 4; i++) { const y = -0.09 + ((i * 0.055 + cock * 0.055) % 0.22); g.beginPath(); g.moveTo(-0.02, y); g.lineTo(0.12, y); g.stroke(); }
+  g.restore();
+  // trigger guard and trigger
+  g.lineWidth = lw * 2.2; g.strokeStyle = ink; g.beginPath(); g.ellipse(-0.02, 0.135, 0.075, 0.05, 0, 0, Math.PI); g.stroke();
+  g.lineWidth = lw * 1.3; g.strokeStyle = '#ff9ccf'; g.beginPath(); g.ellipse(-0.02, 0.135, 0.075, 0.05, 0, 0, Math.PI); g.stroke();
+  g.lineWidth = lw * 2; g.strokeStyle = '#ff7fbf'; g.beginPath(); g.moveTo(-0.005, 0.105); g.quadraticCurveTo(0.0, 0.15, -0.035, 0.17); g.stroke();
+  g.lineWidth = lw; g.strokeStyle = ink;
+  // hammer, pivoting back when cocked
+  g.save(); g.translate(-0.17, -0.045); g.rotate(-0.75 * cock);
+  shape(() => { g.moveTo(0.03, 0.0); g.lineTo(-0.01, -0.06); g.quadraticCurveTo(-0.05, -0.1, -0.09, -0.095); g.lineTo(-0.07, -0.065); g.lineTo(-0.04, 0.02); g.closePath(); }, chrome(-0.1, 0.02));
+  g.restore();
+  // pearl grip with a little pink medallion
+  const pg = g.createLinearGradient(-0.32, 0.05, -0.12, 0.4); pg.addColorStop(0, '#fff6fb'); pg.addColorStop(0.5, '#f2c6dc'); pg.addColorStop(1, '#c98aab');
+  shape(() => { g.moveTo(-0.22, 0.0); g.bezierCurveTo(-0.27, 0.12, -0.31, 0.25, -0.36, 0.38); g.quadraticCurveTo(-0.3, 0.44, -0.21, 0.42);
+    g.bezierCurveTo(-0.17, 0.3, -0.12, 0.2, -0.085, 0.105); g.closePath(); }, pg);
+  g.beginPath(); g.arc(-0.215, 0.2, 0.022, 0, Math.PI * 2); g.fillStyle = '#ff3d8e'; g.fill(); g.stroke();
+}
+// The hand: black satin glove, long hot-pink stiletto nails; thumb along the top, fingers wrapped round the grip,
+// index finger on the trigger. Drawn over the gun in the same units.
+function hlHand(g, lw) {
+  const satin = (x0, y0, x1, y1) => { const gr = g.createLinearGradient(x0, y0, x1, y1); gr.addColorStop(0, '#5a2a4c'); gr.addColorStop(0.35, '#1d0a18'); gr.addColorStop(1, '#070206'); return gr; };
+  const ink = '#0a0208';
+  g.lineJoin = 'round'; g.lineCap = 'round'; g.strokeStyle = ink; g.lineWidth = lw;
+  const nail = (x, y, a, len) => { len *= 1.5;   // an almond-to-stiletto nail from a fingertip at (x, y), pointing at angle a
+    g.save(); g.translate(x, y); g.rotate(a);
+    const gr = g.createLinearGradient(0, -0.012, 0, 0.012); gr.addColorStop(0, '#ffc0e0'); gr.addColorStop(0.45, '#ff2f8a'); gr.addColorStop(1, '#8a0f4c');
+    g.beginPath(); g.moveTo(0, -0.013); g.quadraticCurveTo(len * 0.6, -0.012, len, 0); g.quadraticCurveTo(len * 0.6, 0.012, 0, 0.013); g.closePath();
+    g.fillStyle = gr; g.fill(); g.stroke();
+    g.globalAlpha = 0.85; g.strokeStyle = '#fff'; g.lineWidth = lw * 0.7; g.beginPath(); g.moveTo(len * 0.12, -0.006); g.lineTo(len * 0.62, -0.004); g.stroke();
+    g.restore();
+  };
+  const finger = (pts, w) => {   // a gloved finger along a short path
+    g.save(); g.lineWidth = w + lw * 2; g.strokeStyle = ink; g.beginPath(); pts.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y))); g.stroke();
+    g.lineWidth = w; g.strokeStyle = satin(pts[0][0], pts[0][1] - w, pts[0][0], pts[0][1] + w); g.stroke();
+    g.lineWidth = w * 0.25; g.strokeStyle = 'rgba(160,100,140,.55)'; g.beginPath(); pts.forEach(([x, y], i) => (i ? g.lineTo(x, y - w * 0.22) : g.moveTo(x, y - w * 0.22))); g.stroke();
+    g.restore();
+  };
+  // forearm and cuff, coming in from below and behind
+  g.beginPath(); g.moveTo(-0.26, 0.3); g.lineTo(-0.62, 0.78); g.lineTo(-0.44, 0.9); g.lineTo(-0.12, 0.38); g.closePath();
+  g.fillStyle = satin(-0.5, 0.6, -0.3, 0.75); g.fill(); g.stroke();
+  g.save(); g.lineWidth = lw * 3; g.strokeStyle = '#ff3d8e'; g.beginPath(); g.moveTo(-0.37, 0.5); g.lineTo(-0.22, 0.6); g.stroke();
+  g.lineWidth = lw * 1.2; g.strokeStyle = '#ffd3ea'; g.beginPath(); g.moveTo(-0.4, 0.55); g.lineTo(-0.25, 0.65); g.stroke(); g.restore();
+  // palm over the back of the grip
+  g.beginPath(); g.moveTo(-0.25, -0.02); g.bezierCurveTo(-0.33, 0.06, -0.37, 0.24, -0.34, 0.4); g.lineTo(-0.16, 0.44);
+  g.bezierCurveTo(-0.12, 0.3, -0.13, 0.16, -0.1, 0.1); g.quadraticCurveTo(-0.16, 0.02, -0.25, -0.02); g.closePath();
+  g.fillStyle = satin(-0.33, 0.0, -0.15, 0.4); g.fill(); g.stroke();
+  // middle, ring and little fingers wrapped round the front of the grip, tips curling back with their nails
+  [[0.16, 0.035], [0.25, 0.032], [0.33, 0.028]].forEach(([y, w], i) => {
+    const x0 = -0.08 - i * 0.045;
+    finger([[x0 + 0.03, y - 0.02], [x0 - 0.02, y + 0.005], [x0 - 0.1, y + 0.01]], w);
+    nail(x0 - 0.1 - w * 0.3, y + 0.012, Math.PI + 0.12, 0.07 - i * 0.008);
+  });
+  // index finger along the guard onto the trigger
+  finger([[-0.1, 0.11], [-0.04, 0.12], [0.0, 0.14]], 0.03);
+  nail(0.012, 0.145, 0.55, 0.06);
+  // thumb along the top of the frame, nail pointing forward
+  finger([[-0.25, 0.0], [-0.17, -0.02], [-0.09, -0.015]], 0.032);
+  nail(-0.075, -0.016, 0.05, 0.065);
+}
+
+// where the gun sits: below the circle on the shooter's side, aimed at the middle
+function hlGunPose(L, W, H, who, R, cw) {
+  const tall = H > W * 1.2, wide = W > H * 1.2, ang = (tall ? 58 : wide ? 32 : 45) * Math.PI / 180;
+  const right = who === 2 || who === 3, len = cw * (tall ? 2.6 : 2.9);
+  const dx = right ? -Math.cos(ang) : Math.cos(ang), dy = -Math.sin(ang);   // the way the barrel points
+  const mx = L.cx - dx * (R + cw * 0.55), my = L.cy - dy * (R + cw * 0.55);    // the muzzle, just outside the circle
+  const ox = mx - dx * len * 0.8, oy = my - dy * len * 0.8;
+  return { ox, oy, rot: Math.atan2(dy, dx), flip: right ? -1 : 1, len, dx, dy, mx, my };
+}
+
+function hlMoonDraw(g, W, H, rec, seg, t, L, U, seatXY) {
+  const cw = L.cw, cx = L.cx, cy = L.cy, who = seg.m.who, rng = hlRng(seg.i * 71 + 5), tau = t;
+  const off = [[0, 1], [-1, 0], [0, -1], [1, 0]];
+  const pile = seatXY[who], toC = [cx - pile[0], cy - pile[1]], dC = Math.hypot(...toC) || 1;
+  const pileX = pile[0] + toC[0] / dC * cw * 1.05, pileY = pile[1] + toC[1] / dC * cw * 1.05;
+  // ---- the fast-forward: each trick zips in and sweeps off to whoever took it
+  const ffEnd = seg.ff.length ? seg.ff[seg.ff.length - 1].at + HLM.FF : seg.t0;
+  if (t < ffEnd + 0.05) {
+    for (const f of seg.ff) {
+      const e = t - f.at; if (e < 0 || e > HLM.FF) continue;
+      const w = seatXY[f.tr.w];
+      f.tr.cards.forEach((x, k) => {
+        const at = k * 0.045, ee = e - at; if (ee < 0) return;
+        const [ox, oy] = off[x.p], sx0 = cx + ox * cw * 1.32, sy0 = cy + oy * cw * 1.12;
+        const u = hlEaseOut(ee / 0.1); let px = sx0 + ox * 60 * cw / 66 * (1 - u), py = sy0 + oy * 60 * cw / 66 * (1 - u), sc = 1, al = u;
+        const sw = e - 0.25 - k * 0.02;
+        if (sw > 0) { const q = hlEaseIO(sw / 0.22); px += (w[0] - px) * q; py += (w[1] - py) * q; sc = 1 - 0.65 * q; al *= 1 - q * 0.9; }
+        hlCard(g, x.c, px, py, cw * sc, x.c === QS ? 'rgba(178,140,255,.8)' : null, al);
+      });
+    }
+    // the fast-forward badge, blinking like a VCR
+    if (t < ffEnd) {
+      g.save(); g.globalAlpha = Math.floor(t / 0.35) % 2 ? 0.95 : 0.6; g.fillStyle = '#f6edf2'; g.font = HL_FONT(800, 3.2 * U, 'caps');
+      g.textAlign = 'center'; g.textBaseline = 'middle'; g.shadowColor = '#ff3d8e'; g.shadowBlur = 2 * U;
+      g.fillText('▶▶  FAST-FORWARD', W / 2, L.capY + 5.2 * U); g.restore();
+    }
+  }
+  // ---- her point cards: on her pile as they arrive, then up into the circle, then blown away by the shot
+  const N = seg.pts.length, Rr = Math.max(cw * 1.35, N * cw * 0.66 * 0.8 / (Math.PI * 2) + cw * 0.15), ring = seg.ringAt, bang = seg.bangAt;
+  const R = Rr, rcw = cw * 0.66;
+  // the moon behind the circle
+  const moonA = hlClamp((t - ring - 0.45) / 0.5), Rd = R - rcw * 0.45;
+  if (moonA > 0) {
+    const dim = t > bang ? 1 - 0.35 * hlClamp((t - bang) / 0.6) : 1, pulse = t < bang ? 1 + 0.03 * Math.sin((t - ring) * 7) * hlClamp((t - seg.cockAt) / 0.3) : 1;
+    g.save(); g.globalAlpha = moonA * dim;
+    const gl = g.createRadialGradient(cx, cy, Rd * 0.2, cx, cy, Rd * 1.8 * pulse); gl.addColorStop(0, 'rgba(255,90,170,.35)'); gl.addColorStop(1, 'rgba(255,90,170,0)');
+    g.fillStyle = gl; g.beginPath(); g.arc(cx, cy, Rd * 1.8 * pulse, 0, Math.PI * 2); g.fill();
+    const mg = g.createRadialGradient(cx - Rd * 0.3, cy - Rd * 0.35, Rd * 0.1, cx, cy, Rd);
+    mg.addColorStop(0, '#fff4fa'); mg.addColorStop(0.55, '#ffc2e0'); mg.addColorStop(1, '#e0609f');
+    g.fillStyle = mg; g.beginPath(); g.arc(cx, cy, Rd, 0, Math.PI * 2); g.fill();
+    g.save(); g.clip(); g.fillStyle = 'rgba(190,60,120,.22)';   // craters
+    for (const [a, b, r] of [[-.35, .2, .2], [.3, -.25, .14], [.25, .38, .11], [-.1, -.45, .09], [.5, .1, .07]]) { g.beginPath(); g.arc(cx + a * Rd, cy + b * Rd, r * Rd, 0, Math.PI * 2); g.fill(); }
+    g.restore();
+    if (t >= bang) hlMoonCrack(g, cx, cy, Rd, t - bang, U, hlRng(seg.i * 13 + 1));
+    g.restore();
+  }
+  seg.pts.forEach((p, k) => {
+    if (t < p.at) return;
+    const a = -Math.PI / 2 + k * Math.PI * 2 / N + (t > ring + HLM.RING ? (Math.min(t, bang) - ring - HLM.RING) * 0.35 : 0);
+    const pileXY = [pileX + (k - N / 2) * cw * 0.09, pileY - k * cw * 0.012], ringXY = [cx + Math.cos(a) * R, cy + Math.sin(a) * R];
+    const fly = hlEaseIO((t - ring - k * 0.035) / (HLM.RING - 0.35));
+    let px = pileXY[0] + (ringXY[0] - pileXY[0]) * fly, py = pileXY[1] + (ringXY[1] - pileXY[1]) * fly - Math.sin(Math.PI * fly) * cw * 0.8;
+    let rot = (k - N / 2) * 0.06 * (1 - fly) + (a + Math.PI / 2) * fly, sc = (0.5 + 0.16 * fly), al = 1;
+    if (t > bang) {   // blown outward, spinning, gone
+      const e = t - bang - 0.03, d = (0.7 + rng() * 0.9) * Math.max(W, H), sp = (rng() - 0.5) * 14;
+      if (e > 0) { const q = hlEaseOut(e / 1.1); px += Math.cos(a) * d * q; py += Math.sin(a) * d * q + cw * 2 * q * q; rot += sp * q; al = 1 - hlClamp(e / 1.0); }
+    } else { rng(); rng(); }
+    if (al <= 0) return;
+    hlCard(g, p.c, px, py, cw * sc, p.c === QS ? 'rgba(178,140,255,.85)' : (fly > 0.98 ? 'rgba(255,61,142,.5)' : null), al, rot);
+  });
+  // ---- the gun
+  if (t >= seg.gunAt && t < seg.gunOut + 0.6) {
+    const P = hlGunPose(L, W, H, who, R, cw);
+    const inn = hlEaseOut((t - seg.gunAt) / HLM.GUN), out = hlEaseIO((t - seg.gunOut) / 0.55);
+    const slide = (1 - inn + out) * P.len * 1.6;
+    const cock = hlEaseIO((t - seg.cockAt) / 0.18) * (t < bang ? 1 : 0);
+    const e = t - bang, kick = e > 0 ? Math.exp(-e * 7) * Math.sin(Math.min(1, e / 0.04) * Math.PI / 2) : 0;
+    const M = new DOMMatrix().translate(P.ox - P.dx * slide, P.oy - P.dy * slide).rotate(P.rot * 180 / Math.PI).scale(1, P.flip)
+      .rotate(-26 * kick).translate(-P.len * 0.12 * kick, 0).scale(P.len);
+    g.save(); g.transform(M.a, M.b, M.c, M.d, M.e, M.f);
+    g.shadowColor = 'rgba(255,61,142,.45)'; g.shadowBlur = 3 * U;
+    hlRevolver(g, cock, 0.006); g.shadowBlur = 0; hlHand(g, 0.006);
+    g.restore();
+    const mz = M.transformPoint({ x: 0.8, y: -0.04 });
+    if (e >= 0 && e < 0.12) hlMuzzle(g, mz.x, mz.y, P.rot, P.flip, e, U);
+    if (e >= 0 && e < 0.07) {   // the tracer, muzzle to the middle
+      g.save(); g.globalCompositeOperation = 'lighter'; g.globalAlpha = 1 - e / 0.07; g.strokeStyle = '#fff4d6'; g.lineWidth = 1.4 * U; g.shadowColor = '#ff9a3c'; g.shadowBlur = 3 * U;
+      g.beginPath(); g.moveTo(mz.x, mz.y); g.lineTo(cx, cy); g.stroke(); g.restore();
+    }
+    seg.muzzle = [mz.x, mz.y];
+  }
+  // ---- smoke: curling off the barrel and out of the hole; a gust blows it away
+  if (t > bang) hlSmoke(g, seg, t, cx, cy, U, cw);
+}
+// the crack around the bullet hole, spreading across the moon
+function hlMoonCrack(g, x, y, Rd, e, U, rng) {
+  g.save(); g.beginPath(); g.arc(x, y, Rd, 0, Math.PI * 2); g.clip();
+  const p = hlClamp(e / 0.16);
+  g.strokeStyle = 'rgba(90,10,50,.8)'; g.lineCap = 'round';
+  for (let i = 0; i < 13; i++) {
+    let a = i / 13 * Math.PI * 2 + (rng() - 0.5) * 0.5, px = x, py = y; g.lineWidth = (1.6 - i % 3 * 0.35) * U * 0.4;
+    g.beginPath(); g.moveTo(px, py);
+    const n = 5, len = Rd * (0.6 + rng() * 0.6);
+    for (let s = 0; s < n; s++) { a += (rng() - 0.5) * 0.5; const sl = len / n * p; px += Math.cos(a) * sl; py += Math.sin(a) * sl; g.lineTo(px, py); }
+    g.stroke();
+  }
+  for (let i = 0; i < 3; i++) { g.lineWidth = 0.5 * U; g.beginPath(); g.arc(x, y, Rd * (0.18 + i * 0.16) * p, rng() * 6, rng() * 6 + 1.2); g.stroke(); }
+  // the hole itself, ragged, with a burnt rim
+  const hr = Rd * 0.11;
+  const rim = g.createRadialGradient(x, y, hr * 0.5, x, y, hr * 2.4); rim.addColorStop(0, 'rgba(40,0,20,.9)'); rim.addColorStop(1, 'rgba(40,0,20,0)');
+  g.fillStyle = rim; g.beginPath(); g.arc(x, y, hr * 2.4, 0, Math.PI * 2); g.fill();
+  g.fillStyle = '#0a0208'; g.beginPath();
+  for (let i = 0; i <= 14; i++) { const a = i / 14 * Math.PI * 2, r = hr * (0.8 + rng() * 0.45); (i ? g.lineTo : g.moveTo).call(g, x + Math.cos(a) * r, y + Math.sin(a) * r); }
+  g.closePath(); g.fill();
+  if (e < 0.12) { g.globalCompositeOperation = 'lighter'; g.fillStyle = `rgba(255,240,200,${1 - e / 0.12})`; g.beginPath(); g.arc(x, y, hr * 3, 0, Math.PI * 2); g.fill(); }
+  g.restore();
+}
+function hlMuzzle(g, x, y, rot, flip, e, U) {
+  const k = 1 - e / 0.12, r = 16 * U * (0.6 + 0.6 * (1 - k));
+  g.save(); g.translate(x, y); g.rotate(rot); g.globalCompositeOperation = 'lighter';
+  const gr = g.createRadialGradient(0, 0, 0, 0, 0, r); gr.addColorStop(0, `rgba(255,255,235,${k})`); gr.addColorStop(0.3, `rgba(255,190,90,${0.9 * k})`); gr.addColorStop(1, 'rgba(255,61,142,0)');
+  g.fillStyle = gr; g.beginPath(); g.arc(r * 0.35, 0, r, 0, Math.PI * 2); g.fill();
+  g.fillStyle = `rgba(255,245,215,${k})`;
+  for (const [a, l] of [[0, 1.6], [0.5, 0.9], [-0.5, 0.9], [1.2, 0.55], [-1.2, 0.55]]) {
+    g.beginPath(); g.moveTo(0, -r * 0.08); g.lineTo(Math.cos(a) * r * l, Math.sin(a) * r * l); g.lineTo(0, r * 0.08); g.closePath(); g.fill();
+  }
+  g.restore();
+}
+function hlSmoke(g, seg, t, cx, cy, U, cw) {
+  const e = t - seg.bangAt, rng = hlRng(seg.i * 211 + 9), gust = Math.max(0, t - seg.gustAt);
+  const src = [seg.muzzle || [cx, cy], [cx, cy]];
+  const away = seg.muzzle ? Math.sign(cx - seg.muzzle[0]) || 1 : 1;   // the breath blows the smoke away from her side
+  for (let i = 0; i < 34; i++) {
+    const [sx, sy] = src[i % 2], born = rng() * 2.2 * (i % 2 ? 1 : 0.8), life = 1.6 + rng() * 1.4, q = (e - born) / life;
+    const dx = (rng() - 0.5) * 10 * U, rise = (12 + rng() * 18) * U, curl = rng() * 6.28, sz = (3 + rng() * 5) * U;
+    if (q <= 0 || q >= 1) continue;
+    const gx = away * gust * gust * 70 * U * (0.6 + rng() * 0.8);
+    const x = sx + dx * q + Math.sin(curl + q * 5) * 3 * U * q + gx, y = sy - rise * q;
+    const r = sz * (0.6 + 2.2 * q), a = (q < 0.15 ? q / 0.15 : 1 - (q - 0.15) / 0.85) * (gust > 0 ? Math.max(0, 1 - gust * 0.9) : 1);
+    if (a <= 0) continue;
+    const gr = g.createRadialGradient(x, y, 0, x, y, r);
+    gr.addColorStop(0, `rgba(230,214,224,${0.42 * a})`); gr.addColorStop(0.5, `rgba(170,130,160,${0.2 * a})`); gr.addColorStop(1, 'rgba(170,130,160,0)');
+    g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
+  }
+}
+
 // ---------- playing (and recording) ----------
 // Sounds go through one bus that feeds the speakers and, while saving, the recorder.
 let HL_RUN = null;
@@ -435,7 +717,7 @@ function hlPlay(canvas, rec, TL, opts = {}) {
       if (a.sfx) { const b = SFX.bufs[a.sfx]; buf = b && b !== 'loading' ? b : null; }
       if (!buf) continue;
       const s = c.createBufferSource(), gn = c.createGain();
-      gn.gain.value = a.sfx ? SFX_GAIN : 1; s.buffer = buf; s.connect(gn); gn.connect(bus);
+      gn.gain.value = a.sfx ? SFX_GAIN * (a.gain || 1) : 1; s.buffer = buf; s.connect(gn); gn.connect(bus);
       s.start(t0c + a.at); srcs.push(s);
     }
   }
@@ -446,10 +728,10 @@ function hlPlay(canvas, rec, TL, opts = {}) {
     const t = c && bus ? c.currentTime - t0c : (performance.now() - start) / 1000;
     hlFrame(g, W, H, rec, TL, Math.max(0, Math.min(TL.len - 0.001, t)));
     if (opts.onTime) opts.onTime(t);
-    if (t >= TL.len) { run.stop(); if (opts.onEnd) opts.onEnd(); return; }
+    if (t >= TL.len) { run.done(); if (opts.onEnd) opts.onEnd(); return; }   // a natural end lets the sounds ring out
     raf = requestAnimationFrame(tick);
   };
-  const run = { stop() { if (stopped) return; stopped = true; cancelAnimationFrame(raf); srcs.forEach(s => { try { s.stop(); } catch (e) {} }); if (bus) try { bus.disconnect(); } catch (e) {} } };
+  const run = { done() { stopped = true; cancelAnimationFrame(raf); if (HL_RUN === run) HL_RUN = null; }, stop() { if (stopped) return; stopped = true; cancelAnimationFrame(raf); srcs.forEach(s => { try { s.stop(); } catch (e) {} }); if (bus) try { bus.disconnect(); } catch (e) {} } };
   HL_RUN = run;
   hlFrame(g, W, H, rec, TL, 0);
   raf = requestAnimationFrame(tick);

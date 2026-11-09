@@ -2603,11 +2603,11 @@ function hlMoonSeg(rec, seg, clips, A, t, opts = {}) {
     seg.quotes.push({ q, t0: q0, t1: q0 + len + 0.6 });
     q0 += len + 0.25;
   }
-  seg.bangAt = Math.max(F0 + HLM.BANG, q0 + 0.2);
+  seg.bangAt = F0 + HLM.BANG;   // Kennedy: the shot doesn't wait for her line
   seg.gunAt = seg.bangAt - (HLM.BANG - HLM.RING + 0.1); seg.cockAt = seg.bangAt - (HLM.BANG - HLM.COCK);
   A.push({ at: seg.cockAt, sfx: 'cock' }); A.push({ at: seg.bangAt, sfx: 'shot', gain: 1.6 });
   seg.gustAt = seg.bangAt + 1.7; seg.gunOut = seg.bangAt + 2.5;
-  seg.t1 = seg.bangAt + 4.0;
+  seg.t1 = Math.max(seg.bangAt + 4.0, q0 + 0.6);
   return seg.t1;
 }
 const hlClamp = v => Math.max(0, Math.min(1, v));
@@ -2699,13 +2699,42 @@ function hlHand(g, lw) {
 }
 
 // where the gun sits: below the circle on the shooter's side, aimed at the middle
+// First person (Kennedy, Nov 9): the hand is close to us at the bottom of the screen and the barrel reaches
+// up into the scene toward the circle, foreshortened (the far end draws smaller), as if we're the one aiming.
+const HLG = { P: 0.5, U0: -0.75, U1: 1.05, V0: -0.75, V1: 1.0, AX: -0.04 };   // perspective strength, sprite bounds (gun units), bore line
+const hlGunX = u => Math.log(1 + HLG.P * (u - HLG.U0)) / HLG.P;   // distance along the axis on screen (gun units, before scale)
+const hlGunF = u => 1 / (1 + HLG.P * (u - HLG.U0));               // how big things are at that depth
 function hlGunPose(L, W, H, who, R, cw) {
-  const tall = H > W * 1.2, wide = W > H * 1.2, ang = (tall ? 58 : wide ? 32 : 45) * Math.PI / 180;
-  const right = who === 2 || who === 3, len = cw * (tall ? 2.6 : 2.9);
-  const dx = right ? -Math.cos(ang) : Math.cos(ang), dy = -Math.sin(ang);   // the way the barrel points
-  const mx = L.cx - dx * (R + cw * 0.55), my = L.cy - dy * (R + cw * 0.55);    // the muzzle, just outside the circle
-  const ox = mx - dx * len * 0.8, oy = my - dy * len * 0.8;
-  return { ox, oy, rot: Math.atan2(dy, dx), flip: right ? -1 : 1, len, dx, dy, mx, my };
+  const tall = H > W * 1.2, right = who === 2 || who === 3, sgn = right ? 1 : -1;
+  const wide = W > H * 1.2, gx = L.cx + sgn * (tall ? 0.3 : wide ? 0.22 : 0.3) * W, gy = H * (tall ? 0.86 : wide ? 0.8 : 0.84);   // the hand, low on our side
+  let dx = L.cx - gx, dy = L.cy - gy; const d = Math.hypot(dx, dy); dx /= d; dy /= d;
+  const reach = d - (R + cw * 0.45);                                   // the muzzle stops just outside the circle
+  const S = reach / (hlGunX(0.8) - hlGunX(0));                         // pixels per gun unit at the hand
+  return { gx, gy, dx, dy, rot: Math.atan2(dy, dx), flip: dx < 0 ? -1 : 1, S };
+}
+// the gun drawn flat (profile) into a scratch canvas, then laid onto the screen in strips that shrink with distance
+let HL_GUNC = null;
+function hlGunDraw(g, P, cock, kick, U) {
+  const res = Math.min(2, Math.max(1, P.S / 260)), Sp = P.S / res;    // scratch pixels per gun unit
+  const Wc = Math.ceil((HLG.U1 - HLG.U0) * Sp), Hc = Math.ceil((HLG.V1 - HLG.V0) * Sp);
+  if (!HL_GUNC) HL_GUNC = document.createElement('canvas');
+  const c = HL_GUNC; if (c.width !== Wc || c.height !== Hc) { c.width = Wc; c.height = Hc; }
+  const q = c.getContext('2d'); q.setTransform(1, 0, 0, 1, 0, 0); q.clearRect(0, 0, Wc, Hc);
+  q.setTransform(Sp, 0, 0, Sp, -HLG.U0 * Sp, -HLG.V0 * Sp);
+  q.rotate(-0.45 * kick); q.translate(-0.1 * kick, 0);                  // recoil: muzzle flips up, gun jumps back
+  q.shadowColor = 'rgba(255,61,142,.45)'; q.shadowBlur = 0.03 * Sp;
+  hlRevolver(q, cock, 0.006); q.shadowBlur = 0; hlHand(q, 0.006);
+  g.save(); g.translate(P.gx, P.gy); g.rotate(P.rot); g.scale(1, P.flip);
+  const ax = (HLG.AX - HLG.V0) * Sp, x0 = hlGunX(0), step = 2;
+  for (let i = 0; i < Wc; i += step) {
+    const u = HLG.U0 + i / Sp, f = hlGunF(u), X = (hlGunX(u) - x0) * P.S;
+    g.drawImage(c, i, 0, step, Hc, X, -ax * f * res, step * f * res + 0.8, Hc * f * res);
+  }
+  g.restore();
+  // where the muzzle ended up (recoil included), for the flash, tracer and smoke
+  const a = -0.45 * kick, mu = 0.8 * Math.cos(a) - (-0.04) * Math.sin(a) - 0.1 * kick, mv = 0.8 * Math.sin(a) + (-0.04) * Math.cos(a);
+  const X = (hlGunX(mu) - x0) * P.S, Y = (mv - HLG.AX) * hlGunF(mu) * P.S * P.flip;
+  return { x: P.gx + X * Math.cos(P.rot) - Y * Math.sin(P.rot), y: P.gy + X * Math.sin(P.rot) + Y * Math.cos(P.rot) };
 }
 
 function hlMoonDraw(g, W, H, rec, seg, t, L, U, seatXY) {
@@ -2772,16 +2801,11 @@ function hlMoonDraw(g, W, H, rec, seg, t, L, U, seatXY) {
   if (t >= seg.gunAt && t < seg.gunOut + 0.6) {
     const P = hlGunPose(L, W, H, who, R, cw);
     const inn = hlEaseOut((t - seg.gunAt) / HLM.GUN), out = hlEaseIO((t - seg.gunOut) / 0.55);
-    const slide = (1 - inn + out) * P.len * 1.6;
+    const slide = (1 - inn + out) * Math.max(W, H) * 0.55;            // raised into view from below, lowered away after
+    P.gx -= P.dx * slide; P.gy -= P.dy * slide;
     const cock = hlEaseIO((t - seg.cockAt) / 0.18) * (t < bang ? 1 : 0);
     const e = t - bang, kick = e > 0 ? Math.exp(-e * 7) * Math.sin(Math.min(1, e / 0.04) * Math.PI / 2) : 0;
-    const M = new DOMMatrix().translate(P.ox - P.dx * slide, P.oy - P.dy * slide).rotate(P.rot * 180 / Math.PI).scale(1, P.flip)
-      .rotate(-26 * kick).translate(-P.len * 0.12 * kick, 0).scale(P.len);
-    g.save(); g.transform(M.a, M.b, M.c, M.d, M.e, M.f);
-    g.shadowColor = 'rgba(255,61,142,.45)'; g.shadowBlur = 3 * U;
-    hlRevolver(g, cock, 0.006); g.shadowBlur = 0; hlHand(g, 0.006);
-    g.restore();
-    const mz = M.transformPoint({ x: 0.8, y: -0.04 });
+    const mz = hlGunDraw(g, P, cock, kick, U);
     if (e >= 0 && e < 0.12) hlMuzzle(g, mz.x, mz.y, P.rot, P.flip, e, U);
     if (e >= 0 && e < 0.07) {   // the tracer, muzzle to the middle
       g.save(); g.globalCompositeOperation = 'lighter'; g.globalAlpha = 1 - e / 0.07; g.strokeStyle = '#fff4d6'; g.lineWidth = 1.4 * U; g.shadowColor = '#ff9a3c'; g.shadowBlur = 3 * U;

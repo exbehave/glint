@@ -194,6 +194,10 @@ button:focus-visible, .card:focus-visible, label:focus-within { outline: 2px sol
 .girl input { position: absolute; opacity: 0; pointer-events: none; }
 .girl .pw { width: 100%; border-radius: 8px; }
 .girl:has(input:checked) { border-color: var(--red); box-shadow: 0 0 0 1px var(--red), 0 0 18px rgba(255, 61, 142, .35); }
+.girls.vs { margin-top: 8px; }
+.girl.off { opacity: .35; cursor: default; }
+.vs-note { margin-top: 2px; }
+.vs-note .linkbtn { background: none; border: 0; padding: 0 0 0 4px; color: var(--red); font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; }
 .mechip { display: inline-flex; align-items: center; gap: 8px; padding: 3px 12px 3px 3px; border: 1px solid var(--line); border-radius: 12px; background: var(--plate); }
 .mechip .pw { width: 32px; flex: none; border-radius: 8px; background: transparent; }
 .mechip .mi { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.1; }
@@ -622,11 +626,14 @@ const bySeason = (a, b) => (SEASON[a] || 99) - (SEASON[b] || 99) || a.localeComp
 const ROSTER = { bgc: ['Natalie', 'Kristen', 'Judi', 'Victor Twins', 'Amy', 'Dalila', 'Clermonts'].sort(bySeason) };
 // The girls you can be (and play against) are the ones with sprites so far
 const playable = () => (ROSTER[S.deck] || CAST[S.deck]).slice();
-// Your girl sits out; the three opponents come from everyone else
+// Your girl sits out; the three opponents come from everyone else.
+// Kennedy, Nov 8: you can pick up to three opponents on the setup screen (S.vs); empty seats are filled at random.
+const myPicks = () => (S.vs || []).filter((n, i, a) => n !== S.me && playable().includes(n) && a.indexOf(n) === i).slice(0, 3);
 const pickCast = () => {
-  let pool = playable().filter(n => n !== S.me);
-  if (pool.length < 3) pool = pool.concat(CAST[S.deck].filter(n => n !== S.me && !pool.includes(n)));
-  return ['You', ...shuffle(pool.slice()).slice(0, 3)];
+  const picks = myPicks();
+  let pool = playable().filter(n => n !== S.me && !picks.includes(n));
+  if (picks.length + pool.length < 3) pool = pool.concat(CAST[S.deck].filter(n => n !== S.me && !picks.includes(n) && !pool.includes(n)));
+  return ['You', ...shuffle(picks.concat(shuffle(pool.slice()).slice(0, 3 - picks.length)))];
 };
 // who is speaking: seat 0 is you, voiced by the girl you play as
 const voiceOf = p => (p === 0 ? S.me : nameOf(p));
@@ -638,7 +645,7 @@ const initials = n => n.split(/\s+/).map(w => w[0]).join('').slice(0, 2);
 const PORTRAITS = { bgc: {} };
 
 const LAYOUTS = [['classic', 'Classic'], ['stage', 'Stage'], ['tworow', 'Big hand'], ['fan', 'Fan']];
-const S = { deck: 'bgc', levels: [null, 'medium', 'hard', 'medium'], target: 100, sound: true, haptics: true, layout: 'classic', me: 'Natalie', handle: '', practice: false };
+const S = { deck: 'bgc', levels: [null, 'medium', 'hard', 'medium'], target: 100, sound: true, haptics: true, layout: 'classic', me: 'Natalie', handle: '', practice: false, vs: [] };
 try { const saved = JSON.parse(localStorage.getItem('hearts-settings') || 'null'); if (saved) Object.assign(S, saved); } catch (e) {}
 S.deck = 'bgc';
 if (!playable().includes(S.me)) S.me = playable()[0];
@@ -1894,6 +1901,8 @@ function showSetup() {
     <div class="field"><span class="lab">Play as</span><div class="girls">${playable().map(n => `<label class="girl"><input type="radio" id="me-${n.replace(/\W/g, '')}" name="me" value="${esc(n)}" ${n === S.me ? 'checked' : ''}>${portraitHTML(n)}<span>${esc(n)}</span>${SEASON[n] ? `<span class="sn">Season ${SEASON[n]}</span>` : ''}</label>`).join('')}</div></div>
     <div class="field"><span class="lab">Computer players</span>
       <div class="sub">Every girl plays her own way: Amy is Easy, Kristen and the Victor Twins are Medium, Judi and the Clermonts are Hard, and Natalie and Dalila are Genius.</div>
+      <div class="girls vs">${playable().map(n => `<label class="girl" data-n="${esc(n)}"><input type="checkbox" name="vs" value="${esc(n)}">${portraitHTML(n)}<span>${esc(n)}</span><span class="sn">${SEASON[n] ? `Season ${SEASON[n]}` : ''}</span></label>`).join('')}</div>
+      <div class="sub vs-note" id="vs-note" role="status"></div>
     </div>
     ${ME ? `<div class="field"><span class="lab">Game</span>${segHTML('mode', [['rated', 'Rated'], ['practice', 'Practice']], S.practice ? 'practice' : 'rated')}<div class="sub">Practice games don’t count toward your rating or stats.</div></div>` : ''}
     <div class="field"><span class="lab">Play to</span>${segHTML('target', [[50, '50 points'], [100, '100 points']], S.target)}</div>
@@ -1903,12 +1912,36 @@ function showSetup() {
     <div class="btns">${ME ? `<button class="ghost" id="b-lb2" type="button">Leaderboard</button>` : ''}<button class="cta" type="submit">Deal</button></div>
   </form>`);
   if ($('b-lb2')) $('b-lb2').onclick = () => showLeaders(showSetup);
+  // opponent picker: up to three; a fourth pick bumps the oldest; your own girl can't be picked
+  let vs = myPicks();
+  const vsSync = () => {
+    const me = ($('setup').querySelector('input[name="me"]:checked') || {}).value || S.me;
+    vs = vs.filter(n => n !== me);
+    for (const el of $('setup').querySelectorAll('.girls.vs .girl')) {
+      const n = el.dataset.n, inp = el.querySelector('input'), mine = n === me;
+      inp.checked = vs.includes(n); inp.disabled = mine; el.classList.toggle('off', mine);
+      el.querySelector('.sn').textContent = mine ? 'That’s you' : (SEASON[n] ? `Season ${SEASON[n]}` : '');
+    }
+    const k = vs.length;
+    $('vs-note').innerHTML = k === 0 ? 'Tap up to three girls to play against, or leave them all off for three at random.'
+      : k === 3 ? 'Your table is set. Tap another girl to swap out your first pick.'
+      : `${k} picked. The other ${3 - k === 1 ? 'seat is' : `${3 - k} seats are`} random. <button type="button" class="linkbtn" id="vs-clear">Clear</button>`;
+    if ($('vs-clear')) $('vs-clear').onclick = () => { vs = []; vsSync(); };
+  };
+  $('setup').querySelectorAll('.girls.vs input').forEach(inp => inp.addEventListener('change', () => {
+    vs = vs.filter(n => n !== inp.value);
+    if (inp.checked) { vs.push(inp.value); if (vs.length > 3) vs.shift(); }
+    vsSync();
+  }));
+  $('setup').querySelectorAll('input[name="me"]').forEach(inp => inp.addEventListener('change', vsSync));
+  vsSync();
   $('setup').addEventListener('submit', e => {
     e.preventDefault();
     const f = new FormData(e.target);
     S.target = +f.get('target');
     if (f.get('mode')) S.practice = f.get('mode') === 'practice';
     S.me = f.get('me') || S.me;
+    S.vs = vs.filter(n => n !== S.me);
     S.handle = String(f.get('handle') || '').trim().slice(0, 16);
     S.sound = f.get('sound') === 'on';
     S.layout = f.get('layout');

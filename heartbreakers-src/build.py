@@ -3,7 +3,7 @@
 import base64, os, re
 D = os.path.dirname(os.path.abspath(__file__))
 read = lambda p: open(os.path.join(D, p), encoding='utf-8').read()
-s = read('ui.html').replace('/*ENGINE*/', read('engine.js') + '\n' + read('girls.js') + '\n' + read('stats.js') + '\n' + read('lines.js') + '\n' + read('pairs.js') + '\n' + read('highlights.js'))
+s = read('ui.html').replace('/*ENGINE*/', read('engine.js') + '\n' + read('girls.js') + '\n' + read('stats.js') + '\n' + read('lines.js') + '\n' + read('pairs.js') + '\n' + read('highlights.js') + '\n' + read('ending.js'))
 def inline(m):
     data = base64.b64encode(open(os.path.join(D, 'brand', m.group(1)), 'rb').read()).decode()
     return 'data:image/webp;base64,' + data

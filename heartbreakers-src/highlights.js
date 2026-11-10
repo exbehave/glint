@@ -98,7 +98,7 @@ function hlTimeline(rec, moments, clips, opts = {}) {
   const T = [], A = [];   // T: segments {t0, t1, m, i}; A: audio {at, buf | sfx}
   let t = 0;
   const INTRO = 1.6, CARD = 0.42, AFTER = 0.5, GAP = 0.25, OUTRO = 3;
-  if (!opts.bare) { T.push({ t0: 0, t1: INTRO, intro: true }); t = INTRO; }   // bare: the moon alone, during the game
+  if (!opts.bare && !opts.endOnly) { T.push({ t0: 0, t1: INTRO, intro: true }); t = INTRO; }   // endOnly: the ending alone, in the game   // bare: the moon alone, during the game
   const SWISH = 0.5;
   let prev = null, sw = null;
   moments.forEach((m, i) => {
@@ -128,6 +128,13 @@ function hlTimeline(rec, moments, clips, opts = {}) {
     seg.t1 = t; T.push(seg); prev = seg;
   });
   if (opts.bare) return { T, A, len: t };
+  // a finished game ends with the slot machine and a finale (ending.js); an unfinished one with the scores so far
+  if (rec.finished && rec.totals) {
+    let into = null;
+    if (prev) { into = { t0: t, t1: t + 0.5, swish: true, a: prev }; T.push(into); A.push({ at: t, sfx: 'whoosh' }); t += 0.5; }
+    const seg = { t0: t }; t = hlEndSeg(rec, seg, clips, A, t); T.push(seg); if (into) into.b = seg;
+    return { T, A, len: t };
+  }
   T.push({ t0: t, t1: t + OUTRO, outro: true }); A.push({ at: t + 0.2, sfx: ['applause', 'fanfare', 'ta-da'][moments.length % 3] });
   return { T, A, len: t + OUTRO };
 }
@@ -302,6 +309,7 @@ function hlFrame(g, W, H, rec, TL, t) {
   const bgi = hlImg(W > H ? HL_SRC.land : HL_SRC.port);
   if (bgi) hlCover(g, bgi, W, H);
   const seg = TL.T.find(s => t >= s.t0 && t < s.t1) || TL.T[TL.T.length - 1];
+  if (seg.ending) return hlEndDraw(g, W, H, rec, seg, t, U);
   if (seg.swish) return hlSwish(g, W, H, rec, TL, seg, t);
   const logo = hlLogo();
   const ease = x => 1 - Math.pow(1 - Math.min(1, Math.max(0, x)), 3);
@@ -865,7 +873,7 @@ async function showHighlights(rec, back) {
   SFX.unlock();
   const imgs = [HL_SRC.port, HL_SRC.land, HL_SRC.heart, HL_SRC.tex, ...rec.names.slice(1).map(n => AVATARS[n]), AVATARS[rec.me]].filter(Boolean).map(src => { hlImg(src); const im = hlImgs[src]; return im.complete ? null : new Promise(r => { im.onload = im.onerror = r; }); }).filter(Boolean);
   try { await Promise.race([Promise.all([...imgs, document.fonts ? document.fonts.ready : null]), new Promise(r => setTimeout(r, 3000))]); } catch (e) {}
-  const clips = await hlLoadClips(rec, moments);
+  const wq = rec.finished && hlWinQuote(rec), clips = await hlLoadClips(rec, wq ? moments.concat([{ quotes: [wq] }]) : moments);
   if (!cv.isConnected) return;
   const TL = hlTimeline(rec, moments, clips);
   const secs = Math.round(TL.len);

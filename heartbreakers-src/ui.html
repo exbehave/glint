@@ -628,10 +628,19 @@ body { background: var(--ink) url("brand/bg-port.webp") center / cover no-repeat
   // viewport stays shrunk with a black band at the bottom until the app is force-quit. Hiding and showing a full-height
   // element makes WebKit measure the screen again. Track the tallest height seen; when a field closes or the app comes
   // back and the height is short, flip the body off and on.
-  let tallest = window.innerHeight;
+  // In the home-screen app the page should fill the whole screen, so measure against the screen itself (Nov 9, 19:15:
+  // the band was still there; a page reopened already shrunk never saw a taller height to compare with)
+  const standalone = () => { try { return navigator.standalone === true || matchMedia('(display-mode: standalone)').matches; } catch (e) { return false; } };
+  const full = () => { const port = innerHeight >= innerWidth || Math.abs(window.orientation || 0) !== 90; return standalone() ? Math.max(tallest, port ? Math.max(screen.height, screen.width) : Math.min(screen.height, screen.width)) : tallest; };
+  let tallest = window.innerHeight, healing = 0;
   const heal = () => {
-    if (window.innerHeight >= tallest - 4) return;
+    if (window.innerHeight >= full() - 4 || Date.now() - healing < 1500) return;
+    healing = Date.now();
     const b = document.body; if (!b) return;
+    // the write-up says the flipped element must be full viewport height: a hidden 100dvh probe, plus the body
+    let pr = document.getElementById('vh-probe');
+    if (!pr) { pr = document.createElement('div'); pr.id = 'vh-probe'; pr.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:100vh;height:100dvh;visibility:hidden;pointer-events:none;z-index:-1'; b.appendChild(pr); }
+    pr.style.display = 'none'; void pr.offsetHeight; pr.style.display = 'block'; void pr.offsetHeight;
     const was = b.style.display; b.style.display = 'none'; void b.offsetHeight; b.style.display = was;
     try { window.scrollTo(0, 0); } catch (e) {}
     setTimeout(() => { if (typeof fitHeight === 'function') fitHeight(); }, 60);

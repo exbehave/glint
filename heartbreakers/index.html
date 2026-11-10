@@ -5165,9 +5165,14 @@ function scoreSheet(fin, moon, choice, said, ended) {
     <div class="btns">${over ? `${G.rec && hlFind(G.rec).length ? `<button class="ghost" id="b-hl">Highlights</button>` : ''}<button class="ghost" id="b-setup">Main menu</button><button class="cta" id="b-again">Play again</button>` : `<button class="cta" id="b-next">Deal next round</button>`}</div>
   </div>`);
   if (over) {
-    $('b-again').onclick = startGame; $('b-setup').onclick = showSetup;
-    // Highlights (Kennedy, Nov 9): back returns to this score screen
-    if ($('b-hl')) { const panel = $('veil').innerHTML, rec = G.rec; $('b-hl').onclick = () => showHighlights(rec, () => { openVeil(panel); $('b-again').onclick = startGame; $('b-setup').onclick = showSetup; $('b-hl').onclick = () => showHighlights(rec); }); }
+    // Highlights (Kennedy, Nov 9): back returns to this score screen; Play again asks first when the next game would be rated
+    const panel = $('veil').innerHTML, rec = G.rec;
+    const wire = () => {
+      $('b-again').onclick = () => playAgain(() => { openVeil(panel); wire(); });
+      $('b-setup').onclick = showSetup;
+      if ($('b-hl')) $('b-hl').onclick = () => showHighlights(rec, () => { openVeil(panel); wire(); });
+    };
+    wire();
   }
   else $('b-next').onclick = () => { closeVeil(); newHand(); };
 }
@@ -5590,6 +5595,19 @@ function showMenu() {
     $('b-exit-yes').onclick = () => { if (G && G.rec) { G.rec.quit = new Date().toISOString(); recSave(); } clearSave(); G = null; showSetup(); };   // counts as a loss right away
   };
   if ($('b-out')) $('b-out').onclick = async () => { try { await sb.auth.signOut(); } catch (e) {} ME = null; G = null; showSignIn(); };
+}
+
+// Kennedy, Nov 9: after a game, Play again confirms before starting another rated game (practice and debug just start)
+function playAgain(back) {
+  const rated = !!ME && !S.practice && !(IS_ADMIN && S.debug);
+  if (!rated) { startGame(); return; }
+  openVeil(`<div class="panel" role="dialog" aria-label="Play again">
+    <div><h2>Start another rated game?</h2><div class="sub">It counts toward your rating, and leaving it before the end counts as a loss.</div></div>
+    <div class="btns"><button class="ghost" id="b-pa-back" type="button">Back</button><button class="ghost" id="b-pa-prac" type="button">Practice instead</button><button class="cta" id="b-pa-go" type="button">Start rated game</button></div>
+  </div>`);
+  $('b-pa-back').onclick = back;
+  $('b-pa-prac').onclick = () => { S.practice = true; try { saveSettings(); } catch (e) {} startGame(); };
+  $('b-pa-go').onclick = startGame;
 }
 
 // boot: a dealt sample table behind the setup panel

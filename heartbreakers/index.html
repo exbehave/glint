@@ -515,7 +515,7 @@ body { background: var(--ink) url("data:image/webp;base64,UklGRpJ4AABXRUJQVlA4II
   .app[data-layout] .plate.seat.side .pinfo .nm { font-size: 15px; }
   .app[data-layout] #plate2.seat { grid-area: top; justify-self: center; width: auto; flex-direction: row; align-items: center; gap: 10px; padding: 4px 14px 4px 4px; }
   .app[data-layout] #plate2.seat .pw { width: auto; height: min(13vh, 120px); }
-  .app[data-layout] #plate2.seat .pinfo { flex-direction: row; align-items: baseline; gap: 10px; }
+  .app[data-layout] #plate2.seat .pinfo { flex-direction: column; align-items: flex-start; gap: 1px; }   /* Kennedy, Nov 10: CPU under her name, like the other seats */
   .app[data-layout] #plate2.seat .nm { font-size: min(4.6vh, 22px); }
   .app[data-layout] .trick { grid-area: trick; justify-self: center; width: 100%; max-width: 300px; height: auto; min-height: 0; max-height: none; }
   .app[data-layout] .slot.s1 { left: 0; top: 50%; translate: 0 -50%; }
@@ -6694,17 +6694,26 @@ function calcJump(key) {
 
 // ---------- the girls' ratings on their plates (Kennedy, Nov 10): loaded when a game starts; signed out shows nothing ----------
 let GIRL_RATE = null;   // name → rating, or null (provisional / no games yet → "New")
+let RATE_LOADING = false, RATE_TRIED = 0;
 async function loadGirlRatings() {
   if (!sb || !ME) { GIRL_RATE = null; return; }
+  if (RATE_LOADING) return;
+  RATE_LOADING = true; RATE_TRIED = Date.now();
   try {
     const j = await loadLeaders(true);
     const m = {};
     for (const g of j.girls || []) m[g.name] = g.sum && g.sum.rating != null && !g.sum.provisional ? g.sum.rating : null;
     GIRL_RATE = m;
     if (G) render();
-  } catch (e) {}
+  } catch (e) {} finally { RATE_LOADING = false; }
 }
-const rateHTML = nm => { if (!ME || !GIRL_RATE) return ''; const r = GIRL_RATE[nm]; return ` · <span class="rt">${r != null ? Math.round(r) : 'New'}</span>`; };
+// Kennedy, Nov 10 (a resumed game showed no ratings: they only loaded when a game started): any table on screen while
+// signed in fetches them if they're missing, retrying at most once a minute.
+const rateHTML = nm => {
+  if (!ME) return '';
+  if (!GIRL_RATE) { if (!RATE_LOADING && Date.now() - RATE_TRIED > 60000) setTimeout(loadGirlRatings, 0); return ''; }
+  const r = GIRL_RATE[nm]; return ` · <span class="rt">${r != null ? Math.round(r) : 'New'}</span>`;
+};
 
 // ---------- Show hands (Kennedy, Nov 10): each girl's cards in hand and what she's taken, in Theater and past games ----------
 const showHands = () => !!(S.showHands && TH.live && G && G.theater);

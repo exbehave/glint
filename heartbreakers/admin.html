@@ -82,17 +82,18 @@ form.signin { display: flex; flex-direction: column; gap: 10px; }
 const SUPA_URL = 'https://lwbbkwftkxjmrpyalrwu.supabase.co', SUPA_KEY = 'sb_publishable_j4FskQJtwZnxNBZXH61QJQ_U62I-eaY';
 const sb = window.supabase ? window.supabase.createClient(SUPA_URL, SUPA_KEY, { auth: { persistSession: true, autoRefreshToken: true } }) : null;
 const MOMENTS = [
-  ['qsGive', 'Plays the Queen of Spades', 'The moment she plays the Q♠, whoever ends up with it. The sad trombone follows; whoever takes the trick answers at the end of it.'],
+  ['qsGive', 'Plays the Queen of Spades', 'The moment she plays the Q♠, whoever ends up with it. Whoever takes the trick answers at the end of it.'],
   ['qsGet', 'Gets stuck with the Queen of Spades', ''],
   ['breaks', 'Breaks hearts', 'The first heart of the round.'],
   ['fewHearts', 'Takes a trick with 1–2 hearts', 'Plays about half the time.'],
   ['hearts', 'Takes a trick with 3–4 hearts', ''],
   ['moon', 'Shoots the moon', 'Shown on the round score screen.'],
-  ['win', 'Wins the game', 'Shown on the final score screen.']
+  ['win', 'Wins the game', 'Shown on the final score screen.'],
+  ['tram', 'TRAM (The rest are mine)', 'Her most pathetic line, when the player who chose her claims the rest of the hand. Plays with the sad trombone.']
 ];
 // Order: the girls with sprites first (they're the ones in the game right now), then everyone else.
 const WITH_SPRITES = ['Natalie', 'Judi', 'Victor Twins', 'Amy'];
-const OTHERS = ['Ripsi', 'Amber M', 'Flo', 'Kristen', 'Char', 'Lucci Vee', 'Rocky', 'Sarah', 'Tanisha'];
+const OTHERS = ['Ripsi', 'Amber M', 'Flo', 'Kristen', 'Char', 'Lucci Vee', 'Shan-Rock', 'Sarah', 'Tanisha', 'Clermont Twins'];
 const IMG = { 'Natalie': 'img/natalie.webp', 'Judi': 'img/judi.webp', 'Victor Twins': 'img/victor-twins.webp', 'Amy': 'img/amy.webp' };
 const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));

@@ -488,8 +488,8 @@ function hlMoonSeg(rec, seg, clips, A, t, opts = {}) {
   }
   seg.bangAt = F0 + HLM.BANG;   // Kennedy: the shot doesn't wait for her line
   seg.gunAt = seg.bangAt - (HLM.BANG - HLM.RING + 0.1); seg.cockAt = seg.bangAt - (HLM.BANG - HLM.COCK);
-  A.push({ at: seg.cockAt, sfx: 'cock' }); A.push({ at: seg.bangAt, sfx: 'shot', gain: 1.6 });
-  A.push({ at: seg.bangAt + 0.05, sfx: 'shatter' });   // crystal burst (Kennedy's pick from the sound menu, Nov 9, 18:59)
+  A.push({ at: seg.cockAt, sfx: 'cock' }); A.push({ at: seg.bangAt, sfx: 'shot', gain: 2.42 }   /* Kennedy's mix, Nov 9, 19:11: Ricochet at 242% */);
+  A.push({ at: seg.bangAt + HLMS.SPLIT, sfx: 'shatter', gain: 0.49 });   // crystal burst at 49%, 70 ms after the shot (Kennedy's mix, Nov 9, 19:11)
   seg.gustAt = seg.bangAt + 1.7; seg.gunOut = seg.bangAt + 2.5;
   seg.t1 = Math.max(seg.bangAt + 4.0, q0 + 0.6);
   return seg.t1;
@@ -728,7 +728,7 @@ function hlMoonDraw(g, W, H, rec, seg, t, L, U, seatXY) {
 // a beam of light blasting out of the gap.
 // Kennedy, Nov 9, 18:53: it shatters a split second after the shot (the cracks flash across it first, so every shard
 // carries a piece of them); the banner follows.
-const HLMS = { CRACK: 0.04, SPLIT: 0.05, OPEN: 1.5, FADE: 2.7, BANNER: 0.3 };
+const HLMS = { CRACK: 0.05, SPLIT: 0.07, OPEN: 1.5, FADE: 2.7, BANNER: 0.3 };
 function hlMoonFace(Rd) {
   const S = Math.ceil(Rd * 2.4), c = document.createElement('canvas'); c.width = c.height = S;
   const g = c.getContext('2d'), x = S / 2, y = S / 2, rng = hlRng(77);

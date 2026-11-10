@@ -113,7 +113,8 @@ function hlTimeline(rec, moments, clips, opts = {}) {
       const at = t + 0.3 + k * CARD;
       seg.cardsAt.push(at); if (x.c === QS && k === 0) t += 0.6;   // a led queen bounces longer (1 s), like the table
       A.push({ at: at + 0.2, soft: 'card' });
-      if (x.c === QS) { A.push({ at, sfx: k === 0 ? 'gong' : 'timpani' }); if (k === 0) seg.gambitAt = at; }
+      // a led queen is only a Queen's Gambit if someone else ended up with her (Kennedy, Nov 9, 19:33: Amy led it and ate it)
+      if (x.c === QS) { A.push({ at, sfx: k === 0 ? 'gong' : 'timpani' }); if (k === 0 && m.trick.w !== x.p) seg.gambitAt = at; }
       if (m.kind === 'breaks' && suit(x.c) === 3 && !m.trick.cards.slice(0, k).some(y => suit(y.c) === 3)) { A.push({ at: at + 0.2, glass: true }); seg.glassAt = at + 0.2; seg.glassK = k; }
     });
     t += 0.3 + 4 * CARD + AFTER;

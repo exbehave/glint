@@ -484,7 +484,7 @@ function hlMoonSeg(rec, seg, clips, A, t, opts = {}) {
   seg.bangAt = F0 + HLM.BANG;   // Kennedy: the shot doesn't wait for her line
   seg.gunAt = seg.bangAt - (HLM.BANG - HLM.RING + 0.1); seg.cockAt = seg.bangAt - (HLM.BANG - HLM.COCK);
   A.push({ at: seg.cockAt, sfx: 'cock' }); A.push({ at: seg.bangAt, sfx: 'shot', gain: 1.6 });
-  A.push({ at: seg.bangAt + 0.9, glass: true });   // the moon shatters (HLMS.SPLIT)
+  // the shatter's own sound: Kennedy is picking one from the sound menu (the glass shatter was cut, Nov 9, 18:53)
   seg.gustAt = seg.bangAt + 1.7; seg.gunOut = seg.bangAt + 2.5;
   seg.t1 = Math.max(seg.bangAt + 4.0, q0 + 0.6);
   return seg.t1;
@@ -721,7 +721,9 @@ function hlMoonDraw(g, W, H, rec, seg, t, L, U, seatXY) {
 // The moon: a textured face drawn once (pink maria, shaded craters, a darker limb), then per frame the cracks
 // racing out from the bullet hole and glowing from inside, then the split: two halves drift apart and rotate,
 // a beam of light blasting out of the gap.
-const HLMS = { CRACK: 0.45, SPLIT: 0.9, OPEN: 1.5, FADE: 2.7, BANNER: 1.0 };
+// Kennedy, Nov 9, 18:53: it shatters a split second after the shot (the cracks flash across it first, so every shard
+// carries a piece of them); the banner follows.
+const HLMS = { CRACK: 0.04, SPLIT: 0.05, OPEN: 1.5, FADE: 2.7, BANNER: 0.3 };
 function hlMoonFace(Rd) {
   const S = Math.ceil(Rd * 2.4), c = document.createElement('canvas'); c.width = c.height = S;
   const g = c.getContext('2d'), x = S / 2, y = S / 2, rng = hlRng(77);
@@ -807,7 +809,7 @@ function hlMoonSplit(g, seg, cx, cy, Rd, t, bang, ring, moonA, U) {
     const c = seg.mtmp && seg.mtmp.width === S ? seg.mtmp : (seg.mtmp = document.createElement('canvas'), seg.mtmp.width = seg.mtmp.height = S, seg.mtmp);
     const q = c.getContext('2d'), o = S / 2; q.clearRect(0, 0, S, S); q.drawImage(face, 0, 0);
     q.save(); q.beginPath(); q.arc(o, o, Rd, 0, Math.PI * 2); q.clip();
-    const grow = hlEaseOut(e / HLMS.CRACK), glow = 0.55 + 0.45 * hlClamp((e - 0.2) / 0.7);
+    const grow = hlEaseOut(e / HLMS.CRACK), glow = 0.55 + 0.45 * hlClamp(e / HLMS.CRACK);
     const line = (pts, frac, w) => {   // a crack: a dark seam with light leaking out of it
       const n = pts.length - 1, upto = frac * n;
       q.beginPath(); q.moveTo(o + pts[0][0] * Rd, o + pts[0][1] * Rd);
@@ -823,7 +825,7 @@ function hlMoonSplit(g, seg, cx, cy, Rd, t, bang, ring, moonA, U) {
     };
     const W0 = Math.max(1.2, Rd * 0.028);
     P.branches.forEach(b => line(b.pts, hlClamp((grow - b.d) / (1 - b.d)), W0 * b.w));
-    const half = P.split.length >> 1, sg = hlEaseOut((e - 0.05) / (HLMS.CRACK + 0.3));
+    const half = P.split.length >> 1, sg = hlEaseOut(e / HLMS.CRACK);
     line(P.split.slice(0, half + 1).reverse(), sg, W0 * 1.3); line(P.split.slice(half), sg, W0 * 1.3);
     // the bullet hole: ragged, burnt rim, a white-hot core for a moment
     const hr = Rd * 0.1, rng = hlRng(seg.i * 31 + 7);

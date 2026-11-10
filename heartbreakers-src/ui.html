@@ -362,7 +362,7 @@ html, body { overflow-x: hidden; overflow-x: clip; }
 #dbg-tag.open span { display: block; }
 .field.dbg .lab small { font-weight: 500; opacity: .65; margin-left: 6px; text-transform: none; letter-spacing: 0; }
 .field.dbg .seg { flex-wrap: wrap; }
-.moonfx { position: fixed; inset: 0; z-index: 80; background: #12060f; }
+.moonfx { position: fixed; top: 0; left: 0; right: 0; height: max(100%, var(--app-h, 100%)); z-index: 80; background: #12060f; }
 .moonfx canvas { width: 100%; height: 100%; display: block; }
 .moonfx .skip { position: absolute; bottom: max(10px, env(safe-area-inset-bottom)); left: 0; right: 0; text-align: center; font-size: 12px; color: rgba(246,237,242,.55); letter-spacing: .08em; }
 .moonopt { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 100%; }
@@ -620,7 +620,10 @@ body { background: var(--ink) url("brand/bg-port.webp") center / cover no-repeat
   const FIT = 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover';
   const refit = () => { if (!vp || !window.visualViewport || visualViewport.scale <= 1.01) return; vp.setAttribute('content', FIT.replace('initial-scale=1', 'initial-scale=1.0001')); requestAnimationFrame(() => vp.setAttribute('content', FIT)); };
   ['load', 'pageshow', 'orientationchange', 'resize'].forEach(t => window.addEventListener(t, () => setTimeout(refit, 60)));
-  document.addEventListener('focusout', () => setTimeout(refit, 60));
+  // Nov 9: after a dropdown (the debug Seats pickers) iPhone can leave the whole screen sized short; scroll home and
+  // re-apply the viewport so it measures the full screen again
+  const nudge = () => { try { window.scrollTo(0, 0); } catch (e) {} if (!vp) return; vp.setAttribute('content', FIT.replace('initial-scale=1', 'initial-scale=1.0001')); requestAnimationFrame(() => vp.setAttribute('content', FIT)); };
+  document.addEventListener('focusout', e => { if (e.target && /^(SELECT|INPUT|TEXTAREA)$/.test(e.target.tagName)) setTimeout(nudge, 250); else setTimeout(refit, 60); });
   if (window.visualViewport) visualViewport.addEventListener('resize', () => setTimeout(refit, 120));
 })();
 
@@ -884,8 +887,21 @@ const SFX = {
 // "ambient" (muted by the silent switch) unless the page says it's playback. Sound off → back to the default.
 // Side effect (iPhone): playback can pause music from another app while the game's sound is on.
 // Size the page to what's actually visible (Nov 7: on Dylan's foldable iPhone neither 100% nor 100dvh matched the screen)
+// Nov 9 (Kennedy's screen shrank with a black band below, after the debug Seats dropdowns): a dropdown or the keyboard
+// shrinks the visible area for a moment, and the page used to lock onto that.
+// The tallest height seen at this width wins; it re-measures after a field closes and on coming back to the app.
+const FIT = { w: 0, best: 0 };
+document.addEventListener('focusout', () => [350, 900, 1800].forEach(ms => setTimeout(fitHeight, ms)));
+document.addEventListener('visibilitychange', () => { if (!document.hidden) [100, 600].forEach(ms => setTimeout(fitHeight, ms)); });
+window.addEventListener('pageshow', () => setTimeout(fitHeight, 100));
 function fitHeight() {
-  const h = Math.round((window.visualViewport && visualViewport.height) || window.innerHeight);
+  let h = Math.round((window.visualViewport && visualViewport.height) || window.innerHeight);
+  const w = Math.round(window.innerWidth);
+  if (w !== FIT.w) { FIT.w = w; FIT.best = 0; }   // rotated or resized: start over
+  // the table never scrolls and a home-screen app has no toolbars, so at the same width a smaller height is a dropdown or
+  // the keyboard passing over (or iPhone reporting stale): keep the full height
+  h = Math.max(h, FIT.best);
+  FIT.best = h;
   // padding the page wrapper puts on the root (the home-screen build pads it by the top and bottom safe areas)
   const cs = getComputedStyle(document.documentElement);
   document.documentElement.style.setProperty('--root-pad', ((parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0)) + 'px');
@@ -1934,7 +1950,7 @@ function moonShow(moon, done) {
   Promise.race([hlLoadClips(rec, [m]).catch(() => ({})), timeout]).then(clips => {
     if (over) return;
     const cv = el.querySelector('canvas'), dpr = Math.min(2, devicePixelRatio || 1);
-    cv.width = Math.round(innerWidth * dpr); cv.height = Math.round(innerHeight * dpr);
+    cv.width = Math.round((el.clientWidth || innerWidth) * dpr); cv.height = Math.round((el.clientHeight || innerHeight) * dpr);
     const TL = hlTimeline(rec, [m], clips || {}, { bare: true });
     hlPlay(cv, rec, TL, { onEnd: () => setTimeout(fin, 250) });
     setTimeout(() => { el.onclick = fin; }, 300);
@@ -1957,7 +1973,7 @@ function endShow(done) {
   Promise.race([hlLoadClips(rec, q ? [{ quotes: [q] }] : []).catch(() => ({})), timeout]).then(clips => {
     if (over) return;
     const cv = el.querySelector('canvas'), dpr = Math.min(2, devicePixelRatio || 1);
-    cv.width = Math.round(innerWidth * dpr); cv.height = Math.round(innerHeight * dpr);
+    cv.width = Math.round((el.clientWidth || innerWidth) * dpr); cv.height = Math.round((el.clientHeight || innerHeight) * dpr);
     const TL = hlTimeline(rec, [], clips || {}, { endOnly: true });
     hlPlay(cv, rec, TL, { onEnd: () => setTimeout(fin, 400) });
     setTimeout(() => { el.onclick = fin; }, 300);

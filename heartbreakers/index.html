@@ -348,6 +348,8 @@ html, body { overflow-x: hidden; overflow-x: clip; }
 .mg { display: flex; flex-direction: column; gap: 8px; max-height: 55vh; overflow-y: auto; }
 .mg-row { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; text-align: left; background: rgba(10,3,9,.4); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; color: var(--bone); font: inherit; cursor: pointer; }
 .mg-row:disabled { opacity: .5; cursor: default; }
+.mg-item { display: flex; flex-direction: column; gap: 4px; }
+.mg-hl { align-self: flex-end; font-size: 13px; padding: 6px 12px; }
 .mg-when { font-weight: 700; } .mg-res { justify-self: end; font-weight: 700; color: var(--red); }
 .mg-who { grid-column: 1 / -1; color: var(--mute); font-size: 14px; } .mg-n { grid-column: 1 / -1; font-size: 13px; color: var(--mute); }
 .linkish { background: none; border: 0; padding: 0; font: inherit; color: var(--bone); text-decoration: underline; cursor: pointer; }
@@ -598,6 +600,84 @@ body { background: var(--ink) url("data:image/webp;base64,UklGRpJ4AABXRUJQVlA4II
 .lbpics { display: flex; gap: 4px; flex-shrink: 0; }
 .lbnem { padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,.05); }
 .lbnem .lab { display: block; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--mute); }
+
+/* ---------- Calculating: why each girl made her move (Kennedy, Nov 10) ---------- */
+.thb.calcb { width: auto; border-radius: 99px; padding: 0 12px; font-family: var(--caps); font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+.thb.calcb[aria-pressed="true"] { background: rgba(255, 61, 142, .18); border-color: var(--red); color: #ff7ab0; }
+.plate .rt, .mechip .rt { color: var(--bone); }
+.peek.taken { background: rgba(40, 8, 30, .82); }
+.peek.taken .tl { color: var(--mute); font-weight: 600; margin-right: 2px; }
+.calc { position: fixed; z-index: 40; background: var(--felt); color: var(--bone); font-family: var(--ui); box-sizing: border-box; overflow: hidden; display: flex; flex-direction: column; }
+.calc[hidden] { display: none; }
+.calc .cbody { overflow-y: auto; overscroll-behavior: contain; padding: 0 18px 18px; flex: 1; min-height: 0; -webkit-overflow-scrolling: touch; }
+.calc .chead { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px 8px; }
+.calc .ctitle { font-family: var(--caps); font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--mute); }
+.calc .cx { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--line); background: rgba(10, 3, 9, .55); color: var(--bone); display: grid; place-items: center; padding: 0; cursor: pointer; }
+.calc .cx svg { width: 16px; height: 16px; }
+.calc .who { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
+.calc .who .pw { width: 44px; height: 44px; border-radius: 10px; flex: none; overflow: hidden; }
+.calc .who .pw img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
+.calc .who .t { flex: 1; min-width: 0; }
+.calc .who .h { font-weight: 700; font-size: 17px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.calc .who .s { font-size: 12.5px; color: var(--mute); }
+.calc .ctag { font-family: var(--caps); font-size: 9.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; border-radius: 99px; padding: 3px 8px; background: rgba(255, 61, 142, .16); color: #ff8cbc; white-space: nowrap; }
+.calc .why { margin: 12px 0; font-size: 15.5px; line-height: 1.4; font-weight: 600; }
+.calc .lab { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin: 14px 0 6px; font-family: var(--caps); font-size: 9.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--mute); }
+.calc .lab i { font-family: var(--ui); font-style: normal; font-size: 11.5px; letter-spacing: 0; text-transform: none; font-weight: 600; }
+.calc .opt { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 10px; border: 1px solid transparent; }
+.calc .opt.picked { background: rgba(255, 61, 142, .1); border-color: rgba(255, 61, 142, .5); }
+.calc .opt.best:not(.picked) { border-color: rgba(79, 227, 178, .5); }
+.calc .opt b { margin-left: auto; font-size: 16px; }
+.calc .mk { font-family: var(--caps); font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; border-radius: 99px; padding: 3px 7px; }
+.calc .mk.p { background: var(--red); color: #fff; }
+.calc .mk.b { background: rgba(79, 227, 178, .16); color: var(--club); }
+.calc .cc { display: inline-flex; align-items: center; justify-content: center; min-width: 34px; height: 28px; padding: 0 6px; box-sizing: border-box; border-radius: 7px; background: var(--face); border: 1px solid rgba(214, 200, 214, .5); font-weight: 700; font-size: 15px; color: var(--silver); }
+.calc .cc.r { color: var(--red); } .calc .cc.g { color: var(--club); }
+.calc .cc.sm { min-width: 28px; height: 23px; font-size: 12.5px; padding: 0 4px; }
+.calc .note { font-size: 11.5px; color: var(--mute); margin-top: 6px; line-height: 1.35; }
+.calc .pcard { display: flex; align-items: flex-start; gap: 10px; margin: 6px 0; font-size: 14px; font-weight: 600; line-height: 1.35; }
+.calc .pass + .pass { border-top: 1px solid rgba(214, 200, 214, .18); margin-top: 14px; padding-top: 12px; }
+.calc .vbs { display: flex; gap: 6px; }
+.calc .vb { flex: 1 1 0; min-width: 0; height: 42px; border-radius: 12px; border: 1px solid var(--line); background: rgba(10, 3, 9, .5); color: var(--bone); font: 700 13px var(--ui); padding: 0; cursor: pointer; }
+.calc .vb[aria-pressed="true"][data-v="brilliant"] { background: var(--violet); border-color: var(--violet); color: var(--ink); }
+.calc .vb[aria-pressed="true"][data-v="good"] { background: var(--club); border-color: var(--club); color: var(--ink); }
+.calc .vb[aria-pressed="true"][data-v="meh"] { background: #ffc46b; border-color: #ffc46b; color: var(--ink); }
+.calc .vb[aria-pressed="true"][data-v="blunder"] { background: var(--red); border-color: var(--red); color: #fff; }
+.calc .cnote { width: 100%; height: 40px; margin-top: 8px; box-sizing: border-box; border-radius: 10px; border: 1px solid var(--line); background: rgba(10, 3, 9, .5); color: var(--bone); font: 600 14px var(--ui); padding: 0 12px; user-select: text; -webkit-user-select: text; }
+.calc .tags { display: flex; flex-direction: column; gap: 5px; }
+.calc .trow { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px; padding: 4px 10px; box-sizing: border-box; border-radius: 10px; border: 1px solid rgba(214, 200, 214, .25); background: rgba(10, 3, 9, .35); color: var(--bone); font: 600 13.5px var(--ui); text-align: left; cursor: pointer; }
+.calc .trow.on { border-color: var(--red); }
+.calc .trow .tn { flex: 1; min-width: 0; color: var(--mute); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.calc .vt { font-family: var(--caps); font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; border-radius: 99px; padding: 3px 7px; white-space: nowrap; }
+.calc .vt.brilliant { background: rgba(178, 140, 255, .2); color: #c9a6ff; } .calc .vt.good { background: rgba(79, 227, 178, .16); color: var(--club); }
+.calc .vt.meh { background: rgba(255, 196, 107, .16); color: #ffc46b; } .calc .vt.blunder { background: rgba(255, 61, 142, .2); color: #ff7ab0; }
+.calc .empty { color: var(--mute); font-size: 14px; margin: 10px 0; }
+.calc .cfol { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-family: var(--caps); font-size: 9.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--violet); margin: 2px 0 8px; }
+.calc .cfol.dim { color: var(--mute); font-weight: 600; }
+.calc .cfol .linkbtn { background: none; border: 0; padding: 0; color: var(--red); font: 700 12px var(--ui); letter-spacing: 0; text-transform: none; text-decoration: underline; cursor: pointer; }
+html.calc-tap .plate.seat, html.calc-tap #mechip { cursor: pointer; }
+.plate.seat.following, #mechip.following { outline: 2px solid var(--violet); outline-offset: 2px; }
+/* wide screens (laptop, iPad either way): a side panel; the table shrinks to fit beside it */
+html.calc-side { --calc-w: clamp(300px, 32vw, 420px); }
+html.calc-side body { padding-right: var(--calc-w); box-sizing: border-box; }
+html.calc-slim { --calc-w: clamp(250px, 38vw, 300px); }
+html.calc-zoom .app { zoom: var(--calc-az, 1); }
+html.calc-slim .calc .cbody { padding: 0 12px 12px; }
+html.calc-slim .calc .chead { padding: 8px 12px 4px; }
+html.calc-slim .calc .why { font-size: 14px; margin: 8px 0; }
+html.calc-slim .calc .who .pw { width: 34px; height: 34px; }
+html.calc-slim .calc .who .h { font-size: 15px; }
+html.calc-side .calc { top: 0; right: 0; bottom: 0; width: var(--calc-w); border-left: 1.5px solid rgba(214, 200, 214, .35); box-shadow: -14px 0 30px rgba(0, 0, 0, .4); padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+html.calc-side .calc .grab { display: none; }
+/* phones: a sheet over the bottom girl's hand; pulled up, the table squeezes up above it */
+html.calc-sheet .calc { left: 0; right: 0; bottom: 0; height: var(--sheet-h, 180px); border-top: 1.5px solid rgba(214, 200, 214, .45); border-radius: 22px 22px 0 0; box-shadow: 0 -12px 30px rgba(0, 0, 0, .55); padding-bottom: env(safe-area-inset-bottom, 0px); transition: height .22s ease; touch-action: none; }
+html.calc-sheet .calc .cbody { touch-action: pan-y; }
+html.calc-sheet .calc .chead { display: none; }
+html.calc-sheet .calc .grab { display: block; width: 100%; height: 26px; flex: none; background: none; border: 0; padding: 0; cursor: grab; }
+html.calc-sheet .calc .grab span { display: block; width: 44px; height: 5px; border-radius: 3px; background: rgba(214, 200, 214, .6); margin: 0 auto; }
+html.calc-sheet .hand { height: var(--sheet-h, 180px) !important; }
+html.calc-sheet .hand .card { visibility: hidden; }
+html.calc-high .table { zoom: var(--calc-z, 1); }
 </style>
 
 <div class="app" id="app">
@@ -613,6 +693,7 @@ body { background: var(--ink) url("data:image/webp;base64,UklGRpJ4AABXRUJQVlA4II
 </div>
 <div class="fx" id="fx"></div>
 <div class="veil" id="veil" hidden></div>
+<aside class="calc" id="calc" aria-label="Calculating" hidden></aside>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
 <script>
@@ -778,70 +859,78 @@ function settle(P) {
   return m >= 0 ? P.map((_, i) => (i === m ? 0 : 26)) : P.slice();
 }
 
+// ---------- why (Theater's thinking panel, Kennedy Nov 9): every brain notes its reason here as it decides ----------
+// Read it straight after the call (later calls overwrite it). Setting it never changes which card is picked.
+let BRAIN_WHY = null;
+const why_ = (code, c) => { BRAIN_WHY = code; return c; };
+
 // ---------- passing ----------
-function passEasy(hand) { return shuffle(hand.slice()).slice(0, 3); }
+function passEasy(hand) { BRAIN_WHY = 'random'; return shuffle(hand.slice()).slice(0, 3); }
 
 function passMedium(hand) {
   const danger = c => (c === QS ? 60 : suit(c) === 2 && rank(c) > 12 ? 45 : suit(c) === 3 ? rank(c) + 4 : rank(c));
+  BRAIN_WHY = 'danger';
   return hand.slice().sort((a, b) => danger(b) - danger(a)).slice(0, 3);
 }
 
 function passHard(hand) {
-  const pick = [];
-  const add = c => { if (pick.length < 3 && !pick.includes(c)) pick.push(c); };
+  const pick = [], rs = [];
+  const add = (c, r) => { if (pick.length < 3 && !pick.includes(c)) { pick.push(c); rs.push(r); } };
   const of = s => hand.filter(c => suit(c) === s);
   const sp = of(2);
   const hasQ = hand.includes(QS);
   const lowSp = sp.filter(c => rank(c) < 12).length;
-  if (hasQ && lowSp < 3) add(QS); // unprotected queen goes
+  if (hasQ && lowSp < 3) add(QS, 'nakedQueen'); // unprotected queen goes
   const keepingQ = hasQ && !pick.includes(QS);
-  if (!keepingQ) desc(sp.filter(c => rank(c) > 12)).forEach(add); // A/K♠ attract the queen
+  if (!keepingQ) desc(sp.filter(c => rank(c) > 12)).forEach(c => add(c, 'bigSpade')); // A/K♠ attract the queen
   // try to void clubs or diamonds
   const shortest = [0, 1].map(s => of(s)).filter(a => a.length && a.length <= 3 - pick.length)
     .sort((a, b) => a.length - b.length)[0];
-  if (shortest) desc(shortest).forEach(add);
-  desc(of(3).filter(c => rank(c) >= 11)).forEach(add);
+  if (shortest) desc(shortest).forEach(c => add(c, 'void'));
+  desc(of(3).filter(c => rank(c) >= 11)).forEach(c => add(c, 'bigHeart'));
   const rest = desc(hand.filter(c => !(keepingQ && suit(c) === 2)));
-  rest.forEach(add);
-  desc(hand).forEach(add);
+  rest.forEach(c => add(c, keepingQ ? 'highKeepQ' : 'high'));
+  desc(hand).forEach(c => add(c, 'high'));
+  BRAIN_WHY = pick.map((c, i) => [c, rs[i]]);
   return pick;
 }
 
 // ---------- play policies ----------
 function pickEasy(st, p) {
   const L = legalFor(st, p);
-  return L[Math.floor(Math.random() * L.length)];
+  const i = Math.floor(Math.random() * L.length);
+  return why_(L.length === 1 ? 'only' : 'random', L[i]);
 }
 
 function pickMedium(st, p) {
   const L = legalFor(st, p);
-  if (L.length === 1) return L[0];
+  if (L.length === 1) return why_('only', L[0]);
   const t = st.trick;
   if (!t.length) {
     const safe = asc(L.filter(c => suit(c) !== 3 && c !== QS && !(suit(c) === 2 && rank(c) > 12)));
-    return safe[0] ?? asc(L)[0];
+    return safe.length ? why_('leadLow', safe[0]) : why_('leadForced', asc(L)[0]);
   }
   const ls = suit(t[0].c), win = winnerOf(t).c, last = t.length === 3;
   if (L.some(c => suit(c) === ls)) {
-    if (ls === 2 && L.includes(QS) && rank(win) > 12) return QS;
+    if (ls === 2 && L.includes(QS) && rank(win) > 12) return why_('feedQueen', QS);
     const under = desc(L.filter(c => rank(c) < rank(win) && c !== QS));
-    if (under.length) return under[0];
+    if (under.length) return why_('duck', under[0]);
     const above = L.filter(c => c !== QS);
-    if (!above.length) return L[0];
-    return last ? desc(above)[0] : asc(above)[0];
+    if (!above.length) return why_('only', L[0]);
+    return last ? why_('takeLast', desc(above)[0]) : why_('takeLow', asc(above)[0]);
   }
-  if (L.includes(QS)) return QS;
+  if (L.includes(QS)) return why_('dumpQueen', QS);
   const bigSp = desc(L.filter(c => suit(c) === 2 && rank(c) > 12));
-  if (bigSp.length) return bigSp[0];
+  if (bigSp.length) return why_('dumpBigSpade', bigSp[0]);
   const hs = desc(L.filter(c => suit(c) === 3));
-  if (hs.length) return hs[0];
-  return desc(L)[0];
+  if (hs.length) return why_('dumpHeart', hs[0]);
+  return why_('dumpHigh', desc(L)[0]);
 }
 
 // o (optional, for the girls): o.seen = what she remembers as played (Card memory), o.live = spot a moon by the live-moon rule (Covers)
 function pickHard(st, p, known, o) {
   const L = legalFor(st, p);
-  if (L.length === 1) return L[0];
+  if (L.length === 1) return why_('only', L[0]);
   const h = st.hands[p], t = st.trick;
   const seen = (o && o.seen) || st.played;
   const qsOut = !seen[QS] && !h.includes(QS);
@@ -861,10 +950,10 @@ function pickHard(st, p, known, o) {
   if (!t.length) {
     if (shooter >= 0 && st.broken) {
       const hs = desc(L.filter(c => suit(c) === 3));
-      if (hs.length && hi(hs[0]) === 0) return hs[0]; // grab a heart to stop the moon
+      if (hs.length && hi(hs[0]) === 0) return why_('stopMoonLead', hs[0]); // grab a heart to stop the moon
     }
     const sp = L.filter(c => suit(c) === 2);
-    if (qsOut && sp.length && !h.some(c => suit(c) === 2 && rank(c) >= 12)) return desc(sp)[0]; // flush the queen
+    if (qsOut && sp.length && !h.some(c => suit(c) === 2 && rank(c) >= 12)) return why_('flushQueen', desc(sp)[0]); // flush the queen
     let best = L[0], bs = -1e9;
     for (const c of L) {
       let s = hi(c) * 3 - rank(c);
@@ -874,7 +963,7 @@ function pickHard(st, p, known, o) {
       if (hi(c) === 0) s -= 25;
       if (s > bs) { bs = s; best = c; }
     }
-    return best;
+    return why_('leadSafe', best);
   }
 
   const ls = suit(t[0].c), wc = winnerOf(t), win = wc.c, last = t.length === 3;
@@ -882,41 +971,41 @@ function pickHard(st, p, known, o) {
   if (L.some(c => suit(c) === ls)) {
     if (shooter >= 0 && wc.p === shooter && pin > 0) {
       const beat = asc(L.filter(c => rank(c) > rank(win) && c !== QS));
-      if (beat.length) return beat[0];
+      if (beat.length) return why_('stopMoonBeat', beat[0]);
     }
-    if (ls === 2 && L.includes(QS) && rank(win) > 12) return QS;
+    if (ls === 2 && L.includes(QS) && rank(win) > 12) return why_('feedQueen', QS);
     const under = desc(L.filter(c => rank(c) < rank(win) && c !== QS));
-    if (under.length) return under[0];
+    if (under.length) return why_('duck', under[0]);
     const above = L.filter(c => c !== QS);
-    if (!above.length) return L[0];
-    if (last) return desc(above)[0];
+    if (!above.length) return why_('only', L[0]);
+    if (last) return why_('takeLast', desc(above)[0]);
     const up = asc(above);
-    if (hi(up[0]) === 0) return desc(above)[0]; // winning regardless: shed the biggest
+    if (hi(up[0]) === 0) return why_('winAnyway', desc(above)[0]); // winning regardless: shed the biggest
     if (ls === 2 && qsOut) {
       const lowK = up.filter(c => rank(c) < 12);
-      if (lowK.length) return lowK[lowK.length - 1];
+      if (lowK.length) return why_('underQueen', lowK[lowK.length - 1]);
     }
-    return up[0];
+    return why_('takeLow', up[0]);
   }
   // void in the led suit: dump
   if (shooter >= 0 && wc.p === shooter) {
     const np = L.filter(c => !pts(c));
-    if (np.length) return desc(np)[0];
+    if (np.length) return why_('stopMoonDump', desc(np)[0]);
   }
-  if (L.includes(QS)) return QS;
+  if (L.includes(QS)) return why_('dumpQueen', QS);
   if (qsOut) {
     const big = desc(L.filter(c => suit(c) === 2 && rank(c) > 12));
-    if (big.length) return big[0];
+    if (big.length) return why_('dumpBigSpade', big[0]);
   }
   const hs = desc(L.filter(c => suit(c) === 3));
-  if (hs.length && rank(hs[0]) >= 9) return hs[0];
+  if (hs.length && rank(hs[0]) >= 9) return why_('dumpHeart', hs[0]);
   let best = L[0], bs = -1e9;
   for (const c of L) {
     const len = h.filter(x => suit(x) === suit(c)).length;
     const s = rank(c) * 2 - len * 3 + (suit(c) === 3 ? 4 : 0);
     if (s > bs) { bs = s; best = c; }
   }
-  return best;
+  return why_('dumpShort', best);
 }
 
 // deal unseen cards to opponents consistent with known voids and passed cards
@@ -970,8 +1059,10 @@ function liveMoon(st, p) {
 }
 
 // average cost of each card over N imagined deals (rest of the hand played out by Hard)
-function evalCards(st, p, known, L, N) {
-  const sum = new Map(L.map(c => [c, 0]));
+// detail (Theater's thinking panel): each card maps to {own, others: [3 seats' points], runs} instead — her expected
+// points this round and everyone else's (moon settled), judged only on what she could know.
+function evalCards(st, p, known, L, N, detail) {
+  const sum = new Map(L.map(c => [c, detail ? { own: 0, others: [0, 0, 0, 0] } : 0]));
   let runs = 0;
   for (let i = 0; i < N; i++) {
     const hands = sampleHands(st, p, known);
@@ -981,23 +1072,27 @@ function evalCards(st, p, known, L, N) {
       const s = cloneSt(st, hands.map(h => h.slice()));
       doPlay(s, p, c);
       while (s.trickNo < 13) { const q = s.turn; doPlay(s, q, pickHard(s, q)); }
-      sum.set(c, sum.get(c) + moveCost(s.pts, p));
+      if (detail) { const f = settle(s.pts), o = sum.get(c); o.own += f[p]; for (let q = 0; q < 4; q++) o.others[q] += f[q]; }
+      else sum.set(c, sum.get(c) + moveCost(s.pts, p));
     }
   }
   if (!runs) return null;
-  for (const c of L) sum.set(c, sum.get(c) / runs);
+  for (const c of L) {
+    if (detail) { const o = sum.get(c); o.own /= runs; o.others = o.others.map(v => v / runs); o.others[p] = null; o.runs = runs; }
+    else sum.set(c, sum.get(c) / runs);
+  }
   return sum;
 }
 
 function pickGenius(st, p, known) {
   const L = legalFor(st, p);
-  if (L.length === 1) return L[0];
+  if (L.length === 1) return why_('only', L[0]);
   const N = Math.min(120, Math.max(30, Math.floor(1400 / L.length)));
   const cost = evalCards(st, p, known, L, N);
   if (!cost) return pickHard(st, p);
   let best = L[0], bv = Infinity;
   for (const c of L) if (cost.get(c) < bv) { bv = cost.get(c); best = c; }
-  return best;
+  return why_('bestSampled', best);
 }
 
 const LEVELS = {
@@ -1045,17 +1140,24 @@ const tolerance = J => (J >= 1 ? 0 : J <= 0 ? Infinity : 3 * (1 - J) / J);
 const roll = v => Math.random() < (v || 0);
 
 // ---------- passing ----------
+// PASS_WHY (Theater's thinking panel): after girlPass returns, the reason for that pass —
+// { cards: [[card, code]…], level } plus keptQ (the queen she held on to) / panic (spade panic), or { psychic… }.
+// Read it straight after the call: a psychic girl's pass imagines everyone else's, which overwrites it on the way.
+let PASS_WHY = null;
+const passCodes = (pick, why) => new Map(pick.map(c => [c, Array.isArray(why) ? (why.find(x => x[0] === c) || [0, 'high'])[1] : why]));
 function girlPass(T, p, hand) {
   const card = T.cards[p];
-  if (!card) return LEVELS[T.levels[p]].pass(hand);
+  if (!card) { const pk = LEVELS[T.levels[p]].pass(hand); PASS_WHY = { level: T.levels[p], cards: [...passCodes(pk, BRAIN_WHY)] }; return pk; }
   if (card.psychic === 'all') return passPsychic(T, p, hand);
   const d = card.dials;
   let pick = LEVELS[card.level].pass(hand).slice();
+  const codes = passCodes(pick, BRAIN_WHY), extra = {};
   const swapIn = c => { // put c in the pass, pushing out the least dangerous card already there
     if (pick.includes(c) || !hand.includes(c)) return;
     const danger = x => (x === QS ? 60 : suit(x) === 2 && rank(x) > 12 ? 45 : suit(x) === 3 ? rank(x) + 4 : rank(x));
     pick.sort((a, b) => danger(a) - danger(b));
     pick[0] = c;
+    codes.set(c, 'panic');
   };
   // Keeps the queen: she holds on to it (Judgment: only when she has at least two other spades to hide it behind)
   if (pick.includes(QS) && roll(d.keepQueen)) {
@@ -1063,17 +1165,19 @@ function girlPass(T, p, hand) {
     if (card.judgment < 0.5 || cover >= 2) {
       const rest = desc(hand.filter(c => c !== QS && !pick.includes(c)));
       pick[pick.indexOf(QS)] = rest[0];
+      codes.set(rest[0], 'keptQueen'); extra.keptQ = QS;
     }
   }
   // Spade panic: the big spades (and the queen) go, however safe she is
-  if (roll(d.spadePanic)) [QS, cardId(2, 14), cardId(2, 13)].forEach(swapIn);
+  if (roll(d.spadePanic)) { extra.panic = 1; [QS, cardId(2, 14), cardId(2, 13)].forEach(swapIn); }
+  PASS_WHY = { level: card.level, cards: pick.map(c => [c, codes.get(c) || 'high']), ...extra };
   return pick;
 }
 
 // ---------- playing ----------
 function girlPick(T, p, st) {
   const card = T.cards[p];
-  if (!card) return LEVELS[T.levels[p]].pick(st, p, T.known[p]);
+  if (!card) { const c = LEVELS[T.levels[p]].pick(st, p, T.known[p]); if (T.base) T.base[p] = BRAIN_WHY; return c; }
   if (card.psychic === 'all') return pickPsychic(T, p, st);
   return habitPick(T, p, st, true);
 }
@@ -1098,8 +1202,9 @@ function basePick(T, p, st, card) {
 function habitPick(T, p, st, veto) {
   const card = T.cards[p], d = card.dials, mem = T.mem[p];
   const L = legalFor(st, p);
-  if (L.length === 1) return L[0];
+  if (L.length === 1) { if (veto && T.base) T.base[p] = 'only'; return L[0]; }
   const base = basePick(T, p, st, card);
+  if (veto && T.base) T.base[p] = BRAIN_WHY;   // what her base brain wanted, and why (read before the veto's playouts overwrite it)
   const t = st.trick, void_ = t.length && !L.some(c => suit(c) === suit(t[0].c));
   const winner = t.length ? winnerOf(t) : null;
   const losesTo = c => winner && (suit(c) !== suit(t[0].c) || rank(c) < rank(winner.c));
@@ -1118,6 +1223,7 @@ function habitPick(T, p, st, veto) {
       const low = Math.min(...others.map(q => T.totals[q]));
       if (others.some(q => T.totals[q] !== low)) { target = others.find(q => T.totals[q] === low); why = 'leader'; }
     }
+    if (veto && T.base) T.base['t' + p] = target;   // the thinking panel names who the points were aimed at
     if (target >= 0) {
       if (winner.p === target) habit = L.includes(QS) ? QS : hearts[0] ?? null; // she's winning it: load it up
       else if (L.includes(QS)) { // save the queen for her target
@@ -1278,7 +1384,8 @@ function pickPsychic(T, p, st) {
     return { x: c, own: own / R + (winsNow && L.some(x => suit(x) === 2 && x !== QS) ? 1.5 : 0), hum: hu / R, cpu: cp / R };
   });
   // Game review (Kennedy, Nov 7): keep every option she weighed — card, her expected points, the humans' expected points.
-  if (T.why) T.why[p] = { psychic: 1, rate: rateFor(T, p), runs: R, opts: scores.map(o => [o.x, +o.own.toFixed(2), +o.hum.toFixed(2)]) };
+  // Theater (no humans, Nov 9): a 4th number, the other girls' expected points (valueOf's cpu).
+  if (T.why) T.why[p] = { psychic: 1, rate: rateFor(T, p), runs: R, opts: scores.map(o => [o.x, +o.own.toFixed(2), +o.hum.toFixed(2), +o.cpu.toFixed(2)]) };
   return chooseByGoal(T, p, scores);
 }
 // Passing: she sees every hand, so she tries a handful of passes and plays each one out (with everyone else's pass predicted
@@ -1304,7 +1411,12 @@ function passPsychic(T, p, hand) {
     }
     return { x: pick, own: own / R, hum: hu / R, cpu: cp / R };
   });
-  return chooseByGoal(T, p, scores);
+  const chosen = chooseByGoal(T, p, scores);
+  const pk = scores.find(o => o.x === chosen), obvious = scores[0], r2 = v => +v.toFixed(2);
+  PASS_WHY = { psychic: 1, tried: cands.length, runs: R, goal: (T.cards[p] || {}).goal || null,
+    picked: [r2(pk.own), r2(pk.hum), r2(pk.cpu)], obvious: [obvious.x.slice(), r2(obvious.own), r2(obvious.hum), r2(obvious.cpu)],
+    cards: chosen.map(c => [c, 'psychic']) };
+  return chosen;
 }
 // ===== end girls =====
 
@@ -3261,22 +3373,29 @@ async function showMyGames(back) {
   $('mg-x').onclick = () => (back ? back() : closeVeil());
   let rows = [];
   try {
-    const q = t => sb.from(t).select('id, started_at, finished, data').eq('user_id', ME.id).order('started_at', { ascending: false }).limit(25);
-    const [real, dbg] = await Promise.all([q('hb_games'), IS_ADMIN ? q('hb_debug_games') : null]);   // debug games live apart (admin only)
+    const q = t => sb.from(t).select('id, user_id, started_at, finished, data').eq('user_id', ME.id).order('started_at', { ascending: false }).limit(25)
+      .then(r => { (r.data || []).forEach(x => (x.table = t)); return r; });
+    // Theater games too (Nov 10): every game you can replay move by move
+    const [real, dbg, th] = await Promise.all([q('hb_games'), IS_ADMIN ? q('hb_debug_games') : null, q('hb_theater_games')]);   // debug games live apart (admin only)
     if (real.error) throw real.error;
-    rows = (real.data || []).concat((dbg && dbg.data) || []).filter(r => r.data && r.data.hands && r.data.hands.length)
-      .sort((a, b) => (a.started_at < b.started_at ? 1 : -1)).slice(0, 25);
+    rows = (real.data || []).concat((dbg && dbg.data) || [], (th && th.data) || []).filter(r => r.data && r.data.hands && r.data.hands.length)
+      .sort((a, b) => (a.started_at < b.started_at ? 1 : -1)).slice(0, 40);
   } catch (e) { if ($('mg-sub')) $('mg-sub').textContent = 'Couldn’t load your games. Try again in a moment.'; return; }
   if (!$('mg-list')) return;
-  $('mg-sub').textContent = rows.length ? 'Tap a game to watch its highlights.' : 'No games yet.';
+  const canReplay = typeof pastGameOK === 'function' && pastGameOK();
+  $('mg-sub').textContent = !rows.length ? 'No games yet.' : canReplay ? 'Tap a game to replay it move by move.' : 'Leave the game you’re in to replay one move by move. Highlights work any time.';
   $('mg-list').innerHTML = rows.map((r, i) => {
     const d = r.data, tot = d.totals || [0, 0, 0, 0], low = Math.min(...tot), n = hlFind(d).length;
     const place = 1 + tot.filter(x => x < tot[0]).length;
-    const res = d.quit ? 'Left early' : !r.finished ? 'Unfinished' : tot[0] === low ? 'Won' : `${['', '1st', '2nd', '3rd', '4th'][place]} place`;
+    const wn = (d.winners || []).map(w => d.names[w]).join(' & ');
+    const res = d.theater ? (r.finished ? `${wn || '—'} won` : 'Unfinished') : d.quit ? 'Left early' : !r.finished ? 'Unfinished' : tot[0] === low ? 'Won' : `${['', '1st', '2nd', '3rd', '4th'][place]} place`;
     const when = new Date(r.started_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-    return `<button class="mg-row" type="button" data-i="${i}" ${n ? '' : 'disabled'}><span class="mg-when">${esc(when)}</span><span class="mg-who">as ${esc(d.me || '')} · vs ${esc(d.names.slice(1).join(', '))}</span><span class="mg-res">${esc(res)}${d.debug ? ' · debug' : d.practice ? ' · practice' : ''}</span><span class="mg-n">${n ? `${n} highlight${n === 1 ? '' : 's'}` : 'no highlights'}</span></button>`;
+    const rep = canReplay && !d.debug;
+    return `<div class="mg-item"><button class="mg-row" type="button" data-i="${i}" ${rep || n ? '' : 'disabled'}><span class="mg-when">${esc(when)}</span><span class="mg-who">${d.theater ? `Theater · ${esc(d.names.join(', '))}` : `as ${esc(d.me || '')} · vs ${esc(d.names.slice(1).join(', '))}`}</span><span class="mg-res">${esc(res)}${d.debug ? ' · debug' : d.practice ? ' · practice' : ''}</span><span class="mg-n">${rep ? 'Replay' : n ? `${n} highlight${n === 1 ? '' : 's'}` : 'no highlights'}</span></button>${rep && n ? `<button class="ghost mg-hl" type="button" data-i="${i}">Highlights · ${n}</button>` : ''}</div>`;
   }).join('');
-  $('mg-list').querySelectorAll('.mg-row').forEach(b => b.onclick = () => showHighlights(rows[+b.dataset.i].data, () => showMyGames(back)));
+  const again = () => showMyGames(back);
+  $('mg-list').querySelectorAll('.mg-row').forEach(b => b.onclick = () => { const r = rows[+b.dataset.i]; if (canReplay && !r.data.debug) openPastGame(r, r.table, again); else showHighlights(r.data, again); });
+  $('mg-list').querySelectorAll('.mg-hl').forEach(b => b.onclick = () => showHighlights(rows[+b.dataset.i].data, again));
 }
 // ===== end highlights =====
 
@@ -3795,6 +3914,201 @@ function hlSuitcase(g, x, y, w, h, shut, since, tag, U, roll) {
   g.restore();
 }
 
+// ===== Calculating (Theater's thinking panel, Kennedy Nov 10, 2026): why each girl made each move, in plain English =====
+// Reads a game record (rec.hands[i].plays = [seat, card, ms, why], rec.hands[i].passWhy) and builds what the panel shows.
+// No DOM here: the panel in ui.html draws it. Concatenated by build.py after ending.js.
+const TK_RANK = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+const TK_SUIT = ['♣︎', '♦︎', '♠︎', '♥︎'];
+const TK_SUITN = ['clubs', 'diamonds', 'spades', 'hearts'], TK_SUIT1 = ['club', 'diamond', 'spade', 'heart'];
+const tkCard = c => TK_RANK[c % 13] + TK_SUIT[Math.floor(c / 13)];
+const tkPlural = n => /twins|clermonts/i.test(String(n));
+const tkPro = n => (tkPlural(n) ? { she: 'they', her: 'them', hers: 'their', was: 'were', has: 'have', is: 'are', s: '' } : { she: 'she', her: 'her', hers: 'her', was: 'was', has: 'has', is: 'is', s: 's' });
+const tkCap = s => s.charAt(0).toUpperCase() + s.slice(1);
+
+// the hands right after the pass (or the deal, on a hold round)
+function tkAfterPass(rh) {
+  const hands = rh.deal.map(h => h.slice());
+  if (rh.passes && rh.dir !== 3) {
+    const off = [1, 3, 2][rh.dir];
+    rh.passes.forEach((ps, p) => ps.forEach(c => hands[p].splice(hands[p].indexOf(c), 1)));
+    rh.passes.forEach((ps, p) => ps.forEach(c => hands[(p + off) % 4].push(c)));
+  }
+  return hands;
+}
+// the hand state just before play n (n cards already played this round)
+function tkStateAt(rh, n) {
+  const st = newHandState(tkAfterPass(rh));
+  for (let i = 0; i < n; i++) doPlay(st, rh.plays[i][0], rh.plays[i][1]);
+  return st;
+}
+// every finished trick in a round up to play n: [{trick: [{p, c}], w, pts}]
+function tkTricks(rh, n) {
+  const out = [], st = newHandState(tkAfterPass(rh));
+  for (let i = 0; i < Math.min(n, rh.plays.length); i++) {
+    const res = doPlay(st, rh.plays[i][0], rh.plays[i][1]);
+    if (res) out.push({ trick: res.trick, w: res.w, pts: res.trick.reduce((a, x) => a + pts(x.c), 0) });
+  }
+  return out;
+}
+// what each seat has taken this round, as of play n: point cards and trick count
+function tkTaken(rh, n) {
+  const out = [0, 1, 2, 3].map(() => ({ cards: [], tricks: 0 }));
+  if (!rh) return out;
+  for (const t of tkTricks(rh, n)) {
+    out[t.w].tricks++;
+    for (const x of t.trick) if (pts(x.c)) out[t.w].cards.push(x.c);
+  }
+  out.forEach(o => o.cards.sort((a, b) => (a === QS ? -1 : b === QS ? 1 : rank(b) - rank(a))));
+  return out;
+}
+// the last time `from` stuck `to` with the Q♠ or a pile of hearts, before round hi, play n: a phrase, or ''
+function tkGrudgeWhy(rec, hi, n, to, from, names) {
+  for (let h = hi; h >= 0; h--) {
+    const rh = rec.hands[h];
+    const ts = tkTricks(rh, h === hi ? n : rh.plays.length).reverse();
+    for (const t of ts) {
+      if (t.w !== to) continue;
+      const q = t.trick.find(x => x.c === QS);
+      const when = h === hi ? 'earlier this round' : h === hi - 1 ? 'last round' : `in round ${h + 1}`;
+      if (q && q.p === from) return `who stuck ${tkPro(names[to]).her} with the Q♠ ${when}`;
+      if (t.trick.some(x => x.p === from && suit(x.c) === 3) && t.trick.filter(x => suit(x.c) === 3).length >= 2) return `who piled hearts on ${tkPro(names[to]).her} ${when}`;
+    }
+  }
+  return '';
+}
+
+const TK_HABIT = { hotPotato: 'Hot potato', grudge: 'Grudge', leader: 'Going after the leader', breakEarly: 'Breaks hearts early', holdsHearts: 'Holds her hearts',
+  ducking: 'Ducking', hothead: 'Hothead', psychic: 'Sees every hand', random: 'Instinct' };
+
+// One move explained. rec.hands[hi].plays[n] is the move; names = rec.names.
+// → { p, c, who, round, trick, place, tag, reason, opts: [{c, own, picked, best}], runs, basis, legal: [cards], human }
+function thinkMove(rec, hi, n, names) {
+  const rh = rec.hands[hi], [p, c, , why] = rh.plays[n];
+  const st = tkStateAt(rh, n), L = legalFor(st, p), t = st.trick;
+  const nm = names[p], P = tkPro(nm);
+  const out = { p, c, who: nm, round: hi + 1, trick: st.trickNo + 1, place: ['led', 'second to play', 'third to play', 'last to play'][t.length], legal: L, opts: [], tag: '', reason: '' };
+  const w = why || {};
+  const led = t.length ? suit(t[0].c) : -1, void_ = t.length && suit(c) !== led;
+  const win = t.length ? winnerOf(t) : null, winNm = win ? names[win.p] : '', winC = win ? tkCard(win.c) : '';
+  const inPts = t.reduce((a, x) => a + pts(x.c), 0);
+  const hasHearts = t.some(x => suit(x.c) === 3), hasQ = t.some(x => x.c === QS);
+  const what = hasQ ? 'the Q♠' : hasHearts ? 'the hearts' : 'the trick';
+  const C = tkCard(c), ledN = led >= 0 ? TK_SUITN[led] : '', led1 = led >= 0 ? TK_SUIT1[led] : '';
+  // the girl a dump lands on: whoever is winning the trick (she could still be overtaken, but that's who she aimed at)
+  const onWho = winNm ? ` on ${winNm}` : '';
+  const base = code => {
+    switch (code) {
+      case 'only': if (c === 0 && st.trickNo === 0 && !t.length) return `Led the 2♣, as the rules say.`;
+        return L.length === 1 ? `${tkCap(P.she)} had no choice: the ${C} was ${P.hers} only legal card.` : `Played the ${C}.`;
+      case 'random': return `${tkCap(P.she)} play${P.s} on instinct: a legal card at random.`;
+      case 'leadLow': return `Led ${P.hers} lowest safe card, the ${C}, to stay out of trouble.`;
+      case 'leadForced': return `Nothing safe left to lead, so ${P.she} led ${P.hers} lowest card.`;
+      case 'leadSafe': return `Led the ${C}: the lead least likely to come back with points.`;
+      case 'flushQueen': return `Led spades to smoke out the Q♠ while ${P.she} ${P.has} nothing that could catch her.`;
+      case 'stopMoonLead': return `Led a heart nobody can beat, to stop the moon.`;
+      case 'feedQueen': return `Fed the Q♠ under ${winNm}'s ${winC}.`;
+      case 'duck': return `Ducked under the ${winC} so ${P.she} wouldn't win ${what}.`;
+      case 'takeLast': return `Last to play and couldn't get under the ${winC}, so ${P.she} took it with ${P.hers} highest ${led1}${inPts ? '' : ' (no points in it)'}.`;
+      case 'takeLow': return `Couldn't get under the ${winC}, so ${P.she} played ${P.hers} lowest ${led1} and hoped someone goes higher.`;
+      case 'winAnyway': return `${tkCap(P.she)} ${P.was} winning this one no matter what, so ${P.she} shed ${P.hers} biggest ${led1}.`;
+      case 'underQueen': return `Played ${P.hers} highest spade below the queen, keeping the big ones back.`;
+      case 'stopMoonBeat': return `Took the trick so ${winNm} can't shoot the moon.`;
+      case 'stopMoonDump': return `Out of ${ledN}: threw a card with no points, so ${winNm}'s run at the moon gets no help.`;
+      case 'dumpQueen': return `Out of ${ledN}: dumped the Q♠${onWho}.`;
+      case 'dumpBigSpade': return `Out of ${ledN}: shed the ${C} so it can't get caught under the queen later.`;
+      case 'dumpHeart': return `Out of ${ledN}: dumped the ${C}${onWho}.`;
+      case 'dumpHigh': return `Out of ${ledN}: got rid of ${P.hers} highest card, the ${C}.`;
+      case 'dumpShort': return `Out of ${ledN}: threw the ${C} from a short suit, working toward another void.`;
+      case 'bestSampled': return `Picked the card with the lowest expected cost.`;
+      default: return `Played the ${C}.`;
+    }
+  };
+  const habit = (h, tgt) => {
+    const tn = tgt >= 0 ? names[tgt] : '';
+    switch (h) {
+      case 'hotPotato': return `Hot potato: got rid of the Q♠ the first moment it couldn't win the trick.`;
+      case 'grudge': {
+        const g = tgt >= 0 ? tkGrudgeWhy(rec, hi, n, p, tgt, names) : '';
+        if (c === QS || pts(c)) return `Holding a grudge: dumped the ${C} on ${tn || winNm}${g ? ', ' + g : ''}.`;
+        return `Holding a grudge: saving the Q♠ for ${tn}${g ? ', ' + g : ''}.`;
+      }
+      case 'leader': return c === QS || pts(c) ? `Going after the leader: dumped the ${C} on ${tn || winNm}, who has the lowest score.` : `Saving the Q♠ for ${tn}, who has the lowest score.`;
+      case 'breakEarly': return `Couldn't wait to break hearts: out came the ${C} at the first chance.`;
+      case 'holdsHearts': return `Held ${P.hers} hearts back for now and played the ${C} instead.`;
+      case 'ducking': return `Ducked under the ${winC} so ${P.she} wouldn't win ${what}.`;
+      case 'hothead': return `Still steaming from that last big trick: slammed ${P.hers} highest card, the ${C}.`;
+      default: return null;
+    }
+  };
+  if (w.psychic) {
+    out.tag = TK_HABIT.psychic;
+    out.opts = (w.opts || []).map(o => ({ c: o[0], own: o[1] }));
+    out.runs = w.runs; out.basis = 'psychic';
+    const me = out.opts.find(o => o.c === c), lo = out.opts.length ? Math.min(...out.opts.map(o => o.own)) : null;
+    if (!me) out.reason = base('only');
+    else if (me.own <= lo + 0.05) out.reason = `${tkCap(P.she)} saw every hand and played each card out${w.runs > 1 ? ` ${w.runs} times` : ''}: the ${C} costs ${P.her} the least, about ${me.own.toFixed(1)} points from here.`;
+    else out.reason = c === QS || !t.length
+      ? `${tkCap(P.she)} saw every hand. The ${C} costs a little more on paper, but ${P.she} won't risk the Q♠ coming back ${P.her} way.`
+      : `${tkCap(P.she)} saw every hand. The ${C} costs a little more on paper (${me.own.toFixed(1)} vs ${lo.toFixed(1)}), but it keeps ${P.hers} spades guarding the queen.`;
+  } else if (w.habit && w.habit !== 'base' && !String(w.habit).startsWith('veto:')) {
+    out.tag = TK_HABIT[w.habit] || tkCap(w.habit);
+    out.reason = habit(w.habit, w.target) || base(w.base);
+  } else if (w.habit && String(w.habit).startsWith('veto:')) {
+    const h = w.habit.slice(5), wanted = { hotPotato: 'dump the Q♠ right away', grudge: 'go after a grudge', leader: 'go after the leader', breakEarly: 'break hearts', holdsHearts: 'hold her hearts', ducking: 'duck', hothead: 'slam her highest card' }[h] || h;
+    out.tag = 'Thought better of it';
+    out.reason = `Wanted to ${wanted.replace(/\bher\b/g, P.hers)}, but it would cost too much. ${base(w.base)}`;
+  } else if (w.level === 'easy' || w.base === 'random') {
+    out.tag = TK_HABIT.random;
+    out.reason = base(w.base === 'only' ? 'only' : 'random');
+  } else if (w.base) out.reason = base(w.base);
+  else if (why == null) { out.human = true; out.reason = ''; }
+  else out.reason = L.length === 1 ? base('only') : `Played the ${C}.`;
+  if (!w.psychic && w.opts) { out.opts = w.opts.map(o => ({ c: o[0], own: o[1] })); out.runs = w.n; out.basis = 'sampled'; }
+  if (out.opts.length) {
+    const lo = Math.min(...out.opts.map(o => o.own));
+    out.opts.forEach(o => { o.picked = o.c === c; o.best = o.own <= lo + 0.005; });
+    out.opts.sort((a, b) => a.own - b.own || a.c - b.c);
+  }
+  return out;
+}
+
+const TK_PASSWHY = {
+  nakedQueen: P => `Not enough low spades to hide the queen behind, so she had to go.`,
+  bigSpade: P => `Big spades are how you end up eating the queen.`,
+  void: (P, c) => `Clearing out ${P.hers} ${TK_SUITN[suit(c)]} to make a void.`,
+  bigHeart: P => `High hearts win tricks full of points.`,
+  high: P => `A high card that would win tricks ${P.she} doesn't want.`,
+  highKeepQ: P => `Keeping ${P.hers} spades to guard the queen, so a high card from another suit went instead.`,
+  danger: P => `One of ${P.hers} three most dangerous cards.`,
+  random: P => `Passed without much thought.`,
+  keptQueen: P => `${tkCap(P.she)} kept the Q♠ (${P.she} like${P.s} holding her) and passed this instead.`,
+  panic: P => `Spade panic: the big spades had to go.`,
+};
+// One seat's pass explained → { p, who, to, cards: [{c, why}], summary, tag }
+function thinkPass(rec, hi, p, names) {
+  const rh = rec.hands[hi];
+  if (!rh.passes || rh.dir === 3) return null;
+  const off = [1, 3, 2][rh.dir], to = (p + off) % 4, nm = names[p], P = tkPro(nm);
+  const w = (rh.passWhy || [])[p] || null, codes = new Map(((w && w.cards) || []).map(x => [x[0], x[1]]));
+  const out = { p, who: nm, to: names[to], dir: ['left', 'right', 'across'][rh.dir], round: hi + 1, cards: rh.passes[p].map(c => ({ c, why: '' })), summary: '', tag: '', human: !w };
+  if (!w) return out;
+  if (w.psychic) {
+    out.tag = TK_HABIT.psychic;
+    const [own] = w.picked || [], ob = w.obvious;
+    const same = ob && ob[0].every(c => rh.passes[p].includes(c));
+    out.summary = `${tkCap(P.she)} tried ${w.tried} different passes, playing each one out ${w.runs} times. This one leaves ${P.her} about ${(+own).toFixed(1)} points`
+      + (ob && !same ? `; the obvious pass (${ob[0].map(tkCard).join(' ')}) would have left about ${(+ob[1]).toFixed(1)}.` : ', and it\'s the obvious pass anyway.');
+    return out;
+  }
+  if (w.panic) out.tag = 'Spade panic';
+  else if (w.keptQ != null) out.tag = 'Keeps the queen';
+  else if (w.level === 'easy') out.tag = TK_HABIT.random;
+  out.cards.forEach(x => { const f = TK_PASSWHY[codes.get(x.c)] || TK_PASSWHY.high; x.why = f(P, x.c); });
+  if (w.keptQ != null) out.summary = `${tkCap(P.she)} held on to the Q♠.`;
+  return out;
+}
+// ===== end Calculating =====
+
 
 // ===== UI =====
 const SYM = ['♣', '♦', '♠', '♥'];
@@ -4062,6 +4376,7 @@ const SFX = {
 // shrinks the visible area for a moment, and the page used to lock onto that.
 // The tallest height seen at this width wins; it re-measures after a field closes and on coming back to the app.
 const FIT = { w: 0, best: 0 };
+const TOUCH_FIT = !!(window.matchMedia && matchMedia('(pointer: coarse)').matches);   // phones and iPads (keyboard/dropdown shrink)
 document.addEventListener('focusout', () => [350, 900, 1800].forEach(ms => setTimeout(fitHeight, ms)));
 document.addEventListener('visibilitychange', () => { if (!document.hidden) [100, 600].forEach(ms => setTimeout(fitHeight, ms)); });
 window.addEventListener('pageshow', () => setTimeout(fitHeight, 100));
@@ -4070,8 +4385,9 @@ function fitHeight() {
   const w = Math.round(window.innerWidth);
   if (w !== FIT.w) { FIT.w = w; FIT.best = 0; }   // rotated or resized: start over
   // the table never scrolls and a home-screen app has no toolbars, so at the same width a smaller height is a dropdown or
-  // the keyboard passing over (or iPhone reporting stale): keep the full height
-  h = Math.max(h, FIT.best);
+  // the keyboard passing over (or iPhone reporting stale): keep the full height. Touch screens only (Kennedy, Nov 10):
+  // on a laptop a shorter window at the same width is real (a panel opened below it), and keeping the old height cut the table off.
+  if (TOUCH_FIT) h = Math.max(h, FIT.best);
   FIT.best = h;
   // padding the page wrapper puts on the root (the home-screen build pads it by the top and bottom safe areas)
   const cs = getComputedStyle(document.documentElement);
@@ -4923,6 +5239,7 @@ function startGame() {
   G.T = { cards: G.names.map((n, p) => (p && GIRLS[n]) || null), levels: G.names.map((n, p) => (p ? (GIRLS[n] ? GIRLS[n].level : S.levels[p]) : 'hard')),
     humans: [0], totals: G.totals, target: S.target, mem: newTableMem(), helpSpare: G.helpSpare };
   recStart();
+  loadGirlRatings();
   if (G.debug) Object.assign(G.rec, { practice: true, debug: G.debug });   // debug games never count
   recSave();
   closeVeil();
@@ -4953,8 +5270,9 @@ function confirmPass() {
   if (!G || G.phase !== 'pass' || (G.passSel.size !== 3 && !G.theater)) return;
   const off = [1, 3, 2][G.dir];
   Object.assign(G.T, { hands: G.hands, dir: G.dir, known: G.known });
-  const passes = [0, 1, 2, 3].map(p => p === 0 && !G.theater ? [...G.passSel] : girlPass(G.T, p, G.hands[p]));
-  if (recHand()) { recHand().passes = passes.map(x => x.slice()); recSave(); }
+  const passWhy = [null, null, null, null];
+  const passes = [0, 1, 2, 3].map(p => { if (p === 0 && !G.theater) return [...G.passSel]; const x = girlPass(G.T, p, G.hands[p]); passWhy[p] = PASS_WHY; return x; });
+  if (recHand()) { recHand().passes = passes.map(x => x.slice()); recHand().passWhy = passWhy; recSave(); }
   SFX.play('whoosh');
   passes.forEach((ps, p) => ps.forEach(c => G.hands[p].splice(G.hands[p].indexOf(c), 1)));
   passes.forEach((ps, p) => {
@@ -5000,10 +5318,12 @@ function step(extra) {
       if (!G || G.phase !== 'play') return;
       const p = G.st.turn;
       G.T.known = G.known;
-      G.T.why = {}; G.T.last = {};
+      G.T.why = {}; G.T.last = {}; G.T.base = {};
+      const st0 = cloneSt(G.st), known = (G.known[p] || []).slice();
       const pick = girlPick(G.T, p, G.st);
-      G.lastWhy = G.T.why[p] || (G.T.last[p] != null ? { habit: G.T.last[p] } : { level: G.T.levels[p] });
+      const wy = G.lastWhy = whyOf(G.T, p);
       playCard(p, pick);
+      calcOdds(wy, st0, p, known);
     };
     const wait = (lv === 'genius' ? 520 : 640) + (extra || 0);
     if (G.theater) thGate(go, wait); else setTimeout(go, wait);
@@ -5332,6 +5652,7 @@ function handOf(p) { return G.st && G.phase !== 'pass' ? G.st.hands[p] : G.hands
 function render() {
   if (!G) return;
   renderRail(); renderPlates(); renderTrick(); renderStatus(); renderHand();
+  calcRefresh();
 }
 
 const ICON_ON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor" stroke="none"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>';
@@ -5349,6 +5670,8 @@ function renderRail() {
 
 function renderPlates() {
   G.bump0 = G.shown[0] !== G.drawnPts[0];
+  document.documentElement.classList.toggle('calc-tap', !!TH.live);
+  for (const p of [1, 2, 3]) { const el = $('plate' + p); el.onclick = TH.live ? () => { SFX.soft('tap'); calcFollow(p); } : null; el.classList.toggle('following', !!TH.live && CALC.open && CALC.follow === p); }
   for (const p of [1, 2, 3]) {
     const el = $('plate' + p);
     const v = G.shown[p];
@@ -5358,7 +5681,7 @@ function renderPlates() {
     const nm = nameOf(p);
     if (p) {
       el.classList.add('seat');
-      el.innerHTML = `${portraitHTML(nm, seatFlip(nm, el))}<div class="pinfo"><span class="nm">${esc(nm)}</span><span class="ph">CPU</span><span class="rule"></span><span class="pts"><b class="rp${v ? ' has' : ''}${bump ? ' bump' : ''}">${v}</b>this round</span>${G.debug && G.showAll ? peekHTML(p) : ''}</div>`;
+      el.innerHTML = `${portraitHTML(nm, seatFlip(nm, el))}<div class="pinfo"><span class="nm">${esc(nm)}</span><span class="ph">CPU${rateHTML(nm)}</span><span class="rule"></span><span class="pts"><b class="rp${v ? ' has' : ''}${bump ? ' bump' : ''}">${v}</b>this round</span>${(G.debug && G.showAll) || showHands() ? peekHTML(p) : ''}${showHands() ? takenHTML(p) : ''}</div>`;
       continue;
     }
     el.innerHTML = `<div class="whoc"><span class="nm">${esc(nm)}</span></div>
@@ -5381,8 +5704,8 @@ function renderTrick() {
 }
 
 function myChip() {
-  const me0 = voiceOf(0), sub = G.theater ? 'CPU' : (S.handle || 'You');
-  return `<span class="mechip" id="mechip">${portraitHTML(me0)}<span class="mi"><span class="mn">${esc(me0)}</span><span class="mh">${esc(sub)}</span><span class="mp"><b class="rp${G.shown[0] ? ' has' : ''}${G.bump0 ? ' bump' : ''}">${G.shown[0]}</b> this round</span></span></span>`;
+  const me0 = voiceOf(0), sub = G.me0 || (G.theater ? 'CPU' : (S.handle || 'You'));
+  return `<span class="mechip${TH.live && CALC.open && CALC.follow === 0 ? ' following' : ''}" id="mechip">${portraitHTML(me0)}<span class="mi"><span class="mn">${esc(me0)}</span><span class="mh">${esc(sub)}${!G.me0 && G.theater ? rateHTML(me0) : ''}${showHands() ? takenHTML(0) : ''}</span><span class="mp"><b class="rp${G.shown[0] ? ' has' : ''}${G.bump0 ? ' bump' : ''}">${G.shown[0]}</b> this round</span></span></span>`;
 }
 function renderStatus() {
   const el = $('status');
@@ -5716,7 +6039,8 @@ function showMenu() {
     <div class="field"><span class="lab">Table layout</span>${segHTML('mlayout', LAYOUTS, S.layout)}</div>
     <div class="field"><span class="lab">Sound effects</span>${segHTML('msound', [['on', 'On'], ['off', 'Off']], S.sound ? 'on' : 'off')}</div>
     <div class="field"><span class="lab">Haptics</span>${segHTML('mhaptics', [['on', 'On'], ['off', 'Off']], S.haptics ? 'on' : 'off')}</div>
-    <div class="foot">${TH.live ? 'Theater: leave and the girls finish this game on their own.' : `Your game saves as you play: refresh or close the page and you’ll come right back to it. Exit game ends it${G && G.rec && G.rec.practice ? '' : '. Leaving a rated game counts as a loss'}.`}</div>
+    ${TH.live ? `<div class="field"><span class="lab">Show hands and cards taken</span>${segHTML('mhands', [['on', 'On'], ['off', 'Off']], S.showHands ? 'on' : 'off')}</div>` : ''}
+    <div class="foot">${TH.live && TH.live.replayOnly ? 'A past game: step through it with the playback bar. Nothing here changes the game or anyone’s numbers.' : TH.live ? 'Theater: leave and the girls finish this game on their own.' : `Your game saves as you play: refresh or close the page and you’ll come right back to it. Exit game ends it${G && G.rec && G.rec.practice ? '' : '. Leaving a rated game counts as a loss'}.`}</div>
     ${ME ? `<button class="ghost" id="b-lb" type="button">Leaderboard</button><button class="ghost" id="b-mg" type="button">My games</button>` : ''}
     ${IS_ADMIN ? alertsHTML() : ''}
     ${G && G.debug ? `<div class="field dbg"><span class="lab">Debug <small>only you see this</small></span>
@@ -5725,12 +6049,13 @@ function showMenu() {
       <div class="sub">Seats</div><div class="dseats">${[1, 2, 3].map(p => `<label>${['', 'Your left', 'Across', 'Your right'][p]}<select data-seat="${p}">${[1, 2, 3].map(q => `<option value="${q}" ${q === p ? 'selected' : ''}>${esc(G.names[q])}</option>`).join('')}</select></label>`).join('')}</div>
       <button class="ghost" id="b-dfinal" type="button">Make this the final round</button>
       <div class="sub">Puts every score 1–4 points short of ${S.target}, so the first points anyone takes this round end the game.</div></div>` : ''}
-    <div class="btns"><button class="ghost" id="b-new">${TH.live ? 'Leave theater' : 'Exit game'}</button><button class="cta" id="b-keep">${TH.live ? 'Back to the show' : 'Back to game'}</button></div>
+    <div class="btns"><button class="ghost" id="b-new">${TH.live && TH.live.replayOnly ? 'Leave replay' : TH.live ? 'Leave theater' : 'Exit game'}</button><button class="cta" id="b-keep">${TH.live && TH.live.replayOnly ? 'Back to the replay' : TH.live ? 'Back to the show' : 'Back to game'}</button></div>
     ${ME ? `<div class="foot">Signed in as ${esc(acctName(ME))} · <button class="linkish" id="b-out" type="button">Sign out</button></div>` : ''}
   </div>`);
   $('veil').querySelectorAll('input[name="mlayout"]').forEach(r => r.onchange = () => { S.layout = r.value; applyLayout(); saveSettings(); render(); });
   $('veil').querySelectorAll('input[name="msound"]').forEach(r => r.onchange = () => { S.sound = r.value === 'on'; audioSessionMode(); if (S.sound) SFX.unlock(); saveSettings(); renderRail(); });
   $('veil').querySelectorAll('input[name="mhaptics"]').forEach(r => r.onchange = () => { S.haptics = r.value === 'on'; saveSettings(); if (S.haptics) haptic(12); });
+  $('veil').querySelectorAll('input[name="mhands"]').forEach(r => r.onchange = () => { S.showHands = r.value === 'on'; saveSettings(); render(); });
   $('b-keep').onclick = closeVeil;
   $('veil').querySelectorAll('input[name="dauto"]').forEach(r => r.onchange = () => { G.autoMe = r.value === 'on'; saveGame(); });
   $('veil').querySelectorAll('input[name="dpeek"]').forEach(r => r.onchange = () => { G.showAll = r.value === 'on'; saveGame(); render(); });
@@ -5741,6 +6066,7 @@ function showMenu() {
   if (IS_ADMIN) wireAlerts();
   // Kennedy, Nov 8: leaving a rated game counts as a loss, so warn first (practice games just end)
   $('b-new').onclick = () => {
+    if (TH.live && TH.live.replayOnly) { leavePastGame(); return; }
     if (TH.live) {
       if (TH.live.phase === 'over') { thLeave(); showSetup(); return; }
       openVeil(`<div class="panel" role="dialog" aria-label="Leave the theater">
@@ -5760,7 +6086,7 @@ function showMenu() {
     $('b-exit-no').onclick = closeVeil;
     $('b-exit-yes').onclick = () => { if (G && G.rec) { G.rec.quit = new Date().toISOString(); recSave(); } clearSave(); G = null; showSetup(); };   // counts as a loss right away
   };
-  if ($('b-out')) $('b-out').onclick = async () => { if (TH.live) thExit(); try { await sb.auth.signOut(); } catch (e) {} ME = null; G = null; showSignIn(); };
+  if ($('b-out')) $('b-out').onclick = async () => { if (TH.live && TH.live.replayOnly) thLeave(); else if (TH.live) thExit(); try { await sb.auth.signOut(); } catch (e) {} ME = null; G = null; showSignIn(); };
 }
 
 // Kennedy, Nov 9: after a game, Play again confirms before starting another rated game (practice and debug just start)
@@ -5774,6 +6100,35 @@ function playAgain(back) {
   $('b-pa-back').onclick = back;
   $('b-pa-prac').onclick = () => { S.practice = true; try { saveSettings(); } catch (e) {} startGame(); };
   $('b-pa-go').onclick = startGame;
+}
+
+// ---------- why a computer girl made her move (recorded in every game; the Calculating panel reads it) ----------
+// psychic girls: {psychic, rate, runs, opts: [[card, her pts, humans' pts, other girls' pts]]};
+// the others: {habit | level, base: her base brain's reason, target?: the seat a grudge/leader habit aimed at}, plus
+// opts: [[card, her expected pts]] and n (deals sampled), filled in just after the card lands (calcOdds).
+function whyOf(T, p) {
+  if (T.why && T.why[p]) return T.why[p];
+  const w = T.last && T.last[p] != null ? { habit: T.last[p] } : { level: T.levels[p] };
+  if (T.base && T.base[p] != null) w.base = T.base[p];
+  if (T.base && T.base['t' + p] >= 0) w.target = T.base['t' + p];
+  return w;
+}
+// Her expected points for every legal card, judged only on what she could know (evalCards samples the hidden hands).
+// Runs after the card has landed, so the game's pace never changes; fewer samples on phones.
+const ODDS_N = TOUCH_FIT ? 30 : 60;
+function calcOdds(wy, st0, p, known) {
+  if (!wy || wy.psychic) return;
+  const L = legalFor(st0, p);
+  if (L.length < 2) return;
+  setTimeout(() => {
+    try {
+      const r = evalCards(st0, p, known, L, ODDS_N, true);
+      if (!r) return;
+      wy.opts = L.map(c => [c, +r.get(c).own.toFixed(2)]);
+      wy.n = r.get(L[0]).runs;
+      calcRefresh();
+    } catch (e) {}
+  }, 60);
 }
 
 // ---------- Theater (Kennedy, Nov 9, 2026) ----------
@@ -5833,7 +6188,7 @@ function thStateAt(hi, n) {
   const table = rh.plays.slice(Math.floor(n / 4) * 4, n).map(([p, c]) => ({ p, c }));
   const before = hi ? (rec.hands[hi - 1].totals || [0, 0, 0, 0]) : [0, 0, 0, 0];
   const totals = (n === rh.plays.length && n === 52 && rh.totals ? rh.totals : before).slice();
-  return { replay: true, theater: true, names: rec.names.slice(), totals, handNo: hi, hands, dir: rh.dir, st, table, phase: 'play',
+  return { replay: true, theater: true, me0: TH.live.replayOnly && !rec.theater ? (rec.handle || 'You') : null, names: rec.names.slice(), totals, handNo: hi, hands, dir: rh.dir, st, table, phase: 'play',
     busy: false, wonBy: null, sel: null, passSel: new Set(), received: n === 0 ? received : new Set(), known: [[], [], [], []],
     shown: st.pts.slice(), drawnPts: st.pts.slice(), popBroken: false, T: TH.live.T };
 }
@@ -5851,6 +6206,13 @@ function thJump(k) {
   render();
 }
 function thToLive(play) {
+  if (TH.live && TH.live.replayOnly) {   // a past game: the end of the record is the end; nothing live to hand back to
+    thCancel(); TH.mode = 'replay'; TH.paused = true; TH.animating = false;
+    TH.list = thList(); TH.pos = TH.list.length - 1;
+    closeVeil(); $('trick').innerHTML = '';
+    G = thStateAt(...TH.list[TH.pos]); render(); thBar();
+    return;
+  }
   thCancel();
   TH.mode = 'live';
   G = TH.live;
@@ -5991,20 +6353,21 @@ const TH_IC = {
 };
 function thBarHTML() {
   if (!TH.live) return '';
-  const L = thList().length - 1, rep = TH.mode === 'replay', at = rep ? TH.pos : L;
+  const L = thList().length - 1, rep = TH.mode === 'replay', at = rep ? TH.pos : L, past = !!TH.live.replayOnly;
   const playing = !TH.paused, canBack = at > 0 && !TH.waiting, canFwd = rep && at < L;
   const [hi, n] = rep ? (TH.list[TH.pos] || [0, 0]) : [0, 0];
-  const tag = TH.waiting ? 'Pausing…' : rep ? `Replay · round ${hi + 1}${n ? ` · trick ${Math.min(13, Math.floor((n - 1) / 4) + 1)}` : ''}` : (TH.paused ? 'Paused' : 'Live');
+  const tag = TH.waiting ? 'Pausing…' : rep ? `${past ? 'Past game' : 'Replay'} · round ${hi + 1}${n ? ` · trick ${Math.min(13, Math.floor((n - 1) / 4) + 1)}` : ''}` : (TH.paused ? 'Paused' : 'Live');
   const b = (id, ic, label, on) => `<button type="button" class="thb" data-th="${id}" aria-label="${label}" ${on ? '' : 'disabled'}>${ic}</button>`;
   return `<div class="thbar${rep ? ' rep' : ''}" role="toolbar" aria-label="Playback">
     ${b('start', TH_IC.start, 'Back to the start', canBack)}${b('back', TH_IC.back, 'Back one move', canBack)}
     <button type="button" class="thb play" data-th="play" aria-label="${playing ? 'Pause' : 'Play'}" ${TH.waiting ? 'disabled' : ''}>${playing ? TH_IC.pause : TH_IC.play}</button>
-    ${b('fwd', TH_IC.fwd, 'Forward one move', canFwd)}${b('end', TH_IC.end, 'Back to where you left off', rep)}
-    <span class="thtag${rep ? ' rep' : !TH.paused && !TH.waiting ? ' live' : ''}">${tag}</span></div>`;
+    ${b('fwd', TH_IC.fwd, 'Forward one move', canFwd)}${b('end', TH_IC.end, past ? 'To the end' : 'Back to where you left off', rep && (!past || at < L))}
+    <span class="thtag${rep ? ' rep' : !TH.paused && !TH.waiting ? ' live' : ''}">${tag}</span>
+    <button type="button" class="thb calcb" data-th="calc" aria-pressed="${CALC.open}">Calculating</button></div>`;
 }
 // the bar can show twice (under the table and on a score panel), so buttons are wired by data-th, not id
 function thWire() {
-  const act = { start: thStart, back: thBack, play: thPlayPause, fwd: thFwd, end: thEnd };
+  const act = { start: thStart, back: thBack, play: thPlayPause, fwd: thFwd, end: thEnd, calc: calcToggle };
   document.querySelectorAll('[data-th]').forEach(el => { el.onclick = e => { e.stopPropagation(); SFX.soft('tap'); act[el.dataset.th](); }; });
 }
 function thBar() {
@@ -6027,7 +6390,253 @@ function thStatus(el) {
   el.innerHTML = `<div class="row">${myChip()}${pills}</div>${msg ? `<div class="msg">${msg}</div>` : ''}${thBarHTML()}`;
   G.popBroken = false;
   thWire();
+  if ($('mechip')) $('mechip').onclick = () => { SFX.soft('tap'); calcFollow(0); };
 }
+
+
+// ---------- Calculating (Kennedy, Nov 10, 2026): the thinking panel for Theater and past games ----------
+// Shows the move on screen (live, or wherever the playback bar stands): who moved, what, why in plain English (think.js),
+// every legal card with her expected points (picked and best marked), and your verdict + note, saved with the game in
+// rec.tags["<hand>:<play>"] or rec.tags["<hand>:p<seat>"] for a pass. Wide screens: a side panel; phones: a sheet.
+// Closed by default; remembers whether you left it open (localStorage hb-calc) and the sheet's height (hb-calc-h).
+const CALC = { open: false, high: false, sig: '', key: null, follow: null };   // follow: a seat whose decisions the panel sticks to
+try { CALC.open = localStorage.getItem('hb-calc') === '1'; CALC.high = localStorage.getItem('hb-calc-h') === 'high'; } catch (e) {}
+const CALC_V = [['brilliant', 'Brilliant'], ['good', 'Good'], ['meh', 'Not ideal'], ['blunder', 'Blunder']];
+// side panel on wide screens; also on short landscape phones (iPhone Duo folded sideways, ~678×466 est.), where a
+// sheet would cover the playback bar; the sheet on portrait phones (iPhone, Duo folded 466×678, Duo unfolded upright 626×890)
+const calcShortLand = () => innerWidth > innerHeight && innerHeight < 560 && innerWidth >= 640;
+const calcSide = () => innerWidth >= 744 || calcShortLand();
+const calcOn = () => CALC.open && !!TH.live;
+function calcToggle() {
+  CALC.open = !CALC.open; CALC.sig = '';
+  try { localStorage.setItem('hb-calc', CALC.open ? '1' : '0'); } catch (e) {}
+  calcLayout(); thBar(); if (G) render();
+}
+// where the panel sits, and how much room the table keeps
+function calcLayout() {
+  const root = document.documentElement, on = calcOn(), side = on && calcSide(), sheet = on && !side;
+  root.classList.toggle('calc-side', side);
+  root.classList.toggle('calc-slim', side && innerWidth < 744);
+  // beside the panel the table needs ~640px to lay out; with less, the whole game shrinks evenly instead of crushing
+  const cw = side ? parseFloat(getComputedStyle(root).getPropertyValue('--calc-w')) || 300 : 0, az = side ? Math.max(0.6, Math.min(1, (innerWidth - cw) / 640)) : 1;
+  root.classList.toggle('calc-zoom', az < 0.999);
+  root.style.setProperty('--calc-az', az.toFixed(3));
+  root.classList.toggle('calc-sheet', sheet);
+  root.classList.toggle('calc-high', sheet && CALC.high);
+  $('calc').hidden = !on;
+  if (sheet) {
+    // lowered: just over the bottom girl's hand; raised: ~38% of the screen, the table zoomed down just enough to fit above it
+    root.classList.remove('calc-sheet', 'calc-high');
+    const handH = $('hand').offsetHeight || 160, tbl = document.querySelector('#app .table'), tblH = (tbl && tbl.offsetHeight) || 400;
+    root.classList.add('calc-sheet');
+    const low = Math.max(150, handH + 8), h = CALC.high ? Math.round(Math.max(low + 60, innerHeight * 0.38)) : low;
+    root.style.setProperty('--sheet-h', h + 'px');
+    root.style.setProperty('--calc-z', Math.max(0.5, Math.min(1, (tblH - (h - handH)) / tblH)).toFixed(3));
+    root.classList.toggle('calc-high', CALC.high);
+  } else { root.style.removeProperty('--sheet-h'); root.style.removeProperty('--calc-z'); }
+}
+addEventListener('resize', () => { if (calcOn()) { calcLayout(); if (G) render(); } });
+// the position on screen → which move to explain
+function calcPos() {
+  if (!TH.live || !TH.live.rec) return null;
+  const list = thList();
+  let k = TH.mode === 'replay' ? TH.pos : list.length - 1;
+  if (TH.mode === 'replay' && TH.animating) k = Math.min(k + 1, list.length - 1);
+  const [hi, n] = list[k] || [0, 0];
+  if (CALC.follow == null) return { hi, n };
+  // following one girl (Kennedy, Nov 10: tap a girl to watch her Calculations): her latest decision up to here
+  const rec = TH.live.rec, f = CALC.follow;
+  for (let h = hi; h >= 0; h--) {
+    const rh = rec.hands[h];
+    if (!rh) continue;
+    const top = h === hi ? n : rh.plays.length;
+    for (let i = top - 1; i >= 0; i--) if (rh.plays[i][0] === f) return { hi: h, n: i + 1 };
+    if (rh.passes && rh.dir !== 3) return { hi: h, n: 0 };
+    if (h === hi && (!rh.passes && rh.dir !== 3)) return { hi: h, n: 0 };
+  }
+  return { hi, n: 0 };
+}
+function calcFollow(p) {
+  CALC.follow = CALC.follow === p ? null : p; CALC.sig = '';
+  if (!CALC.open) { calcToggle(); return; }
+  if (G) render();
+}
+const calcCard = (c, sm) => `<span class="cc${sm ? ' sm' : ''}${suit(c) === 3 || suit(c) === 1 ? ' r' : suit(c) === 0 ? ' g' : ''}">${tkCard(c)}</span>`;
+const calcPic = nm => portraitHTML(nm);
+function calcVerdictHTML(key) {
+  const t = (TH.live.rec.tags || {})[key] || {};
+  return `<div class="lab">Your verdict</div><div class="vbs">${CALC_V.map(([v, l]) => `<button type="button" class="vb" data-v="${v}" data-key="${key}" aria-pressed="${t.v === v}">${l}</button>`).join('')}</div>
+    <input class="cnote" type="text" maxlength="140" data-key="${key}" placeholder="Add a short note (optional)" value="${esc(t.note || '')}" aria-label="Note">`;
+}
+function calcMoveHTML(rec, hi, m) {
+  const x = thinkMove(rec, hi, m, rec.names), P = tkPro(x.who), rh = rec.hands[hi];
+  const nm = x.human ? (rec.handle || 'You') : x.who;
+  let h = `<div class="who">${calcPic(x.who)}<div class="t"><div class="h">${esc(nm)} played ${calcCard(x.c)}</div><div class="s">Round ${x.round} · trick ${x.trick} · ${x.place}</div></div>${x.tag ? `<span class="ctag">${esc(x.tag)}</span>` : ''}</div>`;
+  if (x.reason) h += `<p class="why">“${esc(x.reason)}”</p>`;
+  if (x.opts.length > 1) {
+    h += `<div class="lab">Every card ${x.human ? 'you' : P.she} could play<i>${x.human ? 'expected points' : P.hers + ' expected points'}</i></div>`
+      + x.opts.map(o => `<div class="opt${o.picked ? ' picked' : ''}${o.best ? ' best' : ''}">${calcCard(o.c)}${o.picked ? '<span class="mk p">Picked</span>' : ''}${o.best ? '<span class="mk b">Best</span>' : ''}<b>${o.own.toFixed(1)}</b></div>`).join('');
+    h += `<div class="note">${x.basis === 'psychic' ? '' : `From ${x.runs || 'a few dozen'} imagined deals, using only what ${x.who} could know. `}Points ${x.human ? 'you' : P.she} would take from here to the end of the round.</div>`;
+  } else if (x.legal.length > 1) {
+    const auto = rec.auto && hi >= rec.auto.hand;
+    h += `<div class="lab">Every card ${x.human ? 'you' : P.she} could play</div><div class="opt" style="flex-wrap:wrap">${x.legal.map(c => calcCard(c, true)).join(' ')}</div>`
+      + `<div class="note">${x.human ? 'No odds for your own moves yet.' : auto ? 'Played out while nobody was watching, so no card-by-card odds.' : (rh.plays[m][3] && !rh.plays[m][3].psychic && TH.mode !== 'replay' && hi === rec.hands.length - 1 && m === rh.plays.length - 1) ? 'Working out the odds…' : 'No card-by-card odds recorded for this move.'}</div>`;
+  }
+  return h + calcVerdictHTML(`${hi}:${m}`);
+}
+function calcPassHTML(rec, hi) {
+  const rh = rec.hands[hi];
+  if (rh.dir === 3) return `<div class="empty">Round ${hi + 1}: a hold round, nobody passes.</div>`;
+  if (!rh.passes) return `<div class="empty">Round ${hi + 1}: passing ${['left', 'right', 'across'][rh.dir]}…</div>`;
+  return [0, 1, 2, 3].filter(p => CALC.follow == null || p === CALC.follow).map(p => {
+    const x = thinkPass(rec, hi, p, rec.names);
+    if (!x) return '';
+    const nm = x.human ? (rec.handle || 'You') : x.who;
+    return `<div class="pass"><div class="who">${calcPic(x.who)}<div class="t"><div class="h">${esc(nm)} passed ${x.dir} to ${esc(x.to)}</div><div class="s">Round ${x.round} · the pass</div></div>${x.tag ? `<span class="ctag">${esc(x.tag)}</span>` : ''}</div>`
+      + `<div style="margin-top:8px">${x.cards.map(y => `<div class="pcard">${calcCard(y.c)}<span>${y.why ? '“' + esc(y.why) + '”' : ''}</span></div>`).join('')}</div>`
+      + (x.summary ? `<p class="why" style="font-size:14.5px">“${esc(x.summary)}”</p>` : '')
+      + calcVerdictHTML(`${hi}:p${p}`) + `</div>`;
+  }).join('');
+}
+// every tagged move in this game, in game order; tap one to jump there
+function calcTagsHTML(rec, cur) {
+  const tags = rec.tags || {}, keys = Object.keys(tags).filter(k => tags[k] && tags[k].v);
+  const ord = k => { const [h, r] = k.split(':'); return +h * 100 + (r[0] === 'p' ? -1 + +r.slice(1) / 10 : +r); };
+  keys.sort((a, b) => ord(a) - ord(b));
+  if (!keys.length) return '';
+  const lab = Object.fromEntries(CALC_V);
+  return `<div class="lab">Tagged in this game · ${keys.length}</div><div class="tags">${keys.map(k => {
+    const [h, r] = k.split(':'), rh = rec.hands[+h], t = tags[k];
+    if (!rh) return '';
+    const isPass = r[0] === 'p', seat = isPass ? +r.slice(1) : (rh.plays[+r] || [])[0], card = isPass ? null : (rh.plays[+r] || [])[1];
+    const where = isPass ? `R${+h + 1} · pass` : `R${+h + 1} · T${Math.floor(+r / 4) + 1}`;
+    const nm = !rec.theater && seat === 0 ? (rec.handle || 'You') : rec.names[seat];
+    return `<button type="button" class="trow${k === cur ? ' on' : ''}" data-jump="${k}"><span class="vt ${t.v}">${lab[t.v] || t.v}</span><span>${esc(where)}</span><span>${esc(nm || '')}</span>${card != null ? calcCard(card, true) : ''}<span class="tn">${esc(t.note || '')}</span></button>`;
+  }).join('')}</div>`;
+}
+function calcRefresh() {
+  const el = $('calc');
+  if (!el) return;
+  if (!calcOn()) { if (!el.hidden || document.documentElement.classList.contains('calc-side') || document.documentElement.classList.contains('calc-sheet')) calcLayout(); return; }
+  if (el.hidden) calcLayout();
+  const pos = calcPos(); if (!pos) return;
+  const rec = TH.live.rec, rh = rec.hands[pos.hi];
+  if (!rh) return;
+  const m = pos.n - 1, key = m >= 0 ? `${pos.hi}:${m}` : `${pos.hi}:pass`;
+  const w = m >= 0 && rh.plays[m] ? rh.plays[m][3] : null;
+  const sig = key + '|' + CALC.follow + '|' + JSON.stringify(rec.tags || {}) + '|' + (w && w.opts ? w.opts.length : 0) + '|' + (rh.passes ? 1 : 0) + '|' + calcSide();
+  const typing = document.activeElement && document.activeElement.classList.contains('cnote') && el.contains(document.activeElement);
+  if (sig === CALC.sig || (typing && key === CALC.key)) return;
+  CALC.sig = sig; CALC.key = key;
+  const top = el.querySelector('.cbody') ? el.querySelector('.cbody').scrollTop : 0;
+  const body = m >= 0 ? calcMoveHTML(rec, pos.hi, m) : calcPassHTML(rec, pos.hi);
+  el.innerHTML = `<button type="button" class="grab" aria-label="${CALC.high ? 'Lower' : 'Raise'} the Calculating sheet"><span></span></button>
+    <div class="chead"><span class="ctitle">Calculating</span><button type="button" class="cx" aria-label="Close Calculating"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="cbody">${CALC.follow != null ? `<div class="cfol">Following ${esc(rec.names[CALC.follow])}<button type="button" class="linkbtn" id="calc-all">Show every move</button></div>` : `<div class="cfol dim">Tap a girl to follow just her</div>`}${body}${calcTagsHTML(rec, m >= 0 ? key : null)}</div>`;
+  if (key === CALC.lastKey) el.querySelector('.cbody').scrollTop = top;
+  CALC.lastKey = key;
+  calcWire(el);
+}
+function calcWire(el) {
+  el.querySelector('.cx').onclick = () => { SFX.soft('tap'); calcToggle(); };
+  if (el.querySelector('#calc-all')) el.querySelector('#calc-all').onclick = () => { SFX.soft('tap'); calcFollow(CALC.follow); };
+  el.querySelectorAll('.vb').forEach(b => b.onclick = () => {
+    SFX.soft('tap');
+    const t = calcTag(b.dataset.key);
+    t.v = t.v === b.dataset.v ? null : b.dataset.v; t.at = new Date().toISOString();
+    calcTagSave(b.dataset.key);
+  });
+  el.querySelectorAll('.cnote').forEach(inp => {
+    const done = () => { const t = calcTag(inp.dataset.key); if ((t.note || '') === inp.value.trim()) return; t.note = inp.value.trim(); t.at = new Date().toISOString(); calcTagSave(inp.dataset.key); };
+    inp.onchange = done; inp.onblur = done;
+    inp.onkeydown = e => { e.stopPropagation(); if (e.key === 'Enter') inp.blur(); };
+  });
+  el.querySelectorAll('[data-jump]').forEach(b => b.onclick = () => { SFX.soft('tap'); calcJump(b.dataset.jump); });
+  // the sheet's handle: tap to raise or lower, or drag it
+  const g = el.querySelector('.grab');
+  if (g) {
+    let y0 = null, moved = false;
+    g.onpointerdown = e => { y0 = e.clientY; moved = false; try { g.setPointerCapture(e.pointerId); } catch (err) {} };
+    g.onpointermove = e => { if (y0 != null && Math.abs(e.clientY - y0) > 12) moved = true; };
+    g.onpointerup = e => {
+      if (y0 == null) return;
+      const dy = e.clientY - y0; y0 = null;
+      const high = moved ? dy < 0 : !CALC.high;
+      if (high === CALC.high) return;
+      CALC.high = high; CALC.sig = '';
+      try { localStorage.setItem('hb-calc-h', high ? 'high' : 'low'); } catch (err) {}
+      calcLayout(); if (G) render();
+    };
+  }
+}
+function calcTag(key) { const rec = TH.live.rec; rec.tags = rec.tags || {}; return (rec.tags[key] = rec.tags[key] || {}); }
+// tags live in the game's own record (data.tags); hb-leaders and the stats never read them
+function calcTagSave(key) {
+  const rec = TH.live.rec, t = rec.tags[key];
+  if (t && !t.v && !t.note) delete rec.tags[key];
+  CALC.sig = ''; calcRefresh();
+  if (TH.live.replayOnly) {
+    if (!sb || !TH.live.table || !TH.live.canWrite) return;
+    sb.from(TH.live.table).update({ data: rec }).eq('id', rec.id).then(() => {}, () => {});
+    return;
+  }
+  const g = G; G = TH.live; try { recSave(); saveGame(); } finally { G = g; }
+}
+function calcJump(key) {
+  const [h, r] = key.split(':'), hi = +h, n = r[0] === 'p' ? 0 : +r + 1;
+  thWhenParked(() => { TH.list = thList(); const k = TH.list.findIndex(([a, b]) => a === hi && b === n); if (k >= 0) { TH.paused = true; thJump(k); thBar(); } });
+}
+
+// ---------- the girls' ratings on their plates (Kennedy, Nov 10): loaded when a game starts; signed out shows nothing ----------
+let GIRL_RATE = null;   // name → rating, or null (provisional / no games yet → "New")
+async function loadGirlRatings() {
+  if (!sb || !ME) { GIRL_RATE = null; return; }
+  try {
+    const j = await loadLeaders(true);
+    const m = {};
+    for (const g of j.girls || []) m[g.name] = g.sum && g.sum.rating != null && !g.sum.provisional ? g.sum.rating : null;
+    GIRL_RATE = m;
+    if (G) render();
+  } catch (e) {}
+}
+const rateHTML = nm => { if (!ME || !GIRL_RATE) return ''; const r = GIRL_RATE[nm]; return ` · <span class="rt">${r != null ? Math.round(r) : 'New'}</span>`; };
+
+// ---------- Show hands (Kennedy, Nov 10): each girl's cards in hand and what she's taken, in Theater and past games ----------
+const showHands = () => !!(S.showHands && TH.live && G && G.theater);
+function takenHTML(p) {
+  const rec = TH.live && TH.live.rec;
+  if (!rec || !G.st) return '';
+  const hi = G.replay ? G.handNo : rec.hands.length - 1, rh = rec.hands[hi];
+  if (!rh) return '';
+  const n = 52 - G.st.hands.reduce((a, h) => a + h.length, 0);
+  const t = tkTaken(rh, n)[p];
+  return `<div class="peek taken"><span class="tl">Taken${t.tricks ? ` · ${t.tricks} trick${t.tricks === 1 ? '' : 's'}` : ''}</span>${t.cards.length ? t.cards.map(c => `<span class="${suit(c) === 3 ? 'r' : ''}">${tkCard(c)}</span>`).join(' ') : '<span>nothing</span>'}</div>`;
+}
+
+// ---------- past games (Kennedy, Nov 10: "I should be able to replay any game that ever happened") ----------
+// Opens a recorded game (yours, Theater or regular, practice included; never debug) on the table with the playback
+// bar and Calculating, from the deal of round 1. Nothing is played or recorded; tags save into that game's row.
+function openPastGame(row, table, back) {
+  const rec = row.data;
+  if (!rec || !rec.hands || !rec.hands.length || rec.debug) return;
+  thCancel();
+  if (TH.live && !TH.live.replayOnly) return;
+  rec.names = rec.names.map(renamed);
+  const T = { cards: rec.names.map((n, p) => ((rec.theater || p) && GIRLS[n]) || null), levels: rec.names.map(n => (GIRLS[n] ? GIRLS[n].level : 'medium')),
+    humans: rec.theater ? [] : [0], totals: [0, 0, 0, 0], mem: newTableMem() };
+  TH.live = { rec, T, names: rec.names, theater: true, replayOnly: true, phase: 'over', table, canWrite: !!ME && row.user_id === ME.id, back };
+  Object.assign(TH, { paused: true, mode: 'replay', parked: null, pos: 0, list: thList(), animating: false, waiting: false, final: null, endDone: true });
+  closeVeil();
+  loadGirlRatings();
+  thJump(0);
+  thBar();
+}
+function leavePastGame() {
+  thLeave(); calcLayout();
+  showSetup();
+  if (ME) showMyGames(showSetup);   // back to the list it came from
+}
+const pastGameOK = () => !(G && G.rec && G.phase !== 'over' && !G.replay) && !(TH.live && !TH.live.replayOnly);
 
 // ---------- score screens ----------
 function thScoreSheet({ head, sub, moonLine, react, rows, over }) {
@@ -6059,6 +6668,7 @@ function startTheater(names) {
   G.T = { cards: names.map(n => GIRLS[n] || null), levels: names.map(n => (GIRLS[n] ? GIRLS[n].level : 'medium')),
     humans: [], totals: G.totals, target: S.target, mem: newTableMem(), helpSpare: 1.5 };
   recStart();
+  loadGirlRatings();
   Object.assign(G.rec, { theater: true, me: names[0], handle: '', practice: false });
   Object.assign(TH, { live: G, paused: false, mode: 'live', parked: null, pos: 0, list: [], animating: false, waiting: false, final: null, endDone: false });
   recSave();
@@ -6066,7 +6676,7 @@ function startTheater(names) {
   newHand();
 }
 // forget the theater game on screen (it was finished, or is being finished off in the background)
-function thLeave() { thCancel(); TH.seq++; TH.live = null; TH.mode = 'live'; TH.parked = null; TH.final = null; if (G && G.theater) G = null; try { localStorage.removeItem(TH_SAVE); } catch (e) {} }
+function thLeave() { thCancel(); TH.seq++; TH.live = null; CALC.sig = ''; CALC.follow = null; setTimeout(calcLayout, 0); TH.mode = 'live'; TH.parked = null; TH.final = null; if (G && G.theater) G = null; try { localStorage.removeItem(TH_SAVE); } catch (e) {} }
 // Exit in the middle of a theater game: the girls finish it on their own and it still counts (Kennedy, Nov 9)
 function thExit() {
   const g = TH.live;
@@ -6099,7 +6709,7 @@ async function thRunOut(rec, mem, target) {
     const hands = rh.deal.map(h => h.slice()), known = [[], [], [], []];
     Object.assign(T, { dir: rh.dir, hands, known });
     if (rh.dir !== 3) {
-      if (!rh.passes) rh.passes = [0, 1, 2, 3].map(p => girlPass(T, p, hands[p]).slice());
+      if (!rh.passes) { rh.passWhy = []; rh.passes = [0, 1, 2, 3].map(p => { const x = girlPass(T, p, hands[p]).slice(); rh.passWhy[p] = PASS_WHY; return x; }); }
       const off = [1, 3, 2][rh.dir];
       rh.passes.forEach((ps, p) => ps.forEach(c => hands[p].splice(hands[p].indexOf(c), 1)));
       rh.passes.forEach((ps, p) => ps.forEach(c => { hands[(p + off) % 4].push(c); known[p].push({ c, q: (p + off) % 4 }); }));
@@ -6109,10 +6719,10 @@ async function thRunOut(rec, mem, target) {
     for (const pl of rh.plays) { doPlay(st, pl[0], pl[1]); ms = Math.max(ms, pl[2] || 0); }
     while (st.trickNo < 13) {
       const p = st.turn;
-      T.why = {}; T.last = {};
+      T.why = {}; T.last = {}; T.base = {};
       const c = girlPick(T, p, st);
       ms += 700;
-      rh.plays.push([p, c, ms, T.why[p] || (T.last[p] != null ? { habit: T.last[p] } : { level: T.levels[p] })]);
+      rh.plays.push([p, c, ms, whyOf(T, p)]);   // no card-by-card odds here: nobody is watching, so it plays out fast
       const res = doPlay(st, p, c);
       if (res) girlsAfterTrick(T, res);
     }

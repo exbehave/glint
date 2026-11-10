@@ -8,6 +8,7 @@
 //      the winner stays "still in the house"). Her win line and the win sound land on the finale's big moment.
 // For now it doesn't depend on who wins (Kennedy): you winning and a girl winning look the same.
 const HLE = { SPIN: 0.35, FIRST: 1.7, STEP: 0.55, JACK: 0.15, TO_FIN: 1.4, CLIMAX: 1.7, HOLD: 2.6 };
+let HLE_REEL = 2;   // reel window style (Kennedy, Nov 9, picked Neon tube, a tinge brighter): 0 original white, 1 Bubblegum, 2 Neon tube, 3 Pink chrome, 4 Hearts
 const HLE_NAMES = ['Crowning', 'Reunion roll call', 'Pack your bags'];
 function hlEndPick(rec) {   // the same finale every time this game is shown
   const s = String(rec.id || rec.started || '');
@@ -136,8 +137,22 @@ function hlSlot(g, W, H, rec, seg, t, U, K) {
     // the reel window
     const wx = x0 + cw - slotW - 4 * U, wy = y + rh * 0.16, wh = rh * 0.68;
     g.save();
-    const glass = g.createLinearGradient(0, wy, 0, wy + wh); glass.addColorStop(0, '#1a0616'); glass.addColorStop(0.5, '#fff7fb'); glass.addColorStop(1, '#1a0616');
-    g.beginPath(); g.roundRect(wx, wy, slotW, wh, 1.6 * U); g.fillStyle = '#f9eef4'; g.fill(); g.clip();
+    const R = 1.6 * U, sty = HLE_REEL;
+    g.beginPath(); g.roundRect(wx, wy, slotW, wh, R);
+    // the window's face, by style (Kennedy, Nov 9: zhuzh up the plain white bars; options 1–4, 0 = the original)
+    if (sty === 1) {        // Bubblegum: glossy pink candy
+      const f = g.createLinearGradient(0, wy, 0, wy + wh); f.addColorStop(0, '#ff9cc6'); f.addColorStop(0.5, '#ffd6e8'); f.addColorStop(1, '#ff7ab3'); g.fillStyle = f;
+    } else if (sty === 2) { // Neon tube: dark glass, glowing pink numbers
+      const f = g.createLinearGradient(0, wy, 0, wy + wh); f.addColorStop(0, '#1e0619'); f.addColorStop(0.5, '#3d1036'); f.addColorStop(1, '#1e0619'); g.fillStyle = f;
+    } else if (sty === 3) { // Pink chrome: a metal drum, banded like a real reel
+      const f = g.createLinearGradient(0, wy, 0, wy + wh);
+      [[0, '#7a2a55'], [0.18, '#f7a8cb'], [0.38, '#ffe8f2'], [0.5, '#ffffff'], [0.62, '#ffd0e4'], [0.82, '#e0789f'], [1, '#6b2049']].forEach(([o, c]) => f.addColorStop(o, c)); g.fillStyle = f;
+    } else if (sty === 4) { // Hearts: soft pink with a faint devil-heart pattern, white numbers outlined in plum
+      g.fillStyle = '#ffc2dc';
+    } else g.fillStyle = '#f9eef4';
+    g.fill(); g.clip();
+    if (sty === 4) { const hs = wh * 0.32; for (let yy = wy - hs; yy < wy + wh + hs; yy += hs * 1.1) for (let xx = wx; xx < wx + slotW + hs; xx += hs * 1.2) hlSuit(g, 3, xx + ((Math.round((yy - wy) / hs) % 2) ? hs * 0.6 : 0), yy, hs * 0.7, 'rgba(255,61,142,.22)'); }
+    if (sty === 1) { g.fillStyle = 'rgba(255,255,255,.45)'; g.beginPath(); g.roundRect(wx + slotW * 0.06, wy + wh * 0.08, slotW * 0.88, wh * 0.16, wh * 0.08); g.fill(); }
     // where the strip is: spins fast, eases into its number, bumps once
     const st = seg.spinAt, sp = seg.stops[p], S = 26 + row * 6;
     let pos;
@@ -148,15 +163,26 @@ function hlSlot(g, W, H, rec, seg, t, U, K) {
     const rnd = i => { const h = Math.imul((i + 7) * 2654435761, (p + 3) * 40503) >>> 0; return (h % 152) - 26; };
     g.textAlign = 'center'; g.font = HL_FONT(800, wh * 0.62);
     for (let k = -1; k <= 1; k++) {
-      const i = base + k, yy = wy + wh / 2 + (k - frac) * wh * 0.85;
-      g.fillStyle = i === 0 ? (lit ? '#ff1f7a' : '#2a0d24') : 'rgba(42,13,36,.75)';
-      g.fillText(hlNum(i === 0 ? tot[p] : rnd(i)), wx + slotW / 2, yy + wh * 0.04);
+      const i = base + k, yy = wy + wh / 2 + (k - frac) * wh * 0.85, final = i === 0, txt = hlNum(final ? tot[p] : rnd(i)), tx = wx + slotW / 2, ty = yy + wh * 0.04;
+      if (sty === 2) {
+        g.save(); g.shadowColor = '#ff4f9a'; g.shadowBlur = (final && lit ? 3 : 2) * U;
+        g.fillStyle = final ? (lit ? '#ffffff' : '#ffb3d6') : 'rgba(255,170,210,.7)'; g.fillText(txt, tx, ty); g.fillText(txt, tx, ty); g.restore();
+      } else if (sty === 4) {
+        g.lineJoin = 'round'; g.lineWidth = wh * 0.1; g.strokeStyle = final && lit ? '#ff1f7a' : '#3a0d30'; g.strokeText(txt, tx, ty);
+        g.fillStyle = final ? '#ffffff' : 'rgba(255,255,255,.8)'; g.fillText(txt, tx, ty);
+      } else if (sty === 3) {
+        g.fillStyle = 'rgba(255,255,255,.7)'; g.fillText(txt, tx, ty + wh * 0.03);   // a pressed-in highlight under each number
+        g.fillStyle = final ? (lit ? '#d4005a' : '#3a0d30') : 'rgba(58,13,48,.75)'; g.fillText(txt, tx, ty);
+      } else {
+        g.fillStyle = final ? (lit ? '#ff1f7a' : '#2a0d24') : 'rgba(42,13,36,.75)'; g.fillText(txt, tx, ty);
+      }
     }
     // glass shading top and bottom
-    const sh = g.createLinearGradient(0, wy, 0, wy + wh); sh.addColorStop(0, 'rgba(26,6,22,.75)'); sh.addColorStop(0.3, 'rgba(26,6,22,0)'); sh.addColorStop(0.7, 'rgba(26,6,22,0)'); sh.addColorStop(1, 'rgba(26,6,22,.75)');
+    const sh = g.createLinearGradient(0, wy, 0, wy + wh), dk = sty === 2 ? '18,3,15' : '26,6,22', a0 = sty === 3 ? 0.35 : sty === 2 ? 0.55 : 0.75;
+    sh.addColorStop(0, `rgba(${dk},${a0})`); sh.addColorStop(0.3, `rgba(${dk},0)`); sh.addColorStop(0.7, `rgba(${dk},0)`); sh.addColorStop(1, `rgba(${dk},${a0})`);
     g.fillStyle = sh; g.fillRect(wx, wy, slotW, wh);
     g.restore();
-    g.strokeStyle = lit ? '#ff3d8e' : 'rgba(255,190,220,.55)'; g.lineWidth = 0.45 * U;
+    g.strokeStyle = lit ? '#ff7ab3' : sty === 2 ? 'rgba(255,90,160,.95)' : 'rgba(255,190,220,.55)'; g.lineWidth = (sty === 2 ? 0.6 : 0.45) * U;
     g.beginPath(); g.roundRect(wx, wy, slotW, wh, 1.6 * U); g.stroke();
   });
 }
@@ -176,7 +202,7 @@ function hlEndBubble(g, W, H, U, nm, text, a) {
   const tall = H > W * 1.2, bw = Math.min(W * 0.86, 80 * U), fs = 3.6 * U;
   g.save(); g.globalAlpha = a; g.font = HL_FONT(700, fs);
   const lines = hlWrap(g, '“' + text + '”', bw - 8 * U), bh = lines.length * fs * 1.3 + fs * 2.6, x = W / 2 - bw / 2, y = H * (tall ? 0.86 : 0.83) - bh / 2;
-  g.fillStyle = 'rgba(255,248,252,.95)'; g.beginPath(); g.roundRect(x, y, bw, bh, 2.4 * U); g.fill();
+  g.fillStyle = 'rgba(255,248,252,.5)'; g.beginPath(); g.roundRect(x, y, bw, bh, 2.4 * U); g.fill();
   g.textAlign = 'center'; g.textBaseline = 'middle';
   g.fillStyle = '#ff3d8e'; g.font = HL_FONT(800, fs * 0.62, 'caps'); g.fillText(nm.toUpperCase(), W / 2, y + fs * 1.05);
   g.fillStyle = '#2a0d24'; g.font = HL_FONT(700, fs);

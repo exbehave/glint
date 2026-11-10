@@ -419,8 +419,8 @@ function hlFrame(g, W, H, rec, TL, t) {
     const maxW = Math.min(L.qw, 92 * U), lines = hlWrap(g, `“${hlStrip(cur.q.line)}”`, maxW - 7 * U);
     const lh = 5.6 * U, bh = lines.length * lh + 9.5 * U, bw = Math.min(maxW, Math.max(...lines.map(l => g.measureText(l).width)) + 9 * U);
     const by = Math.min(H - bh - 2 * U, L.qy - bh / 2), qx = L.qx;
-    g.save(); g.shadowColor = 'rgba(0,0,0,.55)'; g.shadowBlur = 3 * U; g.shadowOffsetY = U;
-    g.fillStyle = '#f6edf2'; g.beginPath(); g.roundRect(qx - bw / 2, by, bw, bh, 3.4 * U); g.fill(); g.restore();
+    g.save();
+    g.fillStyle = 'rgba(246,237,242,.5)';   // Kennedy, Nov 9: 50% see-through g.beginPath(); g.roundRect(qx - bw / 2, by, bw, bh, 3.4 * U); g.fill(); g.restore();
     g.fillStyle = '#c2185b'; g.font = HL_FONT(700, 2.8 * U, 'caps');
     g.fillText(hlVoice(rec, cur.q.p).toUpperCase(), qx, by + 3.8 * U);
     g.fillStyle = '#2a0b22'; g.font = HL_FONT(700, 4.4 * U);

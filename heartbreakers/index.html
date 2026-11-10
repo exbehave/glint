@@ -309,6 +309,7 @@ button:focus-visible, .card:focus-visible, label:focus-within { outline: 2px sol
 .bubble.side-l::after { left: -5px; top: 14px; clip-path: polygon(0 0, 100% 100%, 0 100%); }
 .bubble.side-r::after { left: auto; right: -5px; top: 14px; clip-path: polygon(0 0, 100% 0, 100% 100%); }
 .bubble span { position: relative; z-index: 1; }
+.bubble { text-wrap: balance; }
 .quote { display: flex; gap: 12px; align-items: center; }
 .quote .who { font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--mute); }
 .quote .q { font-size: 16px; font-weight: 600; margin-top: 2px; }
@@ -4323,6 +4324,11 @@ function sayNow(p, ev, then, start) {
   b.className = 'bubble';
   b.innerHTML = `<span>${esc(String(text).replace(/\s*\(\d+\)$/, ''))}</span>`;   // "Done! (2)": several takes of the same words; the number tells the clips apart and never shows (Kennedy, Nov 8)
   $('fx').appendChild(b);
+  // Nov 9 (Kennedy: “[Maniacal Laughter]” broke onto two lines with a gap beside it): a short quote that fits on one line
+  // a little wider than the usual limit stays on one line; longer ones wrap with balanced lines
+  { const mw = parseFloat(getComputedStyle(b).maxWidth) || 210;
+    b.style.whiteSpace = 'nowrap'; b.style.maxWidth = 'none';
+    if (b.offsetWidth > Math.min(mw * 1.35, innerWidth - 24)) { b.style.whiteSpace = ''; b.style.maxWidth = ''; } }
   const r = plate.getBoundingClientRect(), bw = b.offsetWidth, bh = b.offsetHeight;
   const cx = r.left + r.width / 2, W = innerWidth, H = innerHeight;
   const clampX = x => Math.max(8, Math.min(W - bw - 8, x));

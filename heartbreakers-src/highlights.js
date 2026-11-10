@@ -949,10 +949,15 @@ function hlPlay(canvas, rec, TL, opts = {}) {
     }
   }
   const start = performance.now() + 150;
-  let raf = 0, stopped = false;
+  let raf = 0, stopped = false, lastA = -1, lastAWall = 0, wallClock = !(c && bus);
   const tick = () => {
     if (stopped) return;
-    const t = c && bus ? c.currentTime - t0c : (performance.now() - start) / 1000;
+    // follow the sound's clock, but if it stops moving (iPhone can hand back a frozen audio engine) switch to the
+    // wall clock so playback and recording always reach the end (Nov 9: Save video froze)
+    const now = performance.now();
+    if (!wallClock) { const ca = c.currentTime; if (ca !== lastA) { lastA = ca; lastAWall = now; } else if (now - lastAWall > 400 && now > start + 400) wallClock = true; }
+    let t = wallClock ? (now - start) / 1000 : c.currentTime - t0c;
+    if ((now - start) / 1000 > TL.len + 4) t = TL.len;   // never run forever
     hlFrame(g, W, H, rec, TL, Math.max(0, Math.min(TL.len - 0.001, t)));
     if (opts.onTime) opts.onTime(t);
     if (t >= TL.len) { run.done(); if (opts.onEnd) opts.onEnd(); return; }   // a natural end lets the sounds ring out
@@ -970,6 +975,7 @@ function hlMime() {
     if (MediaRecorder.isTypeSupported(t)) return t;
   return null;
 }
+let HL_REC = null;   // the recording in progress, so Cancel can stop it
 async function hlSave(canvas, rec, TL, onState) {
   const mime = hlMime();
   if (!mime || !canvas.captureStream) { onState('unsupported'); return; }
@@ -982,16 +988,22 @@ async function hlSave(canvas, rec, TL, onState) {
   const done = new Promise(r => { mr.onstop = r; });
   mr.start(500);
   onState('recording', 0);
-  await new Promise(r => hlPlay(canvas, rec, TL, { dest, onTime: t => onState('recording', t), onEnd: r }));
-  mr.stop(); await done;
+  let cancelled = false;
+  await new Promise(r => { HL_REC = { cancel() { cancelled = true; hlStop(); r(); } }; hlPlay(canvas, rec, TL, { dest, onTime: t => onState('recording', t), onEnd: r }); });
+  HL_REC = null;
+  try { mr.stop(); } catch (e) {}
+  await Promise.race([done, new Promise(r => setTimeout(r, 3000))]);   // don't hang if the recorder never reports back
   tracks.forEach(t => t.stop());
+  if (cancelled) { onState('cancelled'); return; }
+  if (!parts.length) { onState('failed'); return; }
   const ext = mime.startsWith('video/mp4') ? 'mp4' : 'webm';
   const d = new Date(rec.started);
   const file = new File(parts, `Heartbreakers highlights ${d.toISOString().slice(0, 10)}.${ext}`, { type: mime.split(';')[0] });
   onState('ready', file);
 }
-async function hlShare(file) {
-  try { if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: 'Heartbreakers highlights' }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
+async function hlShare(file, fallback) {
+  try { if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: 'Heartbreakers highlights' }); return true; } } catch (e) { if (e && e.name === 'AbortError') return true; if (fallback) return false; }
+  if (fallback) return false;
   const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = file.name;
   document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000);
 }
@@ -1009,7 +1021,7 @@ async function showHighlights(rec, back) {
     <div><h2>Highlights</h2><div class="sub" id="hl-sub">${moments.length} moment${moments.length === 1 ? '' : 's'} · loading the clips…</div></div>
     <div class="hl-stage"><canvas id="hl-c"></canvas></div>
     <div class="field"><span class="lab">Video shape</span>${segHTML('hlshape', [['tall', 'Tall'], ['square', 'Square'], ['wide', 'Wide']], shape)}</div>
-    <div class="btns"><button class="ghost" id="hl-x" type="button">Close</button><button class="ghost" id="hl-play" type="button" disabled>Replay</button><button class="cta" id="hl-save" type="button" disabled>Save video</button></div>
+    <div class="btns"><button class="ghost" id="hl-x" type="button">Close</button><button class="ghost" id="hl-play" type="button" disabled>Replay</button>${typeof IS_ADMIN !== 'undefined' && IS_ADMIN ? '<button class="cta" id="hl-save" type="button" disabled>Save video</button>' : ''}</div>
   </div>`);
   const cv = $('hl-c'), sub = $('hl-sub');
   const size = () => { const [w, h] = HL_SHAPES[shape]; cv.width = w; cv.height = h; cv.style.aspectRatio = `${w} / ${h}`; };
@@ -1025,23 +1037,36 @@ async function showHighlights(rec, back) {
   idle();
   const play = () => hlPlay(cv, rec, TL);
   play();
-  $('hl-play').disabled = false; $('hl-save').disabled = false;
+  $('hl-play').disabled = false; if ($('hl-save')) $('hl-save').disabled = false;
   $('hl-play').onclick = play;
   $('veil').querySelectorAll('input[name="hlshape"]').forEach(r => r.onchange = () => { shape = r.value; S.reelShape = shape; saveSettings(); size(); play(); });
-  $('hl-x').onclick = () => { hlStop(); back ? back() : closeVeil(); };
-  $('hl-save').onclick = async () => {
-    const btns = ['hl-play', 'hl-save', 'hl-x'].map($); btns.forEach(b => (b.disabled = true));
-    await hlSave(cv, rec, TL, (st, v) => {
-      if (st === 'recording') sub.textContent = `Recording… ${Math.min(secs, Math.floor(v))} of ${secs} s (keep this open)`;
-      else if (st === 'unsupported') { sub.textContent = 'This browser can’t record video.'; btns.forEach(b => (b.disabled = false)); }
-      else if (st === 'ready') {
-        btns.forEach(b => (b.disabled = false));
-        sub.textContent = 'Video ready.';
-        $('hl-save').textContent = 'Share video';
-        $('hl-save').onclick = () => hlShare(v);
-        hlShare(v);
-      }
-    });
+  $('hl-x').onclick = () => { if (HL_REC) HL_REC.cancel(); hlStop(); back ? back() : closeVeil(); };
+  // Kennedy, Nov 9, 19:34: Save video froze on her phone; it's admin-only (the debug tools) until it's proven
+  if ($('hl-save')) $('hl-save').onclick = async () => {
+    const btns = ['hl-play', 'hl-save'].map($); btns.forEach(b => (b.disabled = true));
+    $('hl-x').textContent = 'Cancel';   // Close stays live while recording, so it can never trap you
+    const reset = () => { btns.forEach(b => b && (b.disabled = false)); if ($('hl-x')) $('hl-x').textContent = 'Close'; };
+    try {
+      await hlSave(cv, rec, TL, (st, v) => {
+        if (st === 'recording') sub.textContent = `Recording… ${Math.min(secs, Math.max(0, Math.floor(v)))} of ${secs} s (keep this open)`;
+        else if (st === 'unsupported') { sub.textContent = 'This browser can’t record video.'; reset(); }
+        else if (st === 'failed') { sub.textContent = 'The recording came out empty. Try again.'; reset(); }
+        else if (st === 'cancelled') { idle(); reset(); }
+        else if (st === 'ready') {
+          reset();
+          // a share sheet needs a fresh tap on iPhone, so ask for one instead of opening it after the long recording
+          sub.textContent = 'Video ready. Tap Share video to save or send it.';
+          $('hl-save').textContent = 'Share video';
+          $('hl-save').onclick = async () => {
+            if (await hlShare(v, true)) return;
+            // no share sheet: show the video right here (long-press it to save) instead of leaving the app
+            const u = URL.createObjectURL(v);
+            $('veil').querySelector('.hl-stage').innerHTML = `<video src="${u}" controls playsinline style="width:100%;height:100%;border-radius:12px;background:#000"></video>`;
+            sub.textContent = 'Press and hold the video, or use its menu, to save it.';
+          };
+        }
+      });
+    } catch (e) { sub.textContent = 'Recording stopped: ' + ((e && e.message) || e); reset(); }
   };
 }
 

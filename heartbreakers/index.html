@@ -2547,7 +2547,7 @@ function hlFrame(g, W, H, rec, TL, t) {
   if (seg.bangAt != null) {
     const e = t - seg.bangAt;
     if (e >= 0 && e < 0.14) { g.save(); g.globalAlpha = 0.55 * (1 - e / 0.14); g.fillStyle = '#fff6ee'; g.fillRect(0, 0, W, H); g.restore(); }
-    if (e >= 0.12 && e < 3.2) hlGambit(g, wide ? tx : W / 2, cy, e - 0.12, U, hlRng(seg.i * 53 + 3), 'Shot the Moon', hlLabel(rec, m.who).toUpperCase());
+    if (e >= HLMS.BANNER && e < HLMS.BANNER + 2.4) hlGambit(g, wide ? tx : W / 2, cy + (seg.mfaceR || 0) * 1.95, e - HLMS.BANNER, U, hlRng(seg.i * 53 + 3), 'Shot the Moon', hlLabel(rec, m.who).toUpperCase());
   }
   // the quote being said, in the table's bubble style
   const cur = seg.quotes.filter(qq => t >= qq.t0 && t < qq.t1).pop();
@@ -2817,22 +2817,10 @@ function hlMoonDraw(g, W, H, rec, seg, t, L, U, seatXY) {
   const mir = who === 2 || who === 3 ? -1 : 1;   // the gun comes from the right for these seats: the tail swings left, out of its way
   const slots = hlDevilSlots(N).map(q => ({ x: q.x * mir, y: q.y, rot: q.rot * mir })), qk = seg.pts.findIndex(p => p.c === QS);
   const slotOf = k => slots[N >= 8 && qk >= 0 ? (k === qk ? N - 1 : k === N - 1 ? qk : k) : k];   // the Q♠ takes the arrow tip
-  // the moon inside the heart
+  // the moon inside the heart (Kennedy, Nov 9: it looked cheap after the shot; option 2 — the texture stays until
+  // the cracks reach it, the cracks glow from inside, then it splits in two and light pours out of the gap)
   const moonA = hlClamp((t - ring - 0.45) / 0.5), Rd = HL_HEART.inR * hs * 0.97;
-  if (moonA > 0) {
-    const dim = t > bang ? 1 - 0.35 * hlClamp((t - bang) / 0.6) : 1, pulse = t < bang ? 1 + 0.03 * Math.sin((t - ring) * 7) * hlClamp((t - seg.cockAt) / 0.3) : 1;
-    g.save(); g.globalAlpha = moonA * dim;
-    const gl = g.createRadialGradient(cx, cy, Rd * 0.2, cx, cy, Rd * 1.8 * pulse); gl.addColorStop(0, 'rgba(255,90,170,.35)'); gl.addColorStop(1, 'rgba(255,90,170,0)');
-    g.fillStyle = gl; g.beginPath(); g.arc(cx, cy, Rd * 1.8 * pulse, 0, Math.PI * 2); g.fill();
-    const mg = g.createRadialGradient(cx - Rd * 0.3, cy - Rd * 0.35, Rd * 0.1, cx, cy, Rd);
-    mg.addColorStop(0, '#fff4fa'); mg.addColorStop(0.55, '#ffc2e0'); mg.addColorStop(1, '#e0609f');
-    g.fillStyle = mg; g.beginPath(); g.arc(cx, cy, Rd, 0, Math.PI * 2); g.fill();
-    g.save(); g.clip(); g.fillStyle = 'rgba(190,60,120,.22)';   // craters
-    for (const [a, b, r] of [[-.35, .2, .2], [.3, -.25, .14], [.25, .38, .11], [-.1, -.45, .09], [.5, .1, .07]]) { g.beginPath(); g.arc(cx + a * Rd, cy + b * Rd, r * Rd, 0, Math.PI * 2); g.fill(); }
-    g.restore();
-    if (t >= bang) hlMoonCrack(g, cx, cy, Rd, t - bang, U, hlRng(seg.i * 13 + 1));
-    g.restore();
-  }
+  if (moonA > 0) hlMoonSplit(g, seg, cx, cy, Rd, t, bang, ring, moonA, U);
   seg.pts.forEach((p, k) => {
     if (t < p.at) return;
     const sl = slotOf(k), breathe = t > ring + HLM.RING && t < bang ? 1 + 0.025 * Math.sin((t - ring - HLM.RING) * 5) : 1;
@@ -2868,6 +2856,137 @@ function hlMoonDraw(g, W, H, rec, seg, t, L, U, seatXY) {
   if (t > bang) hlSmoke(g, seg, t, cx, cy, U, cw);
 }
 // the crack around the bullet hole, spreading across the moon
+// The moon: a textured face drawn once (pink maria, shaded craters, a darker limb), then per frame the cracks
+// racing out from the bullet hole and glowing from inside, then the split: two halves drift apart and rotate,
+// a beam of light blasting out of the gap.
+const HLMS = { CRACK: 0.45, SPLIT: 0.9, OPEN: 1.5, FADE: 2.7, BANNER: 1.0 };
+function hlMoonFace(Rd) {
+  const S = Math.ceil(Rd * 2.4), c = document.createElement('canvas'); c.width = c.height = S;
+  const g = c.getContext('2d'), x = S / 2, y = S / 2, rng = hlRng(77);
+  g.beginPath(); g.arc(x, y, Rd, 0, Math.PI * 2); g.save(); g.clip();
+  const mg = g.createRadialGradient(x - Rd * 0.3, y - Rd * 0.35, Rd * 0.1, x, y, Rd);
+  mg.addColorStop(0, '#fff6fb'); mg.addColorStop(0.5, '#ffc9e3'); mg.addColorStop(1, '#e46aa6');
+  g.fillStyle = mg; g.fillRect(0, 0, S, S);
+  // maria: soft darker seas
+  for (const [a, b, r] of [[-0.3, -0.15, 0.42], [0.25, 0.3, 0.34], [0.38, -0.32, 0.22], [-0.15, 0.5, 0.2]]) {
+    const m = g.createRadialGradient(x + a * Rd, y + b * Rd, 0, x + a * Rd, y + b * Rd, r * Rd);
+    m.addColorStop(0, 'rgba(196,72,138,.32)'); m.addColorStop(0.7, 'rgba(196,72,138,.16)'); m.addColorStop(1, 'rgba(196,72,138,0)');
+    g.fillStyle = m; g.fillRect(0, 0, S, S);
+  }
+  // craters: a dark bowl, a lit rim on the far side, a shadow on the near side
+  const cr = [[-0.35, 0.2, 0.16], [0.3, -0.25, 0.12], [0.25, 0.38, 0.1], [-0.1, -0.45, 0.08], [0.52, 0.1, 0.07], [-0.55, -0.2, 0.06], [0.05, 0.12, 0.05], [-0.42, 0.55, 0.05], [0.12, -0.68, 0.045], [0.62, 0.42, 0.04], [-0.2, -0.05, 0.035], [0.4, 0.62, 0.03]];
+  for (const [a, b, r] of cr) {
+    const px = x + a * Rd, py = y + b * Rd, rr = r * Rd;
+    const bowl = g.createRadialGradient(px - rr * 0.25, py - rr * 0.25, rr * 0.1, px, py, rr);
+    bowl.addColorStop(0, 'rgba(150,40,100,.42)'); bowl.addColorStop(1, 'rgba(150,40,100,.12)');
+    g.fillStyle = bowl; g.beginPath(); g.arc(px, py, rr, 0, Math.PI * 2); g.fill();
+    g.lineWidth = Math.max(1, rr * 0.18);
+    g.strokeStyle = 'rgba(255,245,250,.55)'; g.beginPath(); g.arc(px, py, rr * 0.92, 0.1, Math.PI * 0.95); g.stroke();
+    g.strokeStyle = 'rgba(120,25,80,.45)'; g.beginPath(); g.arc(px, py, rr * 0.92, Math.PI * 1.1, Math.PI * 1.95); g.stroke();
+  }
+  // speckle, and the limb darkening toward the edge
+  for (let i = 0; i < 160; i++) { const a = rng() * Math.PI * 2, r = Math.sqrt(rng()) * Rd; g.fillStyle = rng() < 0.5 ? 'rgba(150,40,100,.12)' : 'rgba(255,255,255,.14)'; g.fillRect(x + Math.cos(a) * r, y + Math.sin(a) * r, 1.4, 1.4); }
+  const limb = g.createRadialGradient(x, y, Rd * 0.6, x, y, Rd); limb.addColorStop(0, 'rgba(110,20,70,0)'); limb.addColorStop(1, 'rgba(110,20,70,.38)');
+  g.fillStyle = limb; g.fillRect(0, 0, S, S);
+  g.restore();
+  g.lineWidth = Math.max(1, Rd * 0.02); g.strokeStyle = 'rgba(255,230,242,.6)'; g.beginPath(); g.arc(x, y, Rd * 0.99, 0, Math.PI * 2); g.stroke();
+  return c;
+}
+function hlMoonPaths(seg) {   // in moon radii, from the hole at the middle: the split line top to bottom, plus branches
+  if (seg.mpaths) return seg.mpaths;
+  const rng = hlRng(seg.i * 13 + 1), split = [];
+  for (let k = 0; k <= 10; k++) { const v = -1.15 + k * 0.23; split.push([Math.abs(v) < 0.05 ? 0 : (rng() - 0.5) * 0.16 + v * 0.12, v]); }
+  const branches = [];
+  for (let i = 0; i < 11; i++) {
+    let a = i / 11 * Math.PI * 2 + (rng() - 0.5) * 0.5, px = 0, py = 0; const pts = [[0, 0]], len = 0.55 + rng() * 0.55;
+    for (let k = 0; k < 6; k++) { a += (rng() - 0.5) * 0.6; px += Math.cos(a) * len / 6; py += Math.sin(a) * len / 6; pts.push([px, py]); }
+    branches.push({ pts, w: 0.6 + rng() * 0.6, d: rng() * 0.12 });
+  }
+  return (seg.mpaths = { split, branches });
+}
+function hlMoonSplit(g, seg, cx, cy, Rd, t, bang, ring, moonA, U) {
+  const e = t - bang, shot = e >= 0;
+  if (!seg.mface || seg.mfaceR !== Rd) { seg.mface = hlMoonFace(Rd); seg.mfaceR = Rd; }
+  const face = seg.mface, S = face.width, P = hlMoonPaths(seg);
+  const pulse = !shot ? 1 + 0.03 * Math.sin((t - ring) * 7) * hlClamp((t - seg.cockAt) / 0.3) : 1;
+  const open = shot ? hlEaseIO((e - HLMS.SPLIT) / HLMS.OPEN) : 0, gone = shot ? hlClamp((e - HLMS.FADE) / 0.9) : 0;
+  g.save(); g.globalAlpha = moonA;
+  // the outer glow: soft before the shot, hot just after, then handed over to the beam
+  const heat = shot ? Math.exp(-e * 1.4) : 0;
+  const gl = g.createRadialGradient(cx, cy, Rd * 0.2, cx, cy, Rd * 1.8 * pulse);
+  gl.addColorStop(0, `rgba(255,90,170,${0.35 + 0.35 * heat})`); gl.addColorStop(1, 'rgba(255,90,170,0)');
+  g.fillStyle = gl; g.globalAlpha = moonA * (1 - open * 0.6); g.beginPath(); g.arc(cx, cy, Rd * 1.8 * pulse, 0, Math.PI * 2); g.fill();
+  g.globalAlpha = moonA;
+  // this frame's moon: the face, plus cracks and the hole once it's shot
+  let img = face;
+  if (shot) {
+    const c = seg.mtmp && seg.mtmp.width === S ? seg.mtmp : (seg.mtmp = document.createElement('canvas'), seg.mtmp.width = seg.mtmp.height = S, seg.mtmp);
+    const q = c.getContext('2d'), o = S / 2; q.clearRect(0, 0, S, S); q.drawImage(face, 0, 0);
+    q.save(); q.beginPath(); q.arc(o, o, Rd, 0, Math.PI * 2); q.clip();
+    const grow = hlEaseOut(e / HLMS.CRACK), glow = 0.55 + 0.45 * hlClamp((e - 0.2) / 0.7);
+    const line = (pts, frac, w) => {   // a crack: a dark seam with light leaking out of it
+      const n = pts.length - 1, upto = frac * n;
+      q.beginPath(); q.moveTo(o + pts[0][0] * Rd, o + pts[0][1] * Rd);
+      for (let k = 1; k <= n; k++) { const f = Math.min(1, upto - (k - 1)); if (f <= 0) break; const [ax, ay] = pts[k - 1], [bx, by] = pts[k]; q.lineTo(o + (ax + (bx - ax) * f) * Rd, o + (ay + (by - ay) * f) * Rd); }
+      q.lineCap = 'round'; q.lineJoin = 'round';
+      q.strokeStyle = 'rgba(70,5,40,.85)'; q.lineWidth = w * 2.2; q.stroke();
+      q.save(); q.globalCompositeOperation = 'lighter'; q.shadowColor = '#ff3d8e'; q.shadowBlur = w * 6 * glow;
+      q.strokeStyle = `rgba(255,120,190,${0.75 * glow})`; q.lineWidth = w * 1.4; q.stroke();
+      q.strokeStyle = `rgba(255,245,250,${0.9 * glow})`; q.lineWidth = w * 0.55; q.stroke(); q.restore();
+    };
+    const W0 = Math.max(1.2, Rd * 0.028);
+    P.branches.forEach(b => line(b.pts, hlClamp((grow - b.d) / (1 - b.d)), W0 * b.w));
+    const half = P.split.length >> 1, sg = hlEaseOut((e - 0.05) / (HLMS.CRACK + 0.3));
+    line(P.split.slice(0, half + 1).reverse(), sg, W0 * 1.3); line(P.split.slice(half), sg, W0 * 1.3);
+    // the bullet hole: ragged, burnt rim, a white-hot core for a moment
+    const hr = Rd * 0.1, rng = hlRng(seg.i * 31 + 7);
+    const rim = q.createRadialGradient(o, o, hr * 0.5, o, o, hr * 2.2); rim.addColorStop(0, 'rgba(60,0,30,.85)'); rim.addColorStop(1, 'rgba(60,0,30,0)');
+    q.fillStyle = rim; q.beginPath(); q.arc(o, o, hr * 2.2, 0, Math.PI * 2); q.fill();
+    q.fillStyle = '#12020c'; q.beginPath();
+    for (let k = 0; k <= 14; k++) { const a = k / 14 * Math.PI * 2, r = hr * (0.8 + rng() * 0.45); (k ? q.lineTo : q.moveTo).call(q, o + Math.cos(a) * r, o + Math.sin(a) * r); }
+    q.closePath(); q.fill();
+    q.save(); q.globalCompositeOperation = 'lighter'; const hot = Math.max(Math.exp(-e * 5), 0.35 * glow);
+    const core = q.createRadialGradient(o, o, 0, o, o, hr * 2.6); core.addColorStop(0, `rgba(255,240,220,${hot})`); core.addColorStop(1, 'rgba(255,90,170,0)');
+    q.fillStyle = core; q.beginPath(); q.arc(o, o, hr * 2.6, 0, Math.PI * 2); q.fill(); q.restore();
+    q.restore();
+    img = c;
+  }
+  // a tremble while the light builds up inside, then the split
+  const tr = shot && e > 0.35 && e < HLMS.SPLIT + 0.2 ? Math.sin(e * 70) * U * 0.25 * hlClamp((e - 0.35) / 0.4) : 0;
+  if (open <= 0) { g.globalAlpha = moonA; g.drawImage(img, cx - S / 2 + tr, cy - S / 2); }
+  else {
+    // the beam: a vertical shaft of light out of the gap, wider as the halves part, plus a bloom
+    const gap = open * Rd * 1.5, beamA = hlClamp((e - HLMS.SPLIT) / 0.25) * (1 - gone * 0.8);
+    g.save(); g.globalCompositeOperation = 'lighter'; g.globalAlpha = moonA * beamA;
+    const bw = gap * 1.1 + Rd * 0.08, bh = Rd * 7;
+    const sh = g.createLinearGradient(cx - bw / 2, 0, cx + bw / 2, 0);
+    sh.addColorStop(0, 'rgba(255,61,142,0)'); sh.addColorStop(0.3, 'rgba(255,120,190,.55)'); sh.addColorStop(0.5, 'rgba(255,250,252,.95)'); sh.addColorStop(0.7, 'rgba(255,120,190,.55)'); sh.addColorStop(1, 'rgba(255,61,142,0)');
+    const fall = g.createLinearGradient(0, cy - bh / 2, 0, cy + bh / 2);
+    fall.addColorStop(0, 'rgba(0,0,0,0)'); fall.addColorStop(0.5, 'rgba(0,0,0,1)'); fall.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = sh; g.save(); g.beginPath(); g.ellipse(cx, cy, bw / 2, bh / 2, 0, 0, Math.PI * 2); g.clip(); g.fillRect(cx - bw / 2, cy - bh / 2, bw, bh); g.restore();
+    const bloom = g.createRadialGradient(cx, cy, 0, cx, cy, Rd * (0.9 + open * 0.6));
+    bloom.addColorStop(0, 'rgba(255,240,248,.6)'); bloom.addColorStop(0.3, 'rgba(255,90,170,.28)'); bloom.addColorStop(1, 'rgba(255,61,142,0)');
+    g.fillStyle = bloom; g.beginPath(); g.arc(cx, cy, Rd * (0.9 + open * 0.6), 0, Math.PI * 2); g.fill();
+    g.restore();
+    // the two halves, each clipped along the split, drifting apart and turning away
+    const clipHalf = (q, side) => {
+      q.beginPath(); q.moveTo(side * Rd * 1.3, -Rd * 1.3);
+      P.split.forEach(([u, v]) => q.lineTo(u * Rd, v * Rd));
+      q.lineTo(side * Rd * 1.3, Rd * 1.3); q.closePath(); q.clip();
+    };
+    for (const side of [-1, 1]) {
+      g.save(); g.globalAlpha = moonA * (1 - gone);
+      g.translate(cx + side * gap / 2, cy + open * Rd * 0.1); g.rotate(side * open * 0.32);
+      clipHalf(g, side);
+      g.drawImage(img, -S / 2, -S / 2);
+      // the broken edge glows hot
+      g.globalCompositeOperation = 'lighter'; g.strokeStyle = `rgba(255,160,210,${0.8 * beamA})`; g.lineWidth = Math.max(1.5, Rd * 0.035);
+      g.shadowColor = '#ff3d8e'; g.shadowBlur = Rd * 0.2; g.beginPath(); P.split.forEach(([u, v], k) => (k ? g.lineTo : g.moveTo).call(g, u * Rd, v * Rd)); g.stroke();
+      g.restore();
+    }
+  }
+  g.restore();
+}
 function hlMoonCrack(g, x, y, Rd, e, U, rng) {
   g.save(); g.beginPath(); g.arc(x, y, Rd, 0, Math.PI * 2); g.clip();
   const p = hlClamp(e / 0.16);

@@ -624,7 +624,26 @@ body { background: var(--ink) url("brand/bg-port.webp") center / cover no-repeat
   // Nov 9: after a dropdown (the debug Seats pickers) iPhone can leave the whole screen sized short; scroll home and
   // re-apply the viewport so it measures the full screen again
   const nudge = () => { try { window.scrollTo(0, 0); } catch (e) {} if (!vp) return; vp.setAttribute('content', FIT.replace('initial-scale=1', 'initial-scale=1.0001')); requestAnimationFrame(() => vp.setAttribute('content', FIT)); };
-  document.addEventListener('focusout', e => { if (e.target && /^(SELECT|INPUT|TEXTAREA)$/.test(e.target.tagName)) setTimeout(nudge, 250); else setTimeout(refit, 60); });
+  // Known WebKit bug in home-screen apps (dev.to/cederhook, WebKit 297779): after the keyboard or a dropdown, the whole
+  // viewport stays shrunk with a black band at the bottom until the app is force-quit. Hiding and showing a full-height
+  // element makes WebKit measure the screen again. Track the tallest height seen; when a field closes or the app comes
+  // back and the height is short, flip the body off and on.
+  let tallest = window.innerHeight;
+  const heal = () => {
+    if (window.innerHeight >= tallest - 4) return;
+    const b = document.body; if (!b) return;
+    const was = b.style.display; b.style.display = 'none'; void b.offsetHeight; b.style.display = was;
+    try { window.scrollTo(0, 0); } catch (e) {}
+    setTimeout(() => { if (typeof fitHeight === 'function') fitHeight(); }, 60);
+  };
+  window.addEventListener('resize', () => { if (!document.activeElement || !/^(SELECT|INPUT|TEXTAREA)$/.test(document.activeElement.tagName)) tallest = Math.max(tallest, window.innerHeight); });
+  document.addEventListener('focusout', e => {
+    if (e.target && /^(SELECT|INPUT|TEXTAREA)$/.test(e.target.tagName)) { setTimeout(nudge, 250); [140, 500, 1200].forEach(ms => setTimeout(heal, ms)); }
+    else setTimeout(refit, 60);
+  });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) [200, 800].forEach(ms => setTimeout(heal, ms)); });
+  window.addEventListener('pageshow', () => setTimeout(heal, 200));
+  document.addEventListener('touchend', () => setTimeout(heal, 50), { passive: true });
   if (window.visualViewport) visualViewport.addEventListener('resize', () => setTimeout(refit, 120));
 })();
 

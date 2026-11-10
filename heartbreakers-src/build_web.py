@@ -29,11 +29,12 @@ head = """<!doctype html>
 """
 open(os.path.join(OUT, 'index.html'), 'w', encoding='utf-8').write(head + body + '\n</body>\n</html>\n')
 shutil.copy(os.path.join(D, 'web', 'admin.html'), os.path.join(OUT, 'admin.html'))
+shutil.copy(os.path.join(D, 'web', 'live.html'), os.path.join(OUT, 'live.html'))  # admin-only live tables (Nov 9, 2026)
 
-# images for the admin page
+# images for the admin pages (quotes, live tables)
 for f in ['logo.webp', 'bg-port.webp']:
     shutil.copy(os.path.join(D, 'brand', f), os.path.join(OUT, 'img', f))
-for n in ['natalie', 'judi', 'victor-twins', 'amy', 'dalila']:
+for n in ['natalie', 'judi', 'victor-twins', 'amy', 'dalila', 'kristen', 'shanrock', 'clermonts']:
     Image.open(os.path.join(D, 'sprites', n + '-bust.png')).save(os.path.join(OUT, 'img', n + '.webp'), quality=88, method=6)
 
 # home-screen icons: the horned heart glowing on deep plum

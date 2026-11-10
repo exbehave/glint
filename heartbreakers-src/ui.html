@@ -641,7 +641,8 @@ body { background: var(--ink) url("brand/bg-port.webp") center / cover no-repeat
     let pr = document.getElementById('vh-probe');
     if (!pr) { pr = document.createElement('div'); pr.id = 'vh-probe'; pr.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:100vh;height:100dvh;visibility:hidden;pointer-events:none;z-index:-1'; b.appendChild(pr); }
     pr.style.display = 'none'; void pr.offsetHeight; pr.style.display = 'block'; void pr.offsetHeight;
-    const was = b.style.display; b.style.display = 'none'; void b.offsetHeight; b.style.display = was;
+    // NOT the body: hiding the page restarted every card's animation, so the cards on the table wiggled on each tap
+    // (Kennedy, Nov 9, 19:20)
     try { window.scrollTo(0, 0); } catch (e) {}
     setTimeout(() => { if (typeof fitHeight === 'function') fitHeight(); }, 60);
   };
@@ -652,7 +653,7 @@ body { background: var(--ink) url("brand/bg-port.webp") center / cover no-repeat
   });
   document.addEventListener('visibilitychange', () => { if (!document.hidden) [200, 800].forEach(ms => setTimeout(heal, ms)); });
   window.addEventListener('pageshow', () => setTimeout(heal, 200));
-  document.addEventListener('touchend', () => setTimeout(heal, 50), { passive: true });
+
   if (window.visualViewport) visualViewport.addEventListener('resize', () => setTimeout(refit, 120));
 })();
 

@@ -7,6 +7,8 @@
 // Practice games (data.practice) are skipped entirely.
 // Unfinished = exited with Exit game (data.quit): counted as a game played and a loss (Kennedy, Nov 8). A game you leave open is
 // just paused (it resumes on any device), so it never counts.
+// Theater games (Kennedy, Nov 9): four girls, no human, in their own table hb_theater_games. Every finished one counts
+// toward the girls' ratings and the Girls board (all four seats); none touch any player's numbers or nemesis.
 // Fresh start (Kennedy, Nov 8, 00:59): only games started on or after SINCE count; older records are kept but ignored.
 const SINCE = "2026-11-08T07:00:00Z";
 // stats.js here is GENERATED from heartbreakers-src/stats.js by heartbreakers-src/make_leaders.py.
@@ -59,7 +61,7 @@ Deno.serve(async (req: Request) => {
   }
   const byUser = new Map<string, unknown[]>(), byGirl = new Map<string, unknown[]>();
   const add = (m: Map<string, unknown[]>, k: string, v: unknown) => (m.get(k) || m.set(k, []).get(k)!).push(v);
-  const rated: { at: number; keys: string[]; totals: number[]; quit?: boolean }[] = [];
+  const rated: { at: number; keys: string[]; totals: number[]; quit?: boolean; theater?: boolean }[] = [];
   for (const g of games) {
     try {
       const names = (g.data?.names || []) as string[];
@@ -67,6 +69,20 @@ Deno.serve(async (req: Request) => {
       for (let s = 1; s < 4; s++) if (names[s]) add(byGirl, names[s], hbGameStats(g.data, s));
       rated.push({ at: when(g), keys: ["u:" + g.user_id, "g:" + names[1], "g:" + names[2], "g:" + names[3]], totals: g.data?.totals || [] });
     } catch { /* skip a broken record */ }
+  }
+  // theater games: every seat is a girl, so all four seats are rated and get girl stats
+  for (let from = 0; ; from += 500) {
+    const { data, error } = await admin.from("hb_theater_games").select("started_at, data").eq("finished", true).gte("started_at", SINCE).range(from, from + 499);
+    if (error) break;   // the girls' boards still work from regular games
+    for (const g of data || []) {
+      try {
+        const names = (g.data?.names || []) as string[];
+        if (names.length !== 4 || names.some((n) => !n)) continue;
+        for (let s = 0; s < 4; s++) add(byGirl, names[s], hbGameStats(g.data, s));
+        rated.push({ at: when(g), keys: names.map((n) => "g:" + n), totals: g.data?.totals || [], theater: true });
+      } catch { /* skip a broken record */ }
+    }
+    if (!data || data.length < 500) break;
   }
   for (const g of quits) {
     const names = (g.data?.names || []) as string[];
@@ -86,7 +102,7 @@ Deno.serve(async (req: Request) => {
     let win: number[];
     if (g.quit) { const lo = Math.min(t[1], t[2], t[3]); win = [1, 2, 3].filter((i) => t[i] === lo); }
     else { const lo = Math.min(...t); win = [0, 1, 2, 3].filter((i) => t[i] === lo); }
-    if (win.includes(0)) continue;
+    if (g.theater || win.includes(0)) continue;   // nemesis is for players; theater tables have none
     const who = g.keys[0], m = beatBy.get(who) || beatBy.set(who, new Map()).get(who)!;
     for (const w of win) m.set(g.keys[w], (m.get(g.keys[w]) || 0) + 1);
   }

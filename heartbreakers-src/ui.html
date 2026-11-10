@@ -520,8 +520,10 @@ body { background: var(--ink) url("brand/bg-port.webp") center / cover no-repeat
   .hand .card .ix b { font-size: min(5.8vh, 30px); }
   .hand .card .ix i { font-size: min(4vh, 19px); }
   .hand .card .big { font-size: calc(var(--ch) * .3); }
-  .hand .mecorner .mechip .pw { height: max(30px, calc(var(--ch) - 50px)); width: auto; align-self: center; aspect-ratio: 4 / 5; }
-  .hand .mecorner .mechip { gap: 2px; padding: 3px; }
+  /* landscape: picture beside your name, nearly as tall as your cards, always the sprites' 4:5 (a squashed box cropped chins, Kennedy Nov 10) */
+  #app .hand .mecorner .mechip { flex-direction: row; align-items: center; gap: 8px; padding: 4px 8px 4px 4px; text-align: left; }
+  #app .hand .mecorner .mechip .pw { height: calc(var(--ch) - 8px); width: auto; flex: none; aspect-ratio: 4 / 5; }
+  #app .hand .mecorner .mechip .mi { align-items: flex-start; }
 }
 /* big landscape screens (a computer window): Kennedy, Nov 5 — side portraits were huge while the table cards,
    the top seat and your own seat stayed tiny. Everything now scales off the window height together. */
@@ -2435,7 +2437,12 @@ const suitRows = () => cornerChip() && !matchMedia(LANDQ).matches;
 function myChip(where) {
   if (where !== 'corner' && cornerChip()) return '';
   const me0 = voiceOf(0), sub = G.me0 || (G.theater ? 'CPU' : (S.handle || 'You'));
-  return `<span class="mechip${TH.live && CALC.open && CALC.follow === 0 ? ' following' : ''}" id="mechip">${portraitHTML(me0)}<span class="mi"><span class="mn">${esc(me0)}</span><span class="mh">${esc(sub)}${!G.me0 && G.theater ? rateHTML(me0) : ''}${showHands() ? takenHTML(0) : ''}</span><span class="mp"><b class="rp${G.shown[0] ? ' has' : ''}${G.bump0 ? ' bump' : ''}">${G.shown[0]}</b> this round</span></span></span>`;
+  let mine = '';
+  if (!G.theater && ME) {
+    if (GIRL_RATE) mine = ` · <span class="rt">${MY_RATE != null ? Math.round(MY_RATE) : 'New'}</span>`;
+    else rateHTML('');   // not loaded yet: this asks for them (shows nothing until they arrive)
+  }
+  return `<span class="mechip${TH.live && CALC.open && CALC.follow === 0 ? ' following' : ''}" id="mechip">${portraitHTML(me0)}<span class="mi"><span class="mn">${esc(me0)}</span><span class="mh">${esc(sub)}${!G.me0 && G.theater ? rateHTML(me0) : mine}${showHands() ? takenHTML(0) : ''}</span><span class="mp"><b class="rp${G.shown[0] ? ' has' : ''}${G.bump0 ? ' bump' : ''}">${G.shown[0]}</b> this round</span></span></span>`;
 }
 function renderStatus() {
   const el = $('status');
@@ -2486,7 +2493,7 @@ function renderHand() {
   let cw = parseFloat(cs.getPropertyValue('--cw')) || 62, ch = parseFloat(cs.getPropertyValue('--ch')) || 88;
   if (HAND_K < 0.999) { cw *= HAND_K; ch *= HAND_K; el.style.setProperty('--cw', cw.toFixed(1) + 'px'); el.style.setProperty('--ch', ch.toFixed(1) + 'px'); }
   const W0 = el.clientWidth;
-  const chipW = corner ? Math.round(Math.min(92, Math.max(64, W0 * 0.2))) : 0, shift = corner ? (chipW + 8) / 2 : 0, W = W0 - (corner ? chipW + 8 : 0);
+  const chipW = corner ? (land ? Math.round((ch - 8) * 0.8 + 104) : Math.round(Math.min(92, Math.max(64, W0 * 0.2)))) : 0, shift = corner ? (chipW + 8) / 2 : 0, W = W0 - (corner ? chipW + 8 : 0);
   const n = hand.length;
   // positions are offsets from the hand's center, so the hand stays centered even if the width reads wrong
   const rowPos = (m, i) => { const sx = m > 1 ? Math.min(cw + 6, (W - cw) / (m - 1)) : 0; return shift + (i - (m - 1) / 2) * sx - cw / 2; };
@@ -3336,6 +3343,7 @@ function calcJump(key) {
 
 // ---------- the girls' ratings on their plates (Kennedy, Nov 10): loaded when a game starts; signed out shows nothing ----------
 let GIRL_RATE = null;   // name → rating, or null (provisional / no games yet → "New")
+let MY_RATE = null;     // the signed-in player's rating (null = provisional → "New"); only shown once GIRL_RATE has loaded
 let RATE_LOADING = false, RATE_TRIED = 0;
 async function loadGirlRatings() {
   if (!sb || !ME) { GIRL_RATE = null; return; }
@@ -3346,6 +3354,8 @@ async function loadGirlRatings() {
     const m = {};
     for (const g of j.girls || []) m[g.name] = g.sum && g.sum.rating != null && !g.sum.provisional ? g.sum.rating : null;
     GIRL_RATE = m;
+    const me = (j.players || []).find(x => x.id === j.me);   // Kennedy, Nov 10: your own rating by your name too
+    MY_RATE = me && me.sum && me.sum.rating != null && !me.sum.provisional ? me.sum.rating : null;
     if (G) render();
   } catch (e) {} finally { RATE_LOADING = false; }
 }

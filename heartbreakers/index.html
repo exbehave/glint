@@ -608,13 +608,13 @@ body { background: var(--ink) url("data:image/webp;base64,UklGRpJ4AABXRUJQVlA4II
 .hand.suit4 .card .ix b { font-size: 18px; } .hand.suit4 .card .ix i { font-size: 12px; } .hand.suit4 .card .big { font-size: 26px; }
 /* short phone screens (Kennedy, Nov 10: more room for the middle of the table): smaller logo, a one-line playback bar */
 @media (orientation: portrait) and (max-height: 760px) { .brand img { height: 46px; } }
-@media (max-width: 559px) {
-  .thbar { flex-wrap: nowrap; gap: 4px; }
-  .thb { width: 34px; height: 34px; } .thb svg { width: 15px; height: 15px; }
-  .thb.play { width: 42px; height: 42px; } .thb.play svg { width: 19px; height: 19px; }
-  .thb.calcb { padding: 0 9px; font-size: 9px; }
-  .thtag { padding: 4px 7px; font-size: 8.5px; letter-spacing: .08em; }
-}
+/* compact bar whenever the column it sits in is narrow (phones, and landscape tables with big side seats), so it
+   always stays on one line and never takes the trick's height (Kennedy, Nov 10) */
+.thbar.compact { flex-wrap: nowrap; gap: 4px; }
+.thbar.compact .thb { width: 34px; height: 34px; } .thbar.compact .thb svg { width: 15px; height: 15px; }
+.thbar.compact .thb.play { width: 42px; height: 42px; } .thbar.compact .thb.play svg { width: 19px; height: 19px; }
+.thbar.compact .thb.calcb { width: auto; padding: 0 9px; font-size: 9px; }
+.thbar.compact .thtag { padding: 4px 7px; font-size: 8.5px; letter-spacing: .08em; }
 /* the bottom seat's picture in the hand's bottom-left corner (portrait) */
 .hand .mecorner { position: absolute; left: 0; bottom: 0; z-index: 20; }
 .hand .mecorner .mechip { display: flex; flex-direction: column; align-items: stretch; gap: 4px; padding: 4px; width: 100%; box-sizing: border-box; text-align: center; border-radius: 12px; }
@@ -5435,8 +5435,11 @@ function playCard(p, c) {
       else if (h && Math.random() < 0.5) say(res.w, 'fewHearts');
     }
   }, 420);   // Kennedy, Nov 7: as quick as possible; a line still waits for a clip that's talking
+  const game = G;   // leaving and starting a new game mid-sweep: the old trick's sweep must not touch the new game
   setTimeout(() => {
+    if (G !== game) return;
     sweepTrick(res.w, () => {
+      if (G !== game) return;
       G.table = []; G.busy = false; G.wonBy = null;
       G.shown = G.st.pts.slice();
       step(0);
@@ -5694,45 +5697,86 @@ function render() {
 // Kennedy, Nov 10 ("why are the played cards so teeny and the cards in my hand humongous?"): when the trick's cards come
 // out much smaller than your hand's, your hand shrinks (to 70% at most) to give the table the room.
 let HAND_K = 1;
-function fitTable() {
-  if (HAND_K !== 1) { HAND_K = 1; renderHand(); }
-  for (let i = 0; i < 4; i++) {
-    const k = fitOnce(), tc = $('trick').querySelector('.card'), hc = $('hand').querySelector('.card');
-    if (!tc || !hc) break;
-    const th = tc.getBoundingClientRect().height, hh = hc.getBoundingClientRect().height;
-    if (!th || !hh || th >= hh * 0.8 || HAND_K <= 0.71) break;
-    HAND_K = Math.max(0.7, HAND_K * 0.88); renderHand();
-  }
+// Kennedy, Nov 10 ("the two characters on the sides shrink and grow as they play cards"): the fit used to be redone from
+// scratch on every render, and came out differently with 0, 1 or 4 cards on the table. Now it's worked out once per
+// screen shape and layout (FIT_C.key) from a hidden stand-in card, then only re-applied. The one change allowed within a
+// key is a shrink, when something would run into the status line (it's taller while passing); nothing grows back.
+const FIT_C = { key: '', pw: {}, k: 1, dia: false, handK: 1, tcw: 66 };
+function fitKey() {
+  const c = document.documentElement.classList;
+  const v = n => document.documentElement.style.getPropertyValue(n);   // the Calculating sheet's height and the zooms change the room too
+  return [innerWidth, innerHeight, S.layout, ['calc-side', 'calc-sheet', 'calc-high', 'calc-zoom', 'calc-slim'].map(x => c.contains(x) ? 1 : 0).join(''), v('--sheet-h'), v('--calc-z'), v('--calc-az'), G && G.theater ? 't' : 'g'].join('|');
 }
-function fitOnce() {
-  const tr = $('trick'), st = $('status');
-  if (!tr || !st) return 1;
-  const sTop = st.getBoundingClientRect().top;
+function probeCard() {   // the size a trick card has in this layout, whether or not any are on the table
+  const tr = $('trick'), slot = document.createElement('div');
+  slot.className = 'slot s0'; slot.style.visibility = 'hidden'; slot.innerHTML = '<div class="card"></div>';
+  tr.appendChild(slot);
+  const c = slot.firstChild, wh = [c.offsetWidth || 66, c.offsetHeight || 94];
+  slot.remove();
+  return wh;
+}
+function fitApply() {   // put the remembered fit back on the freshly drawn plates and trick
+  const tr = $('trick');
+  for (const p of [1, 2, 3]) { const pw = $('plate' + p) && $('plate' + p).querySelector('.pw'); if (pw && FIT_C.pw[p]) { pw.style.height = FIT_C.pw[p] + 'px'; pw.style.width = 'auto'; } }
+  tr.style.setProperty('--tcw', FIT_C.tcw + 'px');
+  tr.style.setProperty('--tk', Math.max(0.45, FIT_C.k).toFixed(3));
+  tr.classList.toggle('dia', FIT_C.dia);
+}
+function fitSides() {   // side seats: shrink (never grow) until the plate sits above the status line
+  const st = $('status'); if (!st) return false;
+  const sr = st.getBoundingClientRect(), sTop = sr.top; let changed = false;
   for (const p of [1, 3]) {
     const el = $('plate' + p), pw = el && el.querySelector('.pw');
     if (!pw) continue;
-    pw.style.height = ''; pw.style.width = '';
     const r = el.getBoundingClientRect(), z = (r.height / (el.offsetHeight || r.height)) || 1;
+    // only when the plate is above the status line (portrait); in landscape the status sits between the side seats
+    if (Math.min(r.right, sr.right) - Math.max(r.left, sr.left) <= 2) continue;
     const over = (r.bottom - sTop + 4) / z;
-    if (over > 0) { const h = Math.max(36, pw.offsetHeight - over); pw.style.height = h + 'px'; pw.style.width = 'auto'; }
+    if (over > 0) { const h = Math.max(36, pw.offsetHeight - over); pw.style.height = h + 'px'; pw.style.width = 'auto'; FIT_C.pw[p] = h; changed = true; }
   }
-  const card = tr.querySelector('.card');
-  const cw = (card && card.offsetWidth) || 66, ch = (card && card.offsetHeight) || 94;
+  return changed;
+}
+function fitTable() {
+  const tr = $('trick'); if (!tr || !$('status')) return;
+  const key = fitKey();
+  if (key === FIT_C.key) {
+    if (HAND_K !== FIT_C.handK) { HAND_K = FIT_C.handK; renderHand(); }
+    fitApply();
+    if (fitSides()) fitApply();
+    return;
+  }
+  // a new screen shape or layout: work it out once
+  FIT_C.key = key; FIT_C.pw = {};
+  if (HAND_K !== 1) { HAND_K = 1; renderHand(); }
+  for (const p of [1, 2, 3]) { const pw = $('plate' + p) && $('plate' + p).querySelector('.pw'); if (pw) { pw.style.height = ''; pw.style.width = ''; } }
+  for (let i = 0; i < 4; i++) {
+    const k = fitOnce(), hc = $('hand').querySelector('.card');
+    if (!hc) break;
+    const th = FIT_C.ch * k, hh = hc.offsetHeight;
+    if (!th || !hh || th >= hh * 0.8 || HAND_K <= 0.71) break;
+    HAND_K = Math.max(0.7, HAND_K * 0.88); renderHand();
+  }
+  FIT_C.handK = HAND_K;
+}
+function fitOnce() {
+  const tr = $('trick');
+  fitSides();
+  const [cw, ch] = probeCard();
+  FIT_C.tcw = cw; FIT_C.ch = ch;
   tr.style.setProperty('--tcw', cw + 'px');
-  // two ways the four cards fit without covering each other: a plus (3 cards wide, 2 tall) or a diamond (2 wide, 3 tall)
+  // Kennedy, Nov 10: always a cross, so each card sits by the girl who played it (a one-row layout was hard to follow).
+  // On short tables the cross squeezes: the bottom card may cover the top card's lower part (never its top-left corner
+  // with the rank and suit), down to 1.5 card heights in all. The diamond (2 wide, 3 tall) is for narrow phones.
   const fit = () => { const W = tr.clientWidth, H = tr.clientHeight; if (!W || !H) return 1;
-    // Kennedy, Nov 10: always a cross, so each card sits by the girl who played it (a one-row layout was hard to follow).
-    // On short tables the cross squeezes: the bottom card may cover the top card's lower part (never its top-left corner
-    // with the rank and suit), down to 1.5 card heights in all.
     const plus = Math.min((W - 4) / (3 * cw + 8), (H - 2) / (1.5 * ch)), dia = Math.min((W - 4) / (2 * cw + 8), (H - 2) / (3 * ch + 4));
-    tr.classList.toggle('dia', dia > plus);
+    FIT_C.dia = dia > plus;
     return Math.min(1, Math.max(plus, dia)); };
   let k = fit();
   // still cramped: the across girl's picture gives up some height (down to 44px) before the cards get small
   const pw2 = $('plate2') && $('plate2').querySelector('.pw');
-  if (pw2) { pw2.style.height = ''; pw2.style.width = ''; k = fit(); }
-  for (let i = 0; pw2 && k < 0.8 && i < 4; i++) { const h = pw2.offsetHeight; if (h <= 46) break; pw2.style.height = Math.max(44, h * 0.78) + 'px'; pw2.style.width = 'auto'; k = fit(); }
-  tr.style.setProperty('--tk', Math.max(0.45, k).toFixed(3));
+  for (let i = 0; pw2 && k < 0.8 && i < 4; i++) { const h = pw2.offsetHeight; if (h <= 46) break; const nh = Math.max(44, h * 0.78); pw2.style.height = nh + 'px'; pw2.style.width = 'auto'; FIT_C.pw[2] = nh; k = fit(); }
+  FIT_C.k = k;
+  fitApply();
   return k;
 }
 
@@ -6467,10 +6511,10 @@ function thBarHTML() {
   const L = thList().length - 1, rep = TH.mode === 'replay', at = rep ? TH.pos : L, past = !!TH.live.replayOnly;
   const playing = !TH.paused, canBack = at > 0 && !TH.waiting, canFwd = rep && at < L;
   const [hi, n] = rep ? (TH.list[TH.pos] || [0, 0]) : [0, 0];
-  const narrow = innerWidth < 560, tk = n ? Math.min(13, Math.floor((n - 1) / 4) + 1) : 0;
+  const colW = ($('status') && $('status').clientWidth) || innerWidth, narrow = colW < 620, tk = n ? Math.min(13, Math.floor((n - 1) / 4) + 1) : 0;
   const tag = TH.waiting ? 'Pausing…' : rep ? (narrow ? `R${hi + 1}${tk ? ` · T${tk}` : ''}` : `${past ? 'Past game' : 'Replay'} · round ${hi + 1}${tk ? ` · trick ${tk}` : ''}`) : (TH.paused ? 'Paused' : 'Live');
   const b = (id, ic, label, on) => `<button type="button" class="thb" data-th="${id}" aria-label="${label}" ${on ? '' : 'disabled'}>${ic}</button>`;
-  return `<div class="thbar${rep ? ' rep' : ''}" role="toolbar" aria-label="Playback">
+  return `<div class="thbar${rep ? ' rep' : ''}${narrow ? ' compact' : ''}" role="toolbar" aria-label="Playback">
     ${b('start', TH_IC.start, 'Back to the start', canBack)}${b('back', TH_IC.back, 'Back one move', canBack)}
     <button type="button" class="thb play" data-th="play" aria-label="${playing ? 'Pause' : 'Play'}" ${TH.waiting ? 'disabled' : ''}>${playing ? TH_IC.pause : TH_IC.play}</button>
     ${b('fwd', TH_IC.fwd, 'Forward one move', canFwd)}${b('end', TH_IC.end, past ? 'To the end' : 'Back to where you left off', rep && (!past || at < L))}

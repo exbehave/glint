@@ -232,9 +232,7 @@ button:focus-visible, .card:focus-visible, label:focus-within { outline: 2px sol
   .slot .card .ix i { font-size: 15px; }
   .slot .card .big { font-size: 30px; }
   .trick { min-height: 270px; }
-  /* side cards may tuck a little over the seats so the cards can be bigger */
-  .app:not([data-layout="stage"]) .slot.s1 { left: -14px; }
-  .app:not([data-layout="stage"]) .slot.s3 { right: -14px; }
+  /* (the side cards used to tuck 14px over the seats; Kennedy, Nov 10: never over a face or any text) */
 }
 @media (max-width: 559px) {
   .app[data-layout="tworow"] .slot .card { width: 50px; height: 71px; }
@@ -495,7 +493,7 @@ body { background: var(--ink) url("data:image/webp;base64,UklGRpJ4AABXRUJQVlA4II
 .mechip .mn { font-size: 15px; }
 .mechip .mp { font-size: 13px; }
 /* layout: landscape phones — seats tall on the sides, Across on top, hand full width */
-@media (orientation: landscape) and (max-height: 560px), (orientation: landscape) and (min-width: 900px) {
+@media (orientation: landscape) and (max-height: 560px), (orientation: landscape) and (min-width: 860px) {
   .app {
     max-width: none; padding-block: 6px;
     grid-template-columns: auto minmax(0, 1fr) auto;
@@ -538,10 +536,12 @@ body { background: var(--ink) url("data:image/webp;base64,UklGRpJ4AABXRUJQVlA4II
   .hand .card .ix b { font-size: min(5.8vh, 30px); }
   .hand .card .ix i { font-size: min(4vh, 19px); }
   .hand .card .big { font-size: calc(var(--ch) * .3); }
+  .hand .mecorner .mechip .pw { height: max(30px, calc(var(--ch) - 50px)); width: auto; align-self: center; aspect-ratio: 4 / 5; }
+  .hand .mecorner .mechip { gap: 2px; padding: 3px; }
 }
 /* big landscape screens (a computer window): Kennedy, Nov 5 — side portraits were huge while the table cards,
    the top seat and your own seat stayed tiny. Everything now scales off the window height together. */
-@media (orientation: landscape) and (min-width: 900px) and (min-height: 561px) {
+@media (orientation: landscape) and (min-width: 860px) and (min-height: 561px) {
   .app { --tc: min(17vh, 150px); }
   .app[data-layout] .plate.seat.side .pw { height: min(38vh, 290px); }
   .app[data-layout] .plate.seat.side .pinfo .nm { font-size: min(2.6vh, 20px); }
@@ -601,6 +601,41 @@ body { background: var(--ink) url("data:image/webp;base64,UklGRpJ4AABXRUJQVlA4II
 .lbnem { padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,.05); }
 .lbnem .lab { display: block; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--mute); }
 
+/* phones: four suit rows with slightly smaller cards so the rows stack tightly */
+.hand.suit4 { --cw: 60px; --ch: 86px; }
+.hand.suit4 .card .ix b { font-size: 18px; } .hand.suit4 .card .ix i { font-size: 12px; } .hand.suit4 .card .big { font-size: 26px; }
+/* short phone screens (Kennedy, Nov 10: more room for the middle of the table): smaller logo, a one-line playback bar */
+@media (orientation: portrait) and (max-height: 760px) { .brand img { height: 46px; } }
+@media (max-width: 559px) {
+  .thbar { flex-wrap: nowrap; gap: 4px; }
+  .thb { width: 34px; height: 34px; } .thb svg { width: 15px; height: 15px; }
+  .thb.play { width: 42px; height: 42px; } .thb.play svg { width: 19px; height: 19px; }
+  .thb.calcb { padding: 0 9px; font-size: 9px; }
+  .thtag { padding: 4px 7px; font-size: 8.5px; letter-spacing: .08em; }
+}
+/* the bottom seat's picture in the hand's bottom-left corner (portrait) */
+.hand .mecorner { position: absolute; left: 0; bottom: 0; z-index: 20; }
+.hand .mecorner .mechip { display: flex; flex-direction: column; align-items: stretch; gap: 4px; padding: 4px; width: 100%; box-sizing: border-box; text-align: center; border-radius: 12px; }
+.hand .mecorner .mechip .pw { width: 100%; }
+.hand .mecorner .mechip .mi { display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 0; }
+.hand .mecorner .mechip .mn { font-size: 13px; line-height: 1.1; text-wrap: balance; }
+.hand .mecorner .mechip .mh { font-size: 8.5px; }
+.hand .mecorner .mechip .mp { font-size: 11px; white-space: nowrap; }
+.hand .mecorner .peek { font-size: 9.5px; }
+/* Kennedy, Nov 10: the trick never covers a girl's face or any text. It takes only the space its grid cell has (no
+   minimum height spilling over the plates), and fitTable() scales the four cards down to fit that space. */
+#app .trick { min-height: 0 !important; }
+.trick .slot { scale: var(--tk, 1); }
+.trick .slot.s0 { transform-origin: 50% 100%; } .trick .slot.s2 { transform-origin: 50% 0; }
+.trick .slot.s1 { transform-origin: 0 50%; } .trick .slot.s3 { transform-origin: 100% 50%; }
+/* the diamond: side cards pulled in toward the middle (the top and bottom cards sit above and below them) */
+#app .trick.dia .slot.s1 { left: calc(50% - var(--tk, 1) * var(--tcw, 66px) - 3px); right: auto; }
+#app .trick.dia .slot.s3 { right: calc(50% - var(--tk, 1) * var(--tcw, 66px) - 3px); left: auto; }
+/* one row: left girl, across, bottom, right girl; the across card a touch higher, the bottom card a touch lower */
+#app .trick.row .slot.s1 { left: 0; right: auto; top: 50%; translate: 0 -50%; }
+#app .trick.row .slot.s3 { right: 0; left: auto; top: 50%; translate: 0 -50%; }
+#app .trick.row .slot.s2 { right: calc(50% + 4px); left: auto; top: 50%; bottom: auto; translate: 0 -57%; transform-origin: 100% 50%; }
+#app .trick.row .slot.s0 { left: calc(50% + 4px); right: auto; top: 50%; bottom: auto; translate: 0 -43%; transform-origin: 0 50%; }
 /* ---------- Calculating: why each girl made her move (Kennedy, Nov 10) ---------- */
 .thb.calcb { width: auto; border-radius: 99px; padding: 0 12px; font-family: var(--caps); font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
 .thb.calcb[aria-pressed="true"] { background: rgba(255, 61, 142, .18); border-color: var(--red); color: #ff7ab0; }
@@ -5652,7 +5687,40 @@ function handOf(p) { return G.st && G.phase !== 'pass' ? G.st.hands[p] : G.hands
 function render() {
   if (!G) return;
   renderRail(); renderPlates(); renderTrick(); renderStatus(); renderHand();
+  fitTable();
   calcRefresh();
+}
+// Kennedy, Nov 10: a little overlap is fine, but never over a girl's face or any text. Side seats: the picture shrinks
+// until the plate (name, rating, points) sits above the status line. The trick: its four cards scale to fit its own space.
+function fitTable() {
+  const tr = $('trick'), st = $('status');
+  if (!tr || !st) return;
+  const sTop = st.getBoundingClientRect().top;
+  for (const p of [1, 3]) {
+    const el = $('plate' + p), pw = el && el.querySelector('.pw');
+    if (!pw) continue;
+    pw.style.height = ''; pw.style.width = '';
+    const r = el.getBoundingClientRect(), z = (r.height / (el.offsetHeight || r.height)) || 1;
+    const over = (r.bottom - sTop + 4) / z;
+    if (over > 0) { const h = Math.max(36, pw.offsetHeight - over); pw.style.height = h + 'px'; pw.style.width = 'auto'; }
+  }
+  const card = tr.querySelector('.card');
+  const cw = (card && card.offsetWidth) || 66, ch = (card && card.offsetHeight) || 94;
+  tr.style.setProperty('--tcw', cw + 'px');
+  // two ways the four cards fit without covering each other: a plus (3 cards wide, 2 tall) or a diamond (2 wide, 3 tall)
+  const fit = () => { const W = tr.clientWidth, H = tr.clientHeight; if (!W || !H) return 1;
+    const plus = Math.min((W - 4) / (3 * cw + 8), (H - 2) / (2 * ch + 6)), dia = Math.min((W - 4) / (2 * cw + 8), (H - 2) / (3 * ch + 4));
+    const row = Math.min((W - 4) / (4 * cw + 20), (H - 2) / (1.16 * ch));   // wide, short tables (phones on their side)
+    const best = Math.max(plus, dia, row);
+    tr.classList.toggle('dia', best === dia && dia > plus);
+    tr.classList.toggle('row', best === row && row > plus && row > dia);
+    return Math.min(1, best); };
+  let k = fit();
+  // still cramped: the across girl's picture gives up some height (down to 44px) before the cards get small
+  const pw2 = $('plate2') && $('plate2').querySelector('.pw');
+  if (pw2) { pw2.style.height = ''; pw2.style.width = ''; k = fit(); }
+  for (let i = 0; pw2 && k < 0.8 && i < 4; i++) { const h = pw2.offsetHeight; if (h <= 46) break; pw2.style.height = Math.max(44, h * 0.78) + 'px'; pw2.style.width = 'auto'; k = fit(); }
+  tr.style.setProperty('--tk', Math.max(0.45, k).toFixed(3));
 }
 
 const ICON_ON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor" stroke="none"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>';
@@ -5703,7 +5771,16 @@ function renderTrick() {
   tr.querySelectorAll('.card').forEach(el => el.classList.toggle('won', G.wonBy != null && G.table.some(x => x.c === +el.dataset.c && x.p === G.wonBy)));
 }
 
-function myChip() {
+// Kennedy, Nov 10: on portrait screens your hand sits in two rows by suit (clubs + diamonds on top, spades + hearts
+// below) and the bottom seat's picture moves to the bottom-left corner beside it, so the status line and the middle of the
+// table get the room. Not in Fan, not on landscape (one long row fits there), not while the Calculating sheet covers the hand.
+const LANDQ = '(orientation: landscape) and (max-height: 560px), (orientation: landscape) and (min-width: 860px)';
+// (Duo unfolded, ~890×626, now counts as landscape: the breakpoint moved from 900 to 860 px.) The corner picture also
+// applies on landscape screens, where it frees the status area above the hand.
+const cornerChip = () => !!G && S.layout !== 'fan' && !document.documentElement.classList.contains('calc-sheet');
+const suitRows = () => cornerChip() && !matchMedia(LANDQ).matches;
+function myChip(where) {
+  if (where !== 'corner' && cornerChip()) return '';
   const me0 = voiceOf(0), sub = G.me0 || (G.theater ? 'CPU' : (S.handle || 'You'));
   return `<span class="mechip${TH.live && CALC.open && CALC.follow === 0 ? ' following' : ''}" id="mechip">${portraitHTML(me0)}<span class="mi"><span class="mn">${esc(me0)}</span><span class="mh">${esc(sub)}${!G.me0 && G.theater ? rateHTML(me0) : ''}${showHands() ? takenHTML(0) : ''}</span><span class="mp"><b class="rp${G.shown[0] ? ' has' : ''}${G.bump0 ? ' bump' : ''}">${G.shown[0]}</b> this round</span></span></span>`;
 }
@@ -5742,21 +5819,34 @@ function renderHand() {
   const myTurn = G.phase === 'play' && G.st.turn === 0 && !G.busy && !G.theater;
   const legal = myTurn ? new Set(legalFor(G.st, 0)) : null;
   el.style.height = '';
-  const land = matchMedia('(orientation: landscape) and (max-height: 560px), (orientation: landscape) and (min-width: 900px)').matches;
+  const land = matchMedia('(orientation: landscape) and (max-height: 560px), (orientation: landscape) and (min-width: 860px)').matches;
   if (land) {
-    const lch = Math.min(innerHeight * 0.18, innerHeight > 560 && innerWidth >= 900 ? 160 : 100);   // computers get bigger cards
+    const lch = Math.min(innerHeight * 0.18, innerHeight > 560 && innerWidth >= 860 ? 160 : 100);   // computers get bigger cards
     el.style.setProperty('--ch', lch.toFixed(0) + 'px');
     el.style.setProperty('--cw', (lch * 0.7).toFixed(0) + 'px');
   } else { el.style.removeProperty('--ch'); el.style.removeProperty('--cw'); }
-  const mode = land ? 'row' : S.layout;
+  const corner = cornerChip();
+  const mode = land ? 'row' : corner ? 'suits' : S.layout;
+  el.classList.toggle('suits', corner);
+  el.classList.toggle('suit4', corner && !land && innerWidth < 560);
   const cs = getComputedStyle(el);
-  const W = el.clientWidth, cw = parseFloat(cs.getPropertyValue('--cw')) || 62, ch = parseFloat(cs.getPropertyValue('--ch')) || 88;
+  const W0 = el.clientWidth, cw = parseFloat(cs.getPropertyValue('--cw')) || 62, ch = parseFloat(cs.getPropertyValue('--ch')) || 88;
+  const chipW = corner ? Math.round(Math.min(92, Math.max(64, W0 * 0.2))) : 0, shift = corner ? (chipW + 8) / 2 : 0, W = W0 - (corner ? chipW + 8 : 0);
   const n = hand.length;
   // positions are offsets from the hand's center, so the hand stays centered even if the width reads wrong
-  const rowPos = (m, i) => { const sx = m > 1 ? Math.min(cw + 6, (W - cw) / (m - 1)) : 0; return (i - (m - 1) / 2) * sx - cw / 2; };
+  const rowPos = (m, i) => { const sx = m > 1 ? Math.min(cw + 6, (W - cw) / (m - 1)) : 0; return shift + (i - (m - 1) / 2) * sx - cw / 2; };
   const L = off => `left:calc(50% + ${off.toFixed(1)}px)`;
   const pos = []; // per card: left, bottom, extra style
-  if (mode === 'tworow') {
+  if (mode === 'suits') {
+    // phones (Kennedy, Nov 10): four rows, one per suit (♣ ♦ ♠ ♥ top to bottom); each row shows the one above it down to
+    // its corner index. Wider portrait screens: two rows, clubs + diamonds over spades + hearts.
+    const four = el.classList.contains('suit4');
+    const groups = four ? [0, 1, 2, 3].map(su => hand.filter(c => suit(c) === su)) : [hand.filter(c => suit(c) < 2), hand.filter(c => suit(c) >= 2)];
+    const rows = groups.filter(g => g.length), step = ch * (four ? 0.4 : 0.55);
+    el.style.height = (ch + Math.max(0, rows.length - 1) * step + 22).toFixed(0) + 'px';
+    hand.forEach(c => { const r = rows.findIndex(g => g.includes(c)), row = rows[r], i = row.indexOf(c);
+      pos.push(`${L(rowPos(row.length, i))};bottom:${((rows.length - 1 - r) * step).toFixed(0)}px`); });
+  } else if (mode === 'tworow') {
     const top = Math.ceil(n / 2);
     hand.forEach((c, i) => pos.push(i < top ? `${L(rowPos(top, i))};bottom:${(ch * 0.55).toFixed(0)}px` : `${L(rowPos(n - top, i - top))};bottom:0`));
   } else if (mode === 'fan') {
@@ -5776,7 +5866,8 @@ function renderHand() {
     if (myTurn && !legal.has(c)) cls += ' dim';
     if (G.received.has(c)) cls += ' got';
     return cardHTML(c, cls, ` tabindex="0" style="${pos[i]};z-index:${i + 1}"`);
-  }).join('');
+  }).join('') + (corner ? `<div class="mecorner" style="width:${chipW}px">${myChip('corner')}</div>` : '');
+  if (corner && $('mechip') && TH.live) $('mechip').onclick = () => { SFX.soft('tap'); calcFollow(0); };
 }
 
 // a card you can't play: a low thud, a firmer buzz and a quick side-to-side wiggle
@@ -5805,7 +5896,7 @@ function onHandTap(e) {
 $('hand').addEventListener('click', onHandTap);
 $('hand').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onHandTap(e); } });
 window.addEventListener('resize', () => { if (G) { renderHand(); renderPlates(); } });
-try { matchMedia('(orientation: landscape) and (max-height: 560px), (orientation: landscape) and (min-width: 900px)').addEventListener('change', () => G && render()); } catch (e) {}
+try { matchMedia('(orientation: landscape) and (max-height: 560px), (orientation: landscape) and (min-width: 860px)').addEventListener('change', () => G && render()); } catch (e) {}
 try { let lastW = 0; new ResizeObserver(() => { const w = $('hand').clientWidth; if (G && w !== lastW) { lastW = w; renderHand(); } }).observe($('hand')); } catch (e) {}
 
 // ---------- overlays ----------
@@ -6356,7 +6447,8 @@ function thBarHTML() {
   const L = thList().length - 1, rep = TH.mode === 'replay', at = rep ? TH.pos : L, past = !!TH.live.replayOnly;
   const playing = !TH.paused, canBack = at > 0 && !TH.waiting, canFwd = rep && at < L;
   const [hi, n] = rep ? (TH.list[TH.pos] || [0, 0]) : [0, 0];
-  const tag = TH.waiting ? 'Pausing…' : rep ? `${past ? 'Past game' : 'Replay'} · round ${hi + 1}${n ? ` · trick ${Math.min(13, Math.floor((n - 1) / 4) + 1)}` : ''}` : (TH.paused ? 'Paused' : 'Live');
+  const narrow = innerWidth < 560, tk = n ? Math.min(13, Math.floor((n - 1) / 4) + 1) : 0;
+  const tag = TH.waiting ? 'Pausing…' : rep ? (narrow ? `R${hi + 1}${tk ? ` · T${tk}` : ''}` : `${past ? 'Past game' : 'Replay'} · round ${hi + 1}${tk ? ` · trick ${tk}` : ''}`) : (TH.paused ? 'Paused' : 'Live');
   const b = (id, ic, label, on) => `<button type="button" class="thb" data-th="${id}" aria-label="${label}" ${on ? '' : 'disabled'}>${ic}</button>`;
   return `<div class="thbar${rep ? ' rep' : ''}" role="toolbar" aria-label="Playback">
     ${b('start', TH_IC.start, 'Back to the start', canBack)}${b('back', TH_IC.back, 'Back one move', canBack)}

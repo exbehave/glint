@@ -11,7 +11,7 @@ const GIRLS = {
   // Shan-Rock (S10, Genius on your side, Kennedy Nov 9): sees every hand and knows how everyone plays, like Natalie,
   // but turns it on the other computer players. Each card is weighed as: points the other girls eat, minus
   // `rate` × her own points, minus `spare` × the humans' points. When she shoots the moon she takes −26, never +26 to you.
-  'Shan-Rock': { level: 'genius', judgment: 1, goal: 'help-you', rate: 1, spare: 0.5, psychic: 'all', intuit: true, dials: {} },
+  'Shan-Rock': { level: 'genius', judgment: 1, goal: 'help-you', rate: 1, spare: 1.5, psychic: 'all', intuit: true, dials: {} },
   // Kristen (S5, Medium, Kennedy's pick Nov 8): plain Medium play until her habits are written up in BAD_GIRLS.md
   'Kristen': { level: 'medium', judgment: 0.4, dials: {} },
   // Clermont Twins (S14, Hard, Kennedy Nov 8): a tendency to break hearts early
@@ -221,7 +221,8 @@ function chooseByGoal(T, p, scores) { // scores: [{x, own, hum}] averaged
   }
   if ((T.cards[p] || {}).goal === 'help-you') {
     const c = T.cards[p], k = c.rate;   // no end-of-game boost: that's for girls playing to win (Kennedy, Nov 9: she was winning 58–73%)
-    return scores.slice().sort((a, b) => (b.cpu - k * b.own - c.spare * b.hum) - (a.cpu - k * a.own - c.spare * a.hum) || a.hum - b.hum)[0].x;
+    const sp = T.helpSpare != null ? T.helpSpare : c.spare;   // Kennedy, Nov 9: more help for lower-rated players (set by the game from your rating)
+    return scores.slice().sort((a, b) => (b.cpu - k * b.own - sp * b.hum) - (a.cpu - k * a.own - sp * a.hum) || a.hum - b.hum)[0].x;
   }
   if ((T.cards[p] || {}).goal === 'you-first') {
     const most = Math.max(...scores.map(o => o.hum));

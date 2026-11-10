@@ -981,7 +981,7 @@ const GIRLS = {
   // Shan-Rock (S10, Genius on your side, Kennedy Nov 9): sees every hand and knows how everyone plays, like Natalie,
   // but turns it on the other computer players. Each card is weighed as: points the other girls eat, minus
   // `rate` × her own points, minus `spare` × the humans' points. When she shoots the moon she takes −26, never +26 to you.
-  'Shan-Rock': { level: 'genius', judgment: 1, goal: 'help-you', rate: 1, spare: 0.5, psychic: 'all', intuit: true, dials: {} },
+  'Shan-Rock': { level: 'genius', judgment: 1, goal: 'help-you', rate: 1, spare: 1.5, psychic: 'all', intuit: true, dials: {} },
   // Kristen (S5, Medium, Kennedy's pick Nov 8): plain Medium play until her habits are written up in BAD_GIRLS.md
   'Kristen': { level: 'medium', judgment: 0.4, dials: {} },
   // Clermont Twins (S14, Hard, Kennedy Nov 8): a tendency to break hearts early
@@ -1191,7 +1191,8 @@ function chooseByGoal(T, p, scores) { // scores: [{x, own, hum}] averaged
   }
   if ((T.cards[p] || {}).goal === 'help-you') {
     const c = T.cards[p], k = c.rate;   // no end-of-game boost: that's for girls playing to win (Kennedy, Nov 9: she was winning 58–73%)
-    return scores.slice().sort((a, b) => (b.cpu - k * b.own - c.spare * b.hum) - (a.cpu - k * a.own - c.spare * a.hum) || a.hum - b.hum)[0].x;
+    const sp = T.helpSpare != null ? T.helpSpare : c.spare;   // Kennedy, Nov 9: more help for lower-rated players (set by the game from your rating)
+    return scores.slice().sort((a, b) => (b.cpu - k * b.own - sp * b.hum) - (a.cpu - k * a.own - sp * a.hum) || a.hum - b.hum)[0].x;
   }
   if ((T.cards[p] || {}).goal === 'you-first') {
     const most = Math.max(...scores.map(o => o.hum));
@@ -3111,6 +3112,14 @@ async function loadSrLock() {
     SR = { streak };
   } catch (e) { SR = null; }
 }
+// Kennedy, Nov 9: Shan-Rock helps weaker players more. Your points count 1.5× hers at a 1000 rating (also for
+// provisional or unknown ratings), 2× at 900 and 1× at 1100, between 1× and 2.5×.
+let MY_RATING = null;
+async function loadMyRating() {
+  if (!sb || !ME) return;
+  try { const j = await loadLeaders(); const me = (j.players || []).find(x => x.id === j.me); MY_RATING = me && me.sum.rating != null ? me.sum.rating : null; } catch (e) {}
+}
+const srSpare = () => MY_RATING == null ? 1.5 : Math.max(1, Math.min(2.5, 1.5 + (1000 - MY_RATING) / 200));
 const srRatedNow = () => !!ME && !S.practice && !S.debug;
 const srLocked = (rated = srRatedNow()) => rated && !(SR && SR.streak >= SR_NEED);
 const srToGo = () => Math.max(1, SR_NEED - ((SR && SR.streak) || 0));
@@ -3827,7 +3836,7 @@ function cardHTML(c, cls = '', attrs = '') {
 const REC_V = 2; // v2 (Nov 7): plays carry a 4th item, why the computer chose it; saved after every trick
 function recStart() {
   const id = (crypto.randomUUID && crypto.randomUUID()) || String(Date.now()) + Math.random().toString(16).slice(2);
-  G.rec = { id, v: REC_V, started: new Date().toISOString(), names: G.names.slice(), me: S.me, handle: S.handle || '', target: S.target, deck: S.deck, practice: !!S.practice, hands: [] };
+  G.rec = { id, v: REC_V, started: new Date().toISOString(), names: G.names.slice(), me: S.me, handle: S.handle || '', target: S.target, deck: S.deck, practice: !!S.practice, help: G.helpSpare, hands: [] };
 }
 const recHand = () => (G && G.rec && G.rec.hands[G.rec.hands.length - 1]) || null;
 let recSaving = Promise.resolve();
@@ -3861,7 +3870,7 @@ function saveGame() {
     const blob = JSON.stringify({ v: 1, who: whoAmI(), at: Date.now(), target: S.target, heartRun, said, g: {
       totals: G.totals, handNo: G.handNo, names: G.names, hands: G.hands, dir: G.dir, known: G.known, phase: G.phase,
       st: G.st ? Object.assign({}, G.st, { played: Array.from(G.st.played) }) : null,
-      table: G.table, shown: G.shown, drawnPts: G.drawnPts, rec: G.rec || null, mem: G.T.mem, qsSaid: !!G.qsSaid, saidGame: [...(G.saidGame || [])], qsSkip: G.qsSkip || null, debug: G.debug || null, autoMe: !!G.autoMe, showAll: !!G.showAll } });
+      table: G.table, shown: G.shown, drawnPts: G.drawnPts, rec: G.rec || null, mem: G.T.mem, qsSaid: !!G.qsSaid, saidGame: [...(G.saidGame || [])], helpSpare: G.helpSpare, qsSkip: G.qsSkip || null, debug: G.debug || null, autoMe: !!G.autoMe, showAll: !!G.showAll } });
     localStorage.setItem(SAVE_KEY, blob);
     cloudSave(blob);
   } catch (e) {}
@@ -3889,9 +3898,9 @@ function resumeGame(d) {
   if (g.rec) { if (g.rec.names) g.rec.names = g.rec.names.map(renamed); if (g.rec.me) g.rec.me = renamed(g.rec.me); }
   try {
     S.target = d.target || S.target;
-    G = { totals: g.totals, handNo: g.handNo, names: g.names };
+    G = { totals: g.totals, handNo: g.handNo, names: g.names, helpSpare: g.helpSpare != null ? g.helpSpare : 1.5 };
     G.T = { cards: G.names.map((n, p) => (p && GIRLS[n]) || null), levels: G.names.map((n, p) => (p ? (GIRLS[n] ? GIRLS[n].level : S.levels[p]) : 'hard')),
-      humans: [0], totals: G.totals, target: S.target, mem: g.mem || newTableMem() };
+      humans: [0], totals: G.totals, target: S.target, mem: g.mem || newTableMem(), helpSpare: G.helpSpare };
     const st = g.st;
     if (st) st.played = Uint8Array.from(st.played);
     Object.assign(G, { hands: st ? st.hands : g.hands, dir: g.dir, known: g.known, received: new Set(), passSel: new Set(), phase: g.phase, st,
@@ -4046,10 +4055,10 @@ function debugTag() {
 }
 
 function startGame() {
-  G = { totals: [0, 0, 0, 0], handNo: 0, names: pickCast(), debug: IS_ADMIN && S.debug ? S.debug : null };
+  G = { totals: [0, 0, 0, 0], handNo: 0, names: pickCast(), debug: IS_ADMIN && S.debug ? S.debug : null, helpSpare: srSpare() };
   // the table the girls play at: each one plays by her own stats card (girls.js); a girl without a card plays her seat's level
   G.T = { cards: G.names.map((n, p) => (p && GIRLS[n]) || null), levels: G.names.map((n, p) => (p ? (GIRLS[n] ? GIRLS[n].level : S.levels[p]) : 'hard')),
-    humans: [0], totals: G.totals, target: S.target, mem: newTableMem() };
+    humans: [0], totals: G.totals, target: S.target, mem: newTableMem(), helpSpare: G.helpSpare };
   recStart();
   if (G.debug) Object.assign(G.rec, { practice: true, debug: G.debug });   // debug games never count
   recSave();
@@ -4385,7 +4394,7 @@ function finishHand(raw, moon, choice, said) {
   // sounds (Kennedy's picks, Nov 7): a moon gets the voice "ahh" or the kids' "woah"; winning the game gets
   // applause, the fanfare or the ta-da (one at random). Kennedy, Nov 7: each sound plays together with its line,
   // not before it. The moon line and its sound go first; the win sound starts with the win line (after the moon line).
-  if (moon >= 0 && said !== undefined) { if (said) react += `<div class="quote">${portraitHTML(voiceOf(said.p))}<div><div class="who">${esc(voiceOf(said.p))}</div><div class="q">“${esc(String(said.text).replace(/\s*\(\d+\)$/, ''))}”</div></div></div>`; }
+  if (moon >= 0 && said !== undefined) { /* Kennedy, Nov 9: the moon animation already played her line; no bubble on the score sheet */ }
   else if (moon >= 0) { SFX.play(['choir-ahh', 'kids-woah']); react += quoteHTML(moon, 'moon'); }
   const winSfx = () => SFX.play(['applause', 'fanfare', 'ta-da']);
   if (over && winners.length === 1) react += quoteHTML(G.names.indexOf(winners[0]), 'win', winSfx);
@@ -4616,7 +4625,8 @@ function showSetup() {
   }));
   $('setup').querySelectorAll('input[name="me"], input[name="mode"], input[name="debug"]').forEach(inp => inp.addEventListener('change', vsSync));
   vsSync();
-  loadSrLock().then(() => { if ($('setup')) vsSync(); });   // fresh after every game
+  loadSrLock().then(() => { if ($('setup')) vsSync(); });
+  loadMyRating();   // fresh after every game
   $('setup').addEventListener('submit', e => {
     e.preventDefault();
     const f = new FormData(e.target);

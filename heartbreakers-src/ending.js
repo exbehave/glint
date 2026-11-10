@@ -202,7 +202,7 @@ function hlEndBubble(g, W, H, U, nm, text, a) {
   const tall = H > W * 1.2, bw = Math.min(W * 0.86, 80 * U), fs = 3.6 * U;
   g.save(); g.globalAlpha = a; g.font = HL_FONT(700, fs);
   const lines = hlWrap(g, '“' + text + '”', bw - 8 * U), bh = lines.length * fs * 1.3 + fs * 2.6, x = W / 2 - bw / 2, y = H * (tall ? 0.86 : 0.83) - bh / 2;
-  g.fillStyle = 'rgba(255,248,252,.5)'; g.beginPath(); g.roundRect(x, y, bw, bh, 2.4 * U); g.fill();
+  g.fillStyle = 'rgba(255,248,252,.95)'; g.beginPath(); g.roundRect(x, y, bw, bh, 2.4 * U); g.fill();
   g.textAlign = 'center'; g.textBaseline = 'middle';
   g.fillStyle = '#ff3d8e'; g.font = HL_FONT(800, fs * 0.62, 'caps'); g.fillText(nm.toUpperCase(), W / 2, y + fs * 1.05);
   g.fillStyle = '#2a0d24'; g.font = HL_FONT(700, fs);

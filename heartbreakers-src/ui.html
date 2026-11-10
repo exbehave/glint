@@ -284,9 +284,9 @@ button:focus-visible, .card:focus-visible, label:focus-within { outline: 2px sol
 .spark { position: absolute; width: 3px; height: 3px; border-radius: 50%; background: #ffd08a; box-shadow: 0 0 6px #ff8a3c, 0 0 12px #ff3d8e; }
 @keyframes shake { 0%, 100% { translate: 0 0; } 15% { translate: -9px 3px; } 30% { translate: 8px -4px; } 45% { translate: -6px 2px; } 60% { translate: 5px -2px; } 75% { translate: -3px 1px; } }
 .app.shake { animation: shake .5s cubic-bezier(.36, .07, .19, .97); }
-.bubble { position: absolute; max-width: 210px; box-sizing: border-box; background: rgba(246,237,242,.5); -webkit-backdrop-filter: blur(7px); backdrop-filter: blur(7px);   /* Kennedy, Nov 9: 50% see-through, frosted */ color: var(--ink); font-weight: 700; font-size: 14px; line-height: 1.25; padding: 8px 12px; border-radius: 14px; box-shadow: 0 6px 18px rgba(0,0,0,.2); transform-origin: var(--tx) 100%; }
+.bubble { position: absolute; max-width: 210px; box-sizing: border-box; background: rgba(246,237,242,.95); -webkit-backdrop-filter: blur(7px); backdrop-filter: blur(7px);   /* Kennedy, Nov 9: 95% (50% was unreadable), frosted */ color: var(--ink); font-weight: 700; font-size: 14px; line-height: 1.25; padding: 8px 12px; border-radius: 14px; box-shadow: 0 6px 18px rgba(0,0,0,.2); transform-origin: var(--tx) 100%; }
 .bubble.down { transform-origin: var(--tx) 0; }
-.bubble::after { content: ""; position: absolute; left: calc(var(--tx) - 7px); width: 14px; height: 14px; background: rgba(246,237,242,.5); transform: rotate(45deg); border-radius: 2px; }
+.bubble::after { content: ""; position: absolute; left: calc(var(--tx) - 7px); width: 14px; height: 14px; background: rgba(246,237,242,.95); transform: rotate(45deg); border-radius: 2px; }
 .bubble.up::after { bottom: -5px; clip-path: polygon(100% 0, 100% 100%, 0 100%); }
 .bubble.down::after { top: -5px; clip-path: polygon(0 0, 100% 0, 0 100%); }
 .bubble.side-l, .bubble.side-r { transform-origin: 0 50%; }
@@ -438,8 +438,8 @@ body { background: var(--ink) url("brand/bg-port.webp") center / cover no-repeat
 .card .port { inset: auto 6% 5% auto; width: 64%; height: 50%; place-items: end; background: none; }
 .card .port.art { inset: 0; width: auto; height: auto; }
 .card .big { font-size: 34px; opacity: .92; line-height: 1; }
-.bubble { font-family: var(--serif); font-size: 13.5px; font-weight: 700; background: rgba(246,237,242,.5); color: #2a0b22; max-width: 150px; padding: 6px 10px; border-radius: 12px; }
-.bubble::after { background: rgba(246,237,242,.5); }
+.bubble { font-family: var(--serif); font-size: 13.5px; font-weight: 700; background: rgba(246,237,242,.95); color: #2a0b22; max-width: 150px; padding: 6px 10px; border-radius: 12px; }
+.bubble::after { background: rgba(246,237,242,.95); }
 .veil { background: rgba(14, 4, 12, .72); }
 .panel { background: linear-gradient(170deg, rgba(44, 15, 38, .96), rgba(20, 6, 17, .97)); border: 1.5px solid var(--line); border-radius: 18px; }
 .panel .logo { width: calc(100% + 24px); max-width: none; margin: -6px -12px 0; height: auto; display: block; filter: drop-shadow(0 0 14px rgba(255, 61, 142, .4)); }

@@ -237,10 +237,12 @@ function route() {
 async function pollList() {
   if (watching) return;
   const since = new Date(Date.now() - SHOW_MS).toISOString();
-  const { data, error } = await sb.from('hb_games').select('id, user_id, started_at, updated_at, data').eq('finished', false).gte('updated_at', since).order('updated_at', { ascending: false }).limit(40);
+  const { data, error } = await sb.from('hb_games').select('id, user_id, started_at, updated_at, data').eq('finished', false).not('save', 'is', null).gte('updated_at', since).order('updated_at', { ascending: false }).limit(40);
   if (watching) return;
   if (error) { $('#main').innerHTML = `<div class="card"><p class="desc">Couldn’t load games: ${esc(error.message)}</p></div>`; return schedule(pollList, 8000); }
-  drawList(data || []);
+  // Only games that can still be picked up: the game clears `save` when a player exits (practice or rated),
+  // and marks `data.quit` on a rated exit. Debug games never belong here.
+  drawList((data || []).filter(r => r.data && !r.data.quit && !r.data.debug));
   schedule(pollList, 5000);
 }
 function drawList(rows) {
@@ -259,7 +261,7 @@ function drawList(rows) {
   };
   const sect = (title, list) => list.length ? `<div class="lab">${title}</div><div class="games">${list.map(tile).join('')}</div>` : '';
   $('#main').innerHTML = `<div class="row spread"><span class="lab">${live.length ? live.length + ' playing now' : 'Nobody’s playing right now'}</span><button class="ghost" id="out" type="button">Sign out</button></div>
-    ${rows.length ? (live.length ? `<div class="games">${live.map(tile).join('')}</div>` : '') + sect('Paused (unfinished, last 24 hours)', paused) : `<div class="card empty"><p class="desc">No games in progress. This page checks every few seconds, so leave it open.</p></div>`}`;
+    ${rows.length ? (live.length ? `<div class="games">${live.map(tile).join('')}</div>` : '') + sect('Paused · can still be picked up (last 24 hours)', paused) : `<div class="card empty"><p class="desc">No games in progress. This page checks every few seconds, so leave it open.</p></div>`}`;
   $('#out').onclick = async () => { await sb.auth.signOut(); signinView(); };
   document.querySelectorAll('.game').forEach(b => b.onclick = () => { location.hash = 'g=' + b.dataset.id; });
 }

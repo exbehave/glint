@@ -39,6 +39,7 @@ function hlEndSeg(rec, seg, clips, A, t) {
   if (seg.pick === 2) losers.forEach((p, k) => A.push({ at: seg.finAt + 0.55 + k * 0.32, soft: 'slam' }));
   A.push({ at: seg.climaxAt, sfx: ['applause', 'fanfare', 'ta-da'][seg.pick] });
   let end = seg.climaxAt + HLE.HOLD;
+  if (seg.pick === 1) end = Math.max(end, hlGrafPlan(rec, seg, A) + 1.4);
   const q = hlWinQuote(rec);
   if (q) {
     const buf = clips[hlVoice(rec, q.p) + '|' + normLine(q.line)] || null, len = buf ? (buf.sp != null ? buf.sp : buf.duration) : 1.8;
@@ -310,7 +311,141 @@ function hlRollCall(g, W, H, rec, seg, t, U) {
       g.fillText(`${['1ST', '2ND', '3RD', '4TH'][place - 1]} · ${hlNum(tot[p])}`, x, y + ps * sc * 1.52 * 0.66 + ps * 0.08);
       g.restore();
     }
+    if (!isWin) { g.save(); g.globalAlpha = show * (1 - dimmed * 0.4); hlGraffiti(g, rec, seg, p, x, y, ps, t, U, y + ps * 1.52 * 0.66 + ps * 0.08); g.restore(); }
   });
+}
+// ---- graffiti on the losers (Kennedy, Nov 9: in the show the losers' pictures get vandalized: mustaches drawn on,
+// obscene stickers all around them; "a combination of all the above, perhaps randomly")
+const HLG_FACES = {   // where the faces sit in each portrait (0–1 of its width and height); twins get two
+  'Victor Twins': [[0.28, 0.33], [0.73, 0.35]], 'Clermont Twins': [[0.3, 0.3], [0.74, 0.31]], 'Shan-Rock': [[0.3, 0.3], [0.73, 0.36]]
+};
+const HLG_WORDS = ['BYE BITCH', 'TRASH', 'PACK YO SH*T', 'CLOWN', 'NOT A BAD GIRL', 'BASIC', '🖕', '🤡'];
+const HLG_INK = ['#39ff6a', '#ffe23d', '#2ee6ff', '#ff2a3a', '#ff4fd8'];
+function hlGrafPlan(rec, seg, A) {   // which marks each loser gets, and when; returns when the last one lands
+  let h = 7; for (const ch of String(rec.id || rec.started || 'x')) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  seg.graf = {}; let last = seg.climaxAt;
+  seg.order.forEach((p, idx) => {
+    if (seg.win.includes(p)) return;
+    const rng = hlRng(Math.imul(h ^ (p + 1), 2654435761)), pickN = arr => arr[Math.floor(rng() * arr.length)];
+    rng(); rng(); rng();   // the first few draws barely differ between nearby seeds
+    const face = pickN(['stache', 'stache', 'brow', 'horns']);
+    const pool = ['x', 'loser', 'halo', 'circle', 'kiss', face === 'horns' ? 'stache' : 'horns'].sort(() => rng() - 0.5);
+    const kinds = [face, ...pool.slice(0, 1 + Math.floor(rng() * 2))];
+    const words = HLG_WORDS.slice().sort(() => rng() - 0.5);
+    for (let k = 0, n = 2 + Math.floor(rng() * 2); k < n; k++) kinds.splice(1 + Math.floor(rng() * kinds.length), 0, 'sticker:' + words[k]);
+    const lt = seg.finAt + 0.35 + (3 - idx) * 0.38;
+    seg.graf[p] = kinds.map((kind, k) => {
+      const at = lt + 0.35 + k * 0.3 + rng() * 0.06, ink = pickN(HLG_INK);
+      A.push({ at, soft: kind.startsWith('sticker') ? 'slap' : kind === 'stache' || kind === 'brow' ? 'marker' : 'spray' });
+      last = Math.max(last, at + 0.4);
+      return { kind, at, ink, r: rng(), r2: rng(), r3: rng() };
+    });
+  });
+  return last;
+}
+function hlPolyPart(g, pts, pr) {   // draw the first pr (0–1) of a polyline, so strokes are drawn on
+  if (pr <= 0 || pts.length < 2) return;
+  let len = 0; const seg = []; for (let i = 1; i < pts.length; i++) { const d = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); seg.push(d); len += d; }
+  let left = len * Math.min(1, pr); g.beginPath(); g.moveTo(pts[0][0], pts[0][1]);
+  for (let i = 1; i < pts.length && left > 0; i++) {
+    const d = seg[i - 1], f = Math.min(1, left / (d || 1)); g.lineTo(pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * f, pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * f); left -= d;
+  }
+  g.stroke();
+}
+function hlSpray(g, ink, lw, U) { g.strokeStyle = ink; g.lineWidth = lw; g.lineCap = 'round'; g.lineJoin = 'round'; g.shadowColor = ink; g.shadowBlur = lw * 0.9; }
+function hlDrips(g, pts, ink, lw, pr, rr) {   // paint running down from a few points of a spray stroke
+  g.save(); g.shadowBlur = 0; g.fillStyle = ink;
+  [0.2, 0.55, 0.85].forEach((f, i) => {
+    const q = pts[Math.floor(f * (pts.length - 1))], run = lw * (1.5 + ((rr * 7 + i * 3.1) % 1) * 3) * hlEaseOut(pr);
+    g.beginPath(); g.roundRect(q[0] - lw * 0.18, q[1], lw * 0.36, run, lw * 0.18); g.fill();
+    g.beginPath(); g.arc(q[0], q[1] + run, lw * 0.26, 0, Math.PI * 2); g.fill();
+  });
+  g.restore();
+}
+function hlGraffiti(g, rec, seg, p, x, y, ps, t, U, scoreY) {
+  const marks = seg.graf && seg.graf[p]; if (!marks) return;
+  const w = ps, h = ps * 1.52, top = y - h * 0.42, pw = w * 0.86, ph = pw * 1.25, px = x - pw / 2, py = top + w * 0.07;
+  const faces = (HLG_FACES[hlVoice(rec, p)] || [[0.5, 0.34]]).map(([fx, fy]) => [px + fx * pw, py + fy * ph]);
+  const fw = pw * (faces.length > 1 ? 0.17 : 0.25);
+  for (const m of marks) {
+    const e = t - m.at; if (e < 0) continue;
+    const pr = hlClamp(e / 0.32);
+    g.save();
+    if (m.kind === 'stache') {   // a curly handlebar mustache in black marker
+      g.lineCap = 'round'; g.lineJoin = 'round';
+      faces.forEach(([fx, fy]) => {
+        const my = fy + fw * 0.85;
+        for (const s of [-1, 1]) {
+          // a fat handlebar: out along the lip, dipping, then sweeping up into a curl
+          const pts = [];
+          for (let i = 0; i <= 20; i++) { const u = i / 20; pts.push([fx + s * (fw * 0.04 + u * fw * 0.6), my + Math.sin(u * Math.PI) * fw * 0.13 - u * u * fw * 0.08]); }
+          const [ex, ey] = pts[pts.length - 1], cr = fw * 0.16;
+          for (let i = 1; i <= 18; i++) { const a = Math.PI / 2 - i / 18 * Math.PI * 1.7; pts.push([ex + s * Math.cos(a) * cr * (1 - i / 40), ey - cr + Math.sin(a) * cr * (1 - i / 40)]); }
+          // black marker with a thin white edge so it reads on dark skin and hair
+          g.strokeStyle = 'rgba(255,255,255,.9)'; g.lineWidth = fw * 0.3; hlPolyPart(g, pts, pr);
+          g.strokeStyle = '#0d0710'; g.lineWidth = fw * 0.2; hlPolyPart(g, pts, pr);
+        }
+      });
+    } else if (m.kind === 'brow') {   // one big scribbled unibrow
+      g.lineCap = 'round'; g.lineJoin = 'round';
+      faces.forEach(([fx, fy]) => { const pts = []; for (let i = 0; i <= 18; i++) pts.push([fx - fw * 0.6 + i / 18 * fw * 1.2, fy - fw * 0.28 + (i % 2 ? -1 : 1) * fw * 0.07 - Math.sin(i / 18 * Math.PI) * fw * 0.08]);
+        g.strokeStyle = 'rgba(255,255,255,.85)'; g.lineWidth = fw * 0.2; hlPolyPart(g, pts, pr); g.strokeStyle = '#0d0710'; g.lineWidth = fw * 0.12; hlPolyPart(g, pts, pr); });
+    } else if (m.kind === 'horns') {   // devil horns sprayed on her head
+      hlSpray(g, '#ff2a3a', fw * 0.14, U);
+      faces.forEach(([fx, fy]) => { for (const s of [-1, 1]) {
+        const bx = fx + s * fw * 0.42, by = fy - fw * 0.85;
+        hlPolyPart(g, [[bx - s * fw * 0.14, by], [bx + s * fw * 0.22, by - fw * 0.55], [bx + s * fw * 0.2, by + fw * 0.05]], pr);
+      } });
+    } else if (m.kind === 'halo') {   // a halo, crossed out
+      hlSpray(g, '#ffe23d', fw * 0.11, U);
+      const [fx, fy] = faces[Math.floor(m.r * faces.length)], hy = fy - fw * 1.15, pts = [];
+      for (let i = 0; i <= 30; i++) { const a = i / 30 * Math.PI * 2; pts.push([fx + Math.cos(a) * fw * 0.6, hy + Math.sin(a) * fw * 0.2]); }
+      hlPolyPart(g, pts, pr * 1.6);
+      if (pr > 0.6) { hlSpray(g, '#ff2a3a', fw * 0.12, U); hlPolyPart(g, [[fx - fw * 0.75, hy - fw * 0.35], [fx + fw * 0.75, hy + fw * 0.35]], (pr - 0.6) / 0.4); }
+    } else if (m.kind === 'x') {   // a big X right across her picture, dripping
+      const lw = pw * 0.07; hlSpray(g, m.ink === '#ffe23d' ? '#ff2a3a' : m.ink, lw, U);
+      const a = [[px + pw * 0.08, py + ph * 0.1], [px + pw * 0.92, py + ph * 0.9]], b = [[px + pw * 0.9, py + ph * 0.12], [px + pw * 0.1, py + ph * 0.88]];
+      hlPolyPart(g, a, pr * 2); if (pr > 0.5) hlPolyPart(g, b, (pr - 0.5) * 2);
+      hlDrips(g, a, g.strokeStyle, lw, hlClamp(e / 1.2), m.r);
+    } else if (m.kind === 'loser') {   // LOSER sprayed across her
+      g.translate(x, py + ph * (0.62 + m.r2 * 0.2)); g.rotate(-0.25 + m.r * 0.18);
+      g.beginPath(); g.rect(-pw, -pw, pw * 2 * pr, pw * 2); g.clip();
+      g.font = HL_FONT(900, pw * 0.27, 'caps'); g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.lineWidth = pw * 0.035; g.strokeStyle = '#0d0710'; g.strokeText('LOSER', 0, 0);
+      g.shadowColor = m.ink; g.shadowBlur = pw * 0.05; g.fillStyle = m.ink; g.fillText('LOSER', 0, 0);
+    } else if (m.kind === 'circle') {   // her score circled, with a little "lol"
+      hlSpray(g, m.ink, ps * 0.025, U);
+      const pts = []; for (let i = 0; i <= 36; i++) { const a = -0.5 + i / 36 * Math.PI * 2.15; pts.push([x + Math.cos(a) * ps * 0.62, scoreY + Math.sin(a) * ps * 0.16]); }
+      hlPolyPart(g, pts, pr);
+      if (pr > 0.8) { g.shadowBlur = 0; g.fillStyle = m.ink; g.font = HL_FONT(800, ps * 0.13); g.textAlign = 'left'; g.textBaseline = 'middle'; g.globalAlpha *= (pr - 0.8) / 0.2; g.fillText('lol', x + ps * 0.66, scoreY - ps * 0.15); }
+    } else if (m.kind === 'kiss') {   // lipstick kisses and XOXO with a heart crossed out
+      g.globalAlpha *= hlClamp(e / 0.15);
+      for (let i = 0; i < 2; i++) {
+        const kx = px + pw * (0.2 + ((m.r + i * 0.47) % 1) * 0.6), ky = py + ph * (0.55 + ((m.r2 + i * 0.31) % 1) * 0.35), kr = pw * 0.07;
+        g.save(); g.translate(kx, ky); g.rotate((m.r3 - 0.5) + i); g.fillStyle = 'rgba(220,20,60,.85)';
+        g.beginPath(); g.ellipse(0, -kr * 0.32, kr, kr * 0.42, 0, Math.PI, 0); g.ellipse(0, kr * 0.28, kr * 0.9, kr * 0.4, 0, 0, Math.PI); g.fill();
+        g.strokeStyle = 'rgba(80,0,20,.6)'; g.lineWidth = kr * 0.1; g.beginPath(); g.moveTo(-kr * 0.9, 0); g.quadraticCurveTo(0, kr * 0.12, kr * 0.9, 0); g.stroke(); g.restore();
+      }
+      g.font = HL_FONT(800, pw * 0.13); g.fillStyle = '#ff2a6a'; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.save(); g.translate(px + pw * 0.3, py + ph * 0.12); g.rotate(-0.2); g.fillText('XOXO', 0, 0); g.restore();
+      const hx = px + pw * 0.8, hy = py + ph * 0.12, hr = pw * 0.06; g.save(); g.translate(hx, hy); g.strokeStyle = '#ff2a6a'; g.lineWidth = hr * 0.3;
+      g.beginPath(); g.moveTo(0, hr * 0.9); g.bezierCurveTo(-hr * 1.6, -hr * 0.2, -hr * 0.6, -hr * 1.3, 0, -hr * 0.35); g.bezierCurveTo(hr * 0.6, -hr * 1.3, hr * 1.6, -hr * 0.2, 0, hr * 0.9); g.stroke();
+      g.strokeStyle = '#0d0710'; g.beginPath(); g.moveTo(-hr * 1.3, hr * 1.1); g.lineTo(hr * 1.3, -hr * 1.1); g.stroke(); g.restore();
+    } else if (m.kind.startsWith('sticker:')) {   // a bubble sticker slapped on at an angle, half off the card
+      const word = m.kind.slice(8), emoji = !/[A-Z]/.test(word);
+      const side = m.r < 0.5 ? -1 : 1, sx = x + side * w * (0.2 + m.r2 * 0.2), sy = top + h * (0.1 + m.r3 * 0.72);   // on the card's edge, not over the next girl
+      const sl = hlClamp(e / 0.16), sc = 1 + 0.5 * (1 - hlEaseOut(sl));
+      g.globalAlpha *= sl; g.translate(sx, sy); g.rotate((m.r2 - 0.5) * 0.9); g.scale(sc, sc);
+      const fs = emoji ? ps * 0.2 : ps * 0.11; g.font = emoji ? `${fs}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif` : HL_FONT(900, fs, 'caps');
+      const tw = g.measureText(word).width, bw = tw + fs * (emoji ? 0.35 : 0.9), bh = fs * (emoji ? 1.25 : 1.75);
+      g.shadowColor = 'rgba(0,0,0,.45)'; g.shadowBlur = fs * 0.4; g.shadowOffsetY = fs * 0.12;
+      g.fillStyle = '#fff'; g.beginPath(); emoji ? g.arc(0, 0, fs * 0.72, 0, Math.PI * 2) : g.roundRect(-bw / 2 - fs * 0.18, -bh / 2 - fs * 0.18, bw + fs * 0.36, bh + fs * 0.36, bh); g.fill();
+      g.shadowColor = 'transparent';
+      if (!emoji) { g.fillStyle = m.ink; g.beginPath(); g.roundRect(-bw / 2, -bh / 2, bw, bh, bh); g.fill(); }
+      g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#0d0710'; g.fillText(word, 0, fs * (emoji ? 0.06 : 0.04));
+    }
+    g.restore();
+  }
 }
 // 2 Pack your bags: a suitcase pops up in front of each loser, slams shut with a luggage tag (her score), and
 // gets wheeled off; the winner stays in the spotlight, still in the house.

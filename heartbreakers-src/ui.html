@@ -1424,7 +1424,7 @@ function sayNow(p, ev, then, start) {
 }
 // Which way each sprite looks (viewer's left or right). Side seats mirror a sprite so she looks in toward the table.
 // Kennedy, Nov 8: Dalila turns her head the same way Amy does, so she gets mirrored on side seats too
-const FACING = { 'Amy': 'right', 'Dalila': 'right' };
+const FACING = { 'Amy': 'right', 'Dalila': 'right', 'Shan-Rock': 'left' };   // Kennedy, Nov 9, 20:58: Shan-Rock looks left, so she's mirrored on the left seat
 function seatFlip(nm, el) {
   const f = FACING[nm];
   if (!f || !el) return false;
@@ -1596,6 +1596,99 @@ async function loadAdmin() {
   if (!sb || !ME) return;
   try { const { data } = await sb.from('glint_roles').select('role').eq('user_id', ME.id).maybeSingle(); IS_ADMIN = !!(data && data.role === 'admin'); } catch (e) {}
 }
+
+// ---------- admin alerts (Kennedy, Nov 9, 2026): a push when a friend shoots the moon or pulls a Queen's Gambit ----------
+// The game's own service worker (sw.js, no caching) shows them; the subscription goes to hb_push_subs and the
+// hb-alerts edge function (every minute) sends them. Same push keys as In the Loop. Tapping one opens ?replay=<game id>.
+const HB_VAPID = 'BDmEO4-aDo9kfqqgrNaKIQ6Ut9ty_YRNo5VDXSY-KnKoGO5T65NRZoGgBTJfi31DSUkeqlsOStu-rfAofZ4xAeM';
+const pushOK = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+const standalone = () => (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+function vapidBytes(k) { const s = atob(k.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((k.length + 3) % 4)); return Uint8Array.from(s, ch => ch.charCodeAt(0)); }
+async function alertsState() {
+  if (!pushOK()) return /iPhone|iPad|iPod/.test(navigator.userAgent) && !standalone() ? 'need-app' : 'unsupported';
+  const reg = await navigator.serviceWorker.getRegistration('sw.js').catch(() => null);
+  const sub = reg && reg.pushManager ? await reg.pushManager.getSubscription().catch(() => null) : null;
+  if (sub) return 'on';
+  return Notification.permission === 'denied' ? 'blocked' : 'off';
+}
+async function alertsOn() {
+  const perm = await Notification.requestPermission();   // asked inside the tap, or iPhone ignores it
+  if (perm !== 'granted') throw new Error(perm === 'denied' ? 'blocked' : 'not allowed');
+  const reg = await navigator.serviceWorker.register('sw.js');
+  await navigator.serviceWorker.ready;
+  const sub = (await reg.pushManager.getSubscription()) || (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: vapidBytes(HB_VAPID) }));
+  const { error } = await sb.from('hb_push_subs').upsert({ endpoint: sub.endpoint, sub: sub.toJSON(), origin: location.origin, user_id: ME.id });
+  if (error) throw error;
+}
+async function alertsOff() {
+  const reg = await navigator.serviceWorker.getRegistration('sw.js');
+  const sub = reg && (await reg.pushManager.getSubscription());
+  if (!sub) return;
+  const ep = sub.endpoint;
+  await sub.unsubscribe().catch(() => {});
+  await sb.from('hb_push_subs').delete().eq('endpoint', ep);
+}
+const ALERT_MSG = {
+  on: 'On for this device. You’ll get one when a friend shoots the moon or pulls a Queen’s Gambit; tap it to watch the replay.',
+  off: 'Off for this device.',
+  blocked: 'Notifications are blocked. Turn them on in iPhone Settings → Notifications → Heartbreakers, then come back here.',
+  'need-app': 'Open Heartbreakers from its home-screen icon (not a Safari tab) to turn these on. iPhones only allow notifications for home-screen apps.',
+  unsupported: 'This browser can’t receive notifications.'
+};
+function alertsHTML() {
+  return `<div class="field" id="alerts"><span class="lab">Friends’ alerts <small>only you see this</small></span><div class="sub" id="al-msg">Checking…</div><div class="dseats" id="al-btns"></div></div>`;
+}
+async function wireAlerts() {
+  const msg = $('al-msg'), btns = $('al-btns');
+  if (!msg) return;
+  const draw = async (note) => {
+    const st = await alertsState();
+    if (!$('al-msg')) return;
+    msg.textContent = note || ALERT_MSG[st];
+    btns.innerHTML = st === 'on' ? `<button class="ghost" id="al-test" type="button">Send a test</button><button class="ghost" id="al-off" type="button">Turn off</button>`
+      : st === 'off' ? `<button class="ghost" id="al-on" type="button">Turn on</button>` : '';
+    if ($('al-on')) $('al-on').onclick = async () => {
+      msg.textContent = 'Turning on…';
+      try { await alertsOn(); draw(); } catch (e) { draw(e && e.message === 'blocked' ? ALERT_MSG.blocked : 'Couldn’t turn them on: ' + ((e && e.message) || e)); }
+    };
+    if ($('al-off')) $('al-off').onclick = async () => { msg.textContent = 'Turning off…'; try { await alertsOff(); } catch (e) {} draw(); };
+    if ($('al-test')) $('al-test').onclick = async () => {
+      msg.textContent = 'Sending…';
+      try {
+        const { data: { session } } = await sb.auth.getSession();
+        const r = await fetch(SUPA_URL + '/functions/v1/hb-alerts', { method: 'POST', headers: { 'Content-Type': 'application/json', apikey: SUPA_KEY, Authorization: 'Bearer ' + session.access_token }, body: '{"test":true}' });
+        const j = await r.json().catch(() => ({}));
+        draw(r.ok && (j.results || []).includes('ok') ? 'Sent. It should show up in a few seconds.' : 'Couldn’t send it: ' + (j.error || (j.results || []).join(', ') || r.status));
+      } catch (e) { draw('Couldn’t send it: ' + ((e && e.message) || e)); }
+    };
+  };
+  draw();
+}
+// a replay link from an alert: that game's Highlights (the admin can read every game)
+async function openReplay(id, back) {
+  openVeil(`<div class="panel" role="dialog" aria-label="Replay"><div><h2>Replay</h2><div class="sub">Loading the game…</div></div></div>`);
+  let row = null;
+  try {
+    for (const t of ['hb_games', 'hb_debug_games']) {
+      const { data } = await sb.from(t).select('data').eq('id', id).maybeSingle();
+      if (data && data.data) { row = data; break; }
+    }
+  } catch (e) {}
+  if (!row) {
+    openVeil(`<div class="panel" role="dialog" aria-label="Replay"><div><h2>Couldn’t find that game</h2><div class="sub">It may have been removed.</div></div><div class="btns"><button class="cta" id="rp-x">Back</button></div></div>`);
+    $('rp-x').onclick = back;
+    return;
+  }
+  showHighlights(row.data, back);
+}
+const REPLAY_ID = (() => { try { return new URLSearchParams(location.search).get('replay'); } catch (e) { return null; } })();
+if (REPLAY_ID) try { history.replaceState(null, '', location.pathname + location.hash); } catch (e) {}
+if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message', e => {
+  const url = e.data && e.data.replay;
+  if (!url || !IS_ADMIN) return;
+  let id = null; try { id = new URL(url, location.href).searchParams.get('replay'); } catch (err) {}
+  if (id) openReplay(id, () => (G ? closeVeil() : setupOrResume()));
+});
 // cards: suit = floor(c / 13) (0 clubs, 1 diamonds, 2 spades, 3 hearts), rank = c % 13 + 2
 const DEBUG_PRESETS = [
   ['', 'Off'],
@@ -2321,6 +2414,7 @@ async function bootGate() {
   if (!ME) return showSignIn();
   if (ME.user_metadata && ME.user_metadata.must_change) return showNewPassword();
   await loadAdmin();
+  if (REPLAY_ID && IS_ADMIN) return openReplay(REPLAY_ID, () => setupOrResume());   // opened from an alert
   setupOrResume();
 }
 function showSignIn(note) {
@@ -2466,6 +2560,7 @@ function showMenu() {
     <div class="field"><span class="lab">Haptics</span>${segHTML('mhaptics', [['on', 'On'], ['off', 'Off']], S.haptics ? 'on' : 'off')}</div>
     <div class="foot">Your game saves as you play: refresh or close the page and you’ll come right back to it. Exit game ends it${G && G.rec && G.rec.practice ? '' : '. Leaving a rated game counts as a loss'}.</div>
     ${ME ? `<button class="ghost" id="b-lb" type="button">Leaderboard</button><button class="ghost" id="b-mg" type="button">My games</button>` : ''}
+    ${IS_ADMIN ? alertsHTML() : ''}
     ${G && G.debug ? `<div class="field dbg"><span class="lab">Debug <small>only you see this</small></span>
       <div class="sub">Play my cards</div>${segHTML('dauto', [['on', 'On'], ['off', 'Off']], G.autoMe ? 'on' : 'off')}
       <div class="sub">Show all hands</div>${segHTML('dpeek', [['on', 'On'], ['off', 'Off']], G.showAll ? 'on' : 'off')}
@@ -2485,6 +2580,7 @@ function showMenu() {
   $('veil').querySelectorAll('.dseats select').forEach(sel => sel.onchange = () => { debugSwapSeats(+sel.dataset.seat, +sel.value); showMenu(); });
   if ($('b-lb')) $('b-lb').onclick = () => showLeaders(showMenu);
   if ($('b-mg')) $('b-mg').onclick = () => showMyGames(showMenu);
+  if (IS_ADMIN) wireAlerts();
   // Kennedy, Nov 8: leaving a rated game counts as a loss, so warn first (practice games just end)
   $('b-new').onclick = () => {
     const rated = ME && G && G.rec && !G.rec.practice && G.phase !== 'over';

@@ -150,7 +150,7 @@ const SUPA_URL = 'https://lwbbkwftkxjmrpyalrwu.supabase.co', SUPA_KEY = 'sb_publ
 const sb = window.supabase ? window.supabase.createClient(SUPA_URL, SUPA_KEY, { auth: { persistSession: true, autoRefreshToken: true } }) : null;
 const IMG = { 'Natalie': 'natalie', 'Kristen': 'kristen', 'Judi': 'judi', 'Victor Twins': 'victor-twins', 'Amy': 'amy', 'Dalila': 'dalila', 'Shan-Rock': 'shanrock', 'Clermont Twins': 'clermonts' };
 const RENAMED = { 'Clermonts': 'Clermont Twins' };
-const FACING = { 'Amy': 'right', 'Dalila': 'right' };   // same rule as the game: mirrored on the right-hand seat so she looks in
+const FACING = { 'Amy': 'right', 'Dalila': 'right', 'Shan-Rock': 'left' };   // same rule as the game: mirrored on the right-hand seat so she looks in
 const SYM = ['♣', '♦', '♠', '♥'], DIRS = ['left', 'right', 'across', 'no pass'], QS = 36;
 const suit = c => Math.floor(c / 13), rank = c => (c % 13) + 2;
 const RL = r => ({ 11: 'J', 12: 'Q', 13: 'K', 14: 'A' })[r] || String(r);
@@ -319,7 +319,7 @@ function drawTable(row) {
 
   const seat = p => {
     const h = hands && hands[p] ? sortHand(hands[p]) : [];
-    const flip = p === 3 && FACING[girl(p)] === 'right';
+    const flip = (p === 3 && FACING[girl(p)] === 'right') || (p === 1 && FACING[girl(p)] === 'left');
     const rp = roundPts[p] ? ` <span class="rp">+${roundPts[p]}</span>` : '';
     return `<div class="seat s${p}${turn === p ? ' turn' : ''}" style="--a:s${p}">
       <div class="hd">${portrait(girl(p), flip)}<div><div class="nm">${esc(label(p))}${p === 0 ? ` <span class="sc">as ${esc(me)}</span>` : ''}</div><div class="sc">Total <b>${totals[p] ?? 0}</b>${rp}</div></div></div>

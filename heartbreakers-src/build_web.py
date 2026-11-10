@@ -30,6 +30,7 @@ head = """<!doctype html>
 open(os.path.join(OUT, 'index.html'), 'w', encoding='utf-8').write(head + body + '\n</body>\n</html>\n')
 shutil.copy(os.path.join(D, 'web', 'admin.html'), os.path.join(OUT, 'admin.html'))
 shutil.copy(os.path.join(D, 'web', 'live.html'), os.path.join(OUT, 'live.html'))  # admin-only live tables (Nov 9, 2026)
+shutil.copy(os.path.join(D, 'web', 'sw.js'), os.path.join(OUT, 'sw.js'))  # admin alerts (Nov 9, 2026): push only, no caching
 
 # images for the admin pages (quotes, live tables)
 for f in ['logo.webp', 'bg-port.webp']:

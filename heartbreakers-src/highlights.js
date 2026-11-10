@@ -816,19 +816,8 @@ function hlMoonSplit(g, seg, cx, cy, Rd, t, bang, ring, moonA, U) {
   const tr = shot && e > 0.35 && e < HLMS.SPLIT + 0.2 ? Math.sin(e * 70) * U * 0.25 * hlClamp((e - 0.35) / 0.4) : 0;
   if (open <= 0) { g.globalAlpha = moonA; g.drawImage(img, cx - S / 2 + tr, cy - S / 2); }
   else {
-    // the beam: a vertical shaft of light out of the gap, wider as the halves part, plus a bloom
+    // Kennedy, Nov 9, 18:45: no beam or bloom out of the gap (it looked like a stretched egg); the halves just part
     const gap = open * Rd * 1.5, beamA = hlClamp((e - HLMS.SPLIT) / 0.25) * (1 - gone * 0.8);
-    g.save(); g.globalCompositeOperation = 'lighter'; g.globalAlpha = moonA * beamA;
-    const bw = gap * 1.1 + Rd * 0.08, bh = Rd * 7;
-    const sh = g.createLinearGradient(cx - bw / 2, 0, cx + bw / 2, 0);
-    sh.addColorStop(0, 'rgba(255,61,142,0)'); sh.addColorStop(0.3, 'rgba(255,120,190,.55)'); sh.addColorStop(0.5, 'rgba(255,250,252,.95)'); sh.addColorStop(0.7, 'rgba(255,120,190,.55)'); sh.addColorStop(1, 'rgba(255,61,142,0)');
-    const fall = g.createLinearGradient(0, cy - bh / 2, 0, cy + bh / 2);
-    fall.addColorStop(0, 'rgba(0,0,0,0)'); fall.addColorStop(0.5, 'rgba(0,0,0,1)'); fall.addColorStop(1, 'rgba(0,0,0,0)');
-    g.fillStyle = sh; g.save(); g.beginPath(); g.ellipse(cx, cy, bw / 2, bh / 2, 0, 0, Math.PI * 2); g.clip(); g.fillRect(cx - bw / 2, cy - bh / 2, bw, bh); g.restore();
-    const bloom = g.createRadialGradient(cx, cy, 0, cx, cy, Rd * (0.9 + open * 0.6));
-    bloom.addColorStop(0, 'rgba(255,240,248,.6)'); bloom.addColorStop(0.3, 'rgba(255,90,170,.28)'); bloom.addColorStop(1, 'rgba(255,61,142,0)');
-    g.fillStyle = bloom; g.beginPath(); g.arc(cx, cy, Rd * (0.9 + open * 0.6), 0, Math.PI * 2); g.fill();
-    g.restore();
     // the two halves, each clipped along the split, drifting apart and turning away
     const clipHalf = (q, side) => {
       q.beginPath(); q.moveTo(side * Rd * 1.3, -Rd * 1.3);

@@ -23,8 +23,9 @@ function hlTricks(h) {
     const hands = h.tram.hands.map(x => x.slice()), table = (h.tram.table || []).map(([p, c]) => ({ p, c }));
     let ms = h.tram.ms || (out.length ? out[out.length - 1].t1 : 0);
     if (out.length) out[out.length - 1].t1 = Math.min(out[out.length - 1].t1, ms);
-    for (let n = out.length; n < 13; n++) {
-      const cards = n === out.length ? table.slice() : [];
+    const first = out.length;   // (Nov 9 fix: comparing against out.length while pushing put the table cards in every trick)
+    for (let n = first; n < 13; n++) {
+      const cards = n === first ? table.slice() : [];
       for (let k = 0; k < 4; k++) if (!cards.some(x => x.p === k) && hands[k].length) cards.push({ p: k, c: hands[k].shift() });
       if (cards.length < 4) break;
       out.push({ n, cards, w: h.tram.by != null ? h.tram.by : 0, t0: ms, t1: n === 12 ? Infinity : ms, tram: true });
@@ -469,6 +470,10 @@ function hlMoonSeg(rec, seg, clips, A, t, opts = {}) {
   seg.ff.forEach(f => { A.push({ at: f.at + 0.04, soft: 'card' }); A.push({ at: f.at + 0.19, soft: 'sweep' }); });
   seg.pts = [];   // her point cards, in the order she took them: [{c, at (when it reached her pile)}]
   ff.forEach((tr, k) => tr.cards.forEach(x => { if (suit(x.c) === 3 || x.c === QS) seg.pts.push({ c: x.c, at: skipFF ? t : seg.ff[k].at + HLM.FF }); }));
+  // a moon is every heart and the Q♠: if the recording came up short (a game left and resumed mid-trick), fill in the
+  // missing ones so the devil heart is always whole
+  if (seg.pts.length < 14) { const have = new Set(seg.pts.map(x => x.c)), at = seg.pts.length ? seg.pts[seg.pts.length - 1].at : t;
+    for (let c = 0; c < 52; c++) if ((suit(c) === 3 || c === QS) && !have.has(c)) seg.pts.push({ c, at }); }
   const F0 = skipFF ? t + 0.35 : t + HLM.FF0 + ff.length * HLM.FF + HLM.PAUSE;
   seg.ringAt = F0;
   // the choir and her moon line start as the cards fly into the circle; the gun fires once she's done talking
@@ -484,7 +489,7 @@ function hlMoonSeg(rec, seg, clips, A, t, opts = {}) {
   seg.bangAt = F0 + HLM.BANG;   // Kennedy: the shot doesn't wait for her line
   seg.gunAt = seg.bangAt - (HLM.BANG - HLM.RING + 0.1); seg.cockAt = seg.bangAt - (HLM.BANG - HLM.COCK);
   A.push({ at: seg.cockAt, sfx: 'cock' }); A.push({ at: seg.bangAt, sfx: 'shot', gain: 1.6 });
-  // the shatter's own sound: Kennedy is picking one from the sound menu (the glass shatter was cut, Nov 9, 18:53)
+  A.push({ at: seg.bangAt + 0.05, sfx: 'shatter' });   // crystal burst (Kennedy's pick from the sound menu, Nov 9, 18:59)
   seg.gustAt = seg.bangAt + 1.7; seg.gunOut = seg.bangAt + 2.5;
   seg.t1 = Math.max(seg.bangAt + 4.0, q0 + 0.6);
   return seg.t1;

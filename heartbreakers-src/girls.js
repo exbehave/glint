@@ -30,17 +30,24 @@ const tolerance = J => (J >= 1 ? 0 : J <= 0 ? Infinity : 3 * (1 - J) / J);
 const roll = v => Math.random() < (v || 0);
 
 // ---------- passing ----------
+// PASS_WHY (Theater's thinking panel): after girlPass returns, the reason for that pass —
+// { cards: [[card, code]…], level } plus keptQ (the queen she held on to) / panic (spade panic), or { psychic… }.
+// Read it straight after the call: a psychic girl's pass imagines everyone else's, which overwrites it on the way.
+let PASS_WHY = null;
+const passCodes = (pick, why) => new Map(pick.map(c => [c, Array.isArray(why) ? (why.find(x => x[0] === c) || [0, 'high'])[1] : why]));
 function girlPass(T, p, hand) {
   const card = T.cards[p];
-  if (!card) return LEVELS[T.levels[p]].pass(hand);
+  if (!card) { const pk = LEVELS[T.levels[p]].pass(hand); PASS_WHY = { level: T.levels[p], cards: [...passCodes(pk, BRAIN_WHY)] }; return pk; }
   if (card.psychic === 'all') return passPsychic(T, p, hand);
   const d = card.dials;
   let pick = LEVELS[card.level].pass(hand).slice();
+  const codes = passCodes(pick, BRAIN_WHY), extra = {};
   const swapIn = c => { // put c in the pass, pushing out the least dangerous card already there
     if (pick.includes(c) || !hand.includes(c)) return;
     const danger = x => (x === QS ? 60 : suit(x) === 2 && rank(x) > 12 ? 45 : suit(x) === 3 ? rank(x) + 4 : rank(x));
     pick.sort((a, b) => danger(a) - danger(b));
     pick[0] = c;
+    codes.set(c, 'panic');
   };
   // Keeps the queen: she holds on to it (Judgment: only when she has at least two other spades to hide it behind)
   if (pick.includes(QS) && roll(d.keepQueen)) {
@@ -48,17 +55,19 @@ function girlPass(T, p, hand) {
     if (card.judgment < 0.5 || cover >= 2) {
       const rest = desc(hand.filter(c => c !== QS && !pick.includes(c)));
       pick[pick.indexOf(QS)] = rest[0];
+      codes.set(rest[0], 'keptQueen'); extra.keptQ = QS;
     }
   }
   // Spade panic: the big spades (and the queen) go, however safe she is
-  if (roll(d.spadePanic)) [QS, cardId(2, 14), cardId(2, 13)].forEach(swapIn);
+  if (roll(d.spadePanic)) { extra.panic = 1; [QS, cardId(2, 14), cardId(2, 13)].forEach(swapIn); }
+  PASS_WHY = { level: card.level, cards: pick.map(c => [c, codes.get(c) || 'high']), ...extra };
   return pick;
 }
 
 // ---------- playing ----------
 function girlPick(T, p, st) {
   const card = T.cards[p];
-  if (!card) return LEVELS[T.levels[p]].pick(st, p, T.known[p]);
+  if (!card) { const c = LEVELS[T.levels[p]].pick(st, p, T.known[p]); if (T.base) T.base[p] = BRAIN_WHY; return c; }
   if (card.psychic === 'all') return pickPsychic(T, p, st);
   return habitPick(T, p, st, true);
 }
@@ -83,8 +92,9 @@ function basePick(T, p, st, card) {
 function habitPick(T, p, st, veto) {
   const card = T.cards[p], d = card.dials, mem = T.mem[p];
   const L = legalFor(st, p);
-  if (L.length === 1) return L[0];
+  if (L.length === 1) { if (veto && T.base) T.base[p] = 'only'; return L[0]; }
   const base = basePick(T, p, st, card);
+  if (veto && T.base) T.base[p] = BRAIN_WHY;   // what her base brain wanted, and why (read before the veto's playouts overwrite it)
   const t = st.trick, void_ = t.length && !L.some(c => suit(c) === suit(t[0].c));
   const winner = t.length ? winnerOf(t) : null;
   const losesTo = c => winner && (suit(c) !== suit(t[0].c) || rank(c) < rank(winner.c));
@@ -103,6 +113,7 @@ function habitPick(T, p, st, veto) {
       const low = Math.min(...others.map(q => T.totals[q]));
       if (others.some(q => T.totals[q] !== low)) { target = others.find(q => T.totals[q] === low); why = 'leader'; }
     }
+    if (veto && T.base) T.base['t' + p] = target;   // the thinking panel names who the points were aimed at
     if (target >= 0) {
       if (winner.p === target) habit = L.includes(QS) ? QS : hearts[0] ?? null; // she's winning it: load it up
       else if (L.includes(QS)) { // save the queen for her target
@@ -263,7 +274,8 @@ function pickPsychic(T, p, st) {
     return { x: c, own: own / R + (winsNow && L.some(x => suit(x) === 2 && x !== QS) ? 1.5 : 0), hum: hu / R, cpu: cp / R };
   });
   // Game review (Kennedy, Nov 7): keep every option she weighed — card, her expected points, the humans' expected points.
-  if (T.why) T.why[p] = { psychic: 1, rate: rateFor(T, p), runs: R, opts: scores.map(o => [o.x, +o.own.toFixed(2), +o.hum.toFixed(2)]) };
+  // Theater (no humans, Nov 9): a 4th number, the other girls' expected points (valueOf's cpu).
+  if (T.why) T.why[p] = { psychic: 1, rate: rateFor(T, p), runs: R, opts: scores.map(o => [o.x, +o.own.toFixed(2), +o.hum.toFixed(2), +o.cpu.toFixed(2)]) };
   return chooseByGoal(T, p, scores);
 }
 // Passing: she sees every hand, so she tries a handful of passes and plays each one out (with everyone else's pass predicted
@@ -289,6 +301,11 @@ function passPsychic(T, p, hand) {
     }
     return { x: pick, own: own / R, hum: hu / R, cpu: cp / R };
   });
-  return chooseByGoal(T, p, scores);
+  const chosen = chooseByGoal(T, p, scores);
+  const pk = scores.find(o => o.x === chosen), obvious = scores[0], r2 = v => +v.toFixed(2);
+  PASS_WHY = { psychic: 1, tried: cands.length, runs: R, goal: (T.cards[p] || {}).goal || null,
+    picked: [r2(pk.own), r2(pk.hum), r2(pk.cpu)], obvious: [obvious.x.slice(), r2(obvious.own), r2(obvious.hum), r2(obvious.cpu)],
+    cards: chosen.map(c => [c, 'psychic']) };
+  return chosen;
 }
 // ===== end girls =====

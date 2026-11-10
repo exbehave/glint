@@ -1077,21 +1077,28 @@ async function showMyGames(back) {
   $('mg-x').onclick = () => (back ? back() : closeVeil());
   let rows = [];
   try {
-    const q = t => sb.from(t).select('id, started_at, finished, data').eq('user_id', ME.id).order('started_at', { ascending: false }).limit(25);
-    const [real, dbg] = await Promise.all([q('hb_games'), IS_ADMIN ? q('hb_debug_games') : null]);   // debug games live apart (admin only)
+    const q = t => sb.from(t).select('id, user_id, started_at, finished, data').eq('user_id', ME.id).order('started_at', { ascending: false }).limit(25)
+      .then(r => { (r.data || []).forEach(x => (x.table = t)); return r; });
+    // Theater games too (Nov 10): every game you can replay move by move
+    const [real, dbg, th] = await Promise.all([q('hb_games'), IS_ADMIN ? q('hb_debug_games') : null, q('hb_theater_games')]);   // debug games live apart (admin only)
     if (real.error) throw real.error;
-    rows = (real.data || []).concat((dbg && dbg.data) || []).filter(r => r.data && r.data.hands && r.data.hands.length)
-      .sort((a, b) => (a.started_at < b.started_at ? 1 : -1)).slice(0, 25);
+    rows = (real.data || []).concat((dbg && dbg.data) || [], (th && th.data) || []).filter(r => r.data && r.data.hands && r.data.hands.length)
+      .sort((a, b) => (a.started_at < b.started_at ? 1 : -1)).slice(0, 40);
   } catch (e) { if ($('mg-sub')) $('mg-sub').textContent = 'Couldn’t load your games. Try again in a moment.'; return; }
   if (!$('mg-list')) return;
-  $('mg-sub').textContent = rows.length ? 'Tap a game to watch its highlights.' : 'No games yet.';
+  const canReplay = typeof pastGameOK === 'function' && pastGameOK();
+  $('mg-sub').textContent = !rows.length ? 'No games yet.' : canReplay ? 'Tap a game to replay it move by move.' : 'Leave the game you’re in to replay one move by move. Highlights work any time.';
   $('mg-list').innerHTML = rows.map((r, i) => {
     const d = r.data, tot = d.totals || [0, 0, 0, 0], low = Math.min(...tot), n = hlFind(d).length;
     const place = 1 + tot.filter(x => x < tot[0]).length;
-    const res = d.quit ? 'Left early' : !r.finished ? 'Unfinished' : tot[0] === low ? 'Won' : `${['', '1st', '2nd', '3rd', '4th'][place]} place`;
+    const wn = (d.winners || []).map(w => d.names[w]).join(' & ');
+    const res = d.theater ? (r.finished ? `${wn || '—'} won` : 'Unfinished') : d.quit ? 'Left early' : !r.finished ? 'Unfinished' : tot[0] === low ? 'Won' : `${['', '1st', '2nd', '3rd', '4th'][place]} place`;
     const when = new Date(r.started_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-    return `<button class="mg-row" type="button" data-i="${i}" ${n ? '' : 'disabled'}><span class="mg-when">${esc(when)}</span><span class="mg-who">as ${esc(d.me || '')} · vs ${esc(d.names.slice(1).join(', '))}</span><span class="mg-res">${esc(res)}${d.debug ? ' · debug' : d.practice ? ' · practice' : ''}</span><span class="mg-n">${n ? `${n} highlight${n === 1 ? '' : 's'}` : 'no highlights'}</span></button>`;
+    const rep = canReplay && !d.debug;
+    return `<div class="mg-item"><button class="mg-row" type="button" data-i="${i}" ${rep || n ? '' : 'disabled'}><span class="mg-when">${esc(when)}</span><span class="mg-who">${d.theater ? `Theater · ${esc(d.names.join(', '))}` : `as ${esc(d.me || '')} · vs ${esc(d.names.slice(1).join(', '))}`}</span><span class="mg-res">${esc(res)}${d.debug ? ' · debug' : d.practice ? ' · practice' : ''}</span><span class="mg-n">${rep ? 'Replay' : n ? `${n} highlight${n === 1 ? '' : 's'}` : 'no highlights'}</span></button>${rep && n ? `<button class="ghost mg-hl" type="button" data-i="${i}">Highlights · ${n}</button>` : ''}</div>`;
   }).join('');
-  $('mg-list').querySelectorAll('.mg-row').forEach(b => b.onclick = () => showHighlights(rows[+b.dataset.i].data, () => showMyGames(back)));
+  const again = () => showMyGames(back);
+  $('mg-list').querySelectorAll('.mg-row').forEach(b => b.onclick = () => { const r = rows[+b.dataset.i]; if (canReplay && !r.data.debug) openPastGame(r, r.table, again); else showHighlights(r.data, again); });
+  $('mg-list').querySelectorAll('.mg-hl').forEach(b => b.onclick = () => showHighlights(rows[+b.dataset.i].data, again));
 }
 // ===== end highlights =====

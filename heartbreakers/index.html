@@ -631,11 +631,8 @@ body { background: var(--ink) url("data:image/webp;base64,UklGRpJ4AABXRUJQVlA4II
 /* the diamond: side cards pulled in toward the middle (the top and bottom cards sit above and below them) */
 #app .trick.dia .slot.s1 { left: calc(50% - var(--tk, 1) * var(--tcw, 66px) - 3px); right: auto; }
 #app .trick.dia .slot.s3 { right: calc(50% - var(--tk, 1) * var(--tcw, 66px) - 3px); left: auto; }
-/* one row: left girl, across, bottom, right girl; the across card a touch higher, the bottom card a touch lower */
-#app .trick.row .slot.s1 { left: 0; right: auto; top: 50%; translate: 0 -50%; }
-#app .trick.row .slot.s3 { right: 0; left: auto; top: 50%; translate: 0 -50%; }
-#app .trick.row .slot.s2 { right: calc(50% + 4px); left: auto; top: 50%; bottom: auto; translate: 0 -57%; transform-origin: 100% 50%; }
-#app .trick.row .slot.s0 { left: calc(50% + 4px); right: auto; top: 50%; bottom: auto; translate: 0 -43%; transform-origin: 0 50%; }
+/* a squeezed cross: stacking by seat, never by play order, so the across card's top-left corner always shows */
+#app .trick .slot.s2 { z-index: 1; } #app .trick .slot.s1, #app .trick .slot.s3 { z-index: 2; } #app .trick .slot.s0 { z-index: 3; }
 /* ---------- Calculating: why each girl made her move (Kennedy, Nov 10) ---------- */
 .thb.calcb { width: auto; border-radius: 99px; padding: 0 12px; font-family: var(--caps); font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
 .thb.calcb[aria-pressed="true"] { background: rgba(255, 61, 142, .18); border-color: var(--red); color: #ff7ab0; }
@@ -5722,12 +5719,12 @@ function fitOnce() {
   tr.style.setProperty('--tcw', cw + 'px');
   // two ways the four cards fit without covering each other: a plus (3 cards wide, 2 tall) or a diamond (2 wide, 3 tall)
   const fit = () => { const W = tr.clientWidth, H = tr.clientHeight; if (!W || !H) return 1;
-    const plus = Math.min((W - 4) / (3 * cw + 8), (H - 2) / (2 * ch + 6)), dia = Math.min((W - 4) / (2 * cw + 8), (H - 2) / (3 * ch + 4));
-    const row = Math.min((W - 4) / (4 * cw + 20), (H - 2) / (1.16 * ch));   // wide, short tables (phones on their side)
-    const best = Math.max(plus, dia, row);
-    tr.classList.toggle('dia', best === dia && dia > plus);
-    tr.classList.toggle('row', best === row && row > plus && row > dia);
-    return Math.min(1, best); };
+    // Kennedy, Nov 10: always a cross, so each card sits by the girl who played it (a one-row layout was hard to follow).
+    // On short tables the cross squeezes: the bottom card may cover the top card's lower part (never its top-left corner
+    // with the rank and suit), down to 1.5 card heights in all.
+    const plus = Math.min((W - 4) / (3 * cw + 8), (H - 2) / (1.5 * ch)), dia = Math.min((W - 4) / (2 * cw + 8), (H - 2) / (3 * ch + 4));
+    tr.classList.toggle('dia', dia > plus);
+    return Math.min(1, Math.max(plus, dia)); };
   let k = fit();
   // still cramped: the across girl's picture gives up some height (down to 44px) before the cards get small
   const pw2 = $('plate2') && $('plate2').querySelector('.pw');

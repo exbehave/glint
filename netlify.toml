@@ -1,0 +1,8 @@
+# BGC: Heartbreakers lives in its own repository and Netlify project (exbehave/heartbreakers, glint-heartbreakers).
+# This site only forwards glint.haus/heartbreakers/* to it, so the address friends use never changes.
+# The rule is written at deploy time because live and preview forward to different places.
+[build]
+  command = "echo '/heartbreakers/* https://preview--glint-heartbreakers.netlify.app/:splat 200!' > _redirects"
+
+[context.production]
+  command = "echo '/heartbreakers/* https://glint-heartbreakers.netlify.app/:splat 200!' > _redirects"
